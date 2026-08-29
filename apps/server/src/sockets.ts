@@ -3,6 +3,7 @@
  * schema, maps sessions ↔ sockets, and relays RoomManager callbacks to the
  * right rooms. All game rules live in the manager; this file is transport.
  */
+import type { EMOTES } from "@deckxi/shared";
 import {
   clientMessageSchemas,
   type Ack,
@@ -23,6 +24,7 @@ import {
   type Session,
 } from "./rooms.js";
 import { redactEvent, redactLog, type SeqEvent } from "./redact.js";
+import { DEFAULT_LIMITS, TokenBucket, type RateLimits } from "./rateLimit.js";
 
 const roomKey = (roomId: string): string => `room:${roomId}`;
 
@@ -31,7 +33,13 @@ function toAckError(error: unknown): { ok: false; code: ErrorCode; message: stri
   return { ok: false, code: "bad-request", message: "internal error" };
 }
 
-export function registerSockets(io: GameServer, options: RoomManagerOptions = {}): RoomManager {
+export interface SocketOptions {
+  rooms?: RoomManagerOptions | undefined;
+  limits?: Partial<RateLimits> | undefined;
+}
+
+export function registerSockets(io: GameServer, options: SocketOptions = {}): RoomManager {
+  const limits: RateLimits = { ...DEFAULT_LIMITS, ...options.limits };
   const socketBySession = new Map<string, GameSocket>();
 
   const detachRoom = (room: Room): void => {
@@ -71,9 +79,15 @@ export function registerSockets(io: GameServer, options: RoomManagerOptions = {}
     },
   };
 
-  const manager = new RoomManager(observer, options);
+  const manager = new RoomManager(observer, options.rooms);
 
   io.on("connection", (socket) => {
+    const globalBucket = new TokenBucket(limits.global.capacity, limits.global.refillPerSec);
+    const chatBucket = new TokenBucket(limits.chat.capacity, limits.chat.refillPerSec);
+    const reactionBucket = new TokenBucket(
+      limits.reactions.capacity,
+      limits.reactions.refillPerSec,
+    );
     /**
      * Register one message handler: require an ack callback, validate the
      * payload, run, and answer `Ack<T>` — RoomErrors become error acks.
@@ -84,6 +98,10 @@ export function registerSockets(io: GameServer, options: RoomManagerOptions = {}
         (payload, ackRaw) => {
           if (typeof ackRaw !== "function") return;
           const ack = ackRaw as (reply: Ack<T | null>) => void;
+          if (!globalBucket.tryTake()) {
+            ack({ ok: false, code: "rate-limited", message: "slow down" });
+            return;
+          }
           const parsed = clientMessageSchemas[event].safeParse(payload ?? undefined);
           if (!parsed.success) {
             const issue = parsed.error.issues[0];
@@ -202,6 +220,27 @@ export function registerSockets(io: GameServer, options: RoomManagerOptions = {}
 
     on("game:forfeit", () => {
       manager.forfeit(requireSessionId());
+      return null;
+    });
+
+    /** Chat and reactions are open to players and spectators alike. */
+    const chatContext = (): { roomId: string; from: { id: string; name: string } } => {
+      const session = manager.getSession(requireSessionId());
+      if (session === undefined) throw new RoomError("not-in-room");
+      return { roomId: session.roomId, from: { id: session.id, name: session.name } };
+    };
+
+    on("chat:send", (payload: { text: string }) => {
+      const { roomId, from } = chatContext();
+      if (!chatBucket.tryTake()) throw new RoomError("rate-limited", "chat too fast");
+      io.to(roomKey(roomId)).emit("chat:message", { from, text: payload.text, at: Date.now() });
+      return null;
+    });
+
+    on("chat:react", (payload: { emote: (typeof EMOTES)[number] }) => {
+      const { roomId, from } = chatContext();
+      if (!reactionBucket.tryTake()) throw new RoomError("rate-limited", "reactions too fast");
+      io.to(roomKey(roomId)).emit("chat:reaction", { from, emote: payload.emote, at: Date.now() });
       return null;
     });
 

@@ -11,7 +11,7 @@ import {
   type ClientToServerEvents,
   type ServerToClientEvents,
 } from "@deckxi/shared";
-import { registerSockets } from "./sockets.js";
+import { registerSockets, type SocketOptions } from "./sockets.js";
 import type { RoomManager, RoomManagerOptions } from "./rooms.js";
 
 /** Inbound payloads are tiny (commands, chat); anything bigger is abuse. */
@@ -32,6 +32,7 @@ export interface AppOptions {
   corsOrigins?: string[];
   logger?: boolean;
   rooms?: RoomManagerOptions;
+  limits?: SocketOptions["limits"];
 }
 
 export interface App {
@@ -74,7 +75,7 @@ export function buildApp(options: AppOptions = {}): App {
     next();
   });
 
-  const rooms = registerSockets(io, options.rooms);
+  const rooms = registerSockets(io, { rooms: options.rooms, limits: options.limits });
   const reaper = setInterval(() => rooms.reapIdle(), 60_000);
   reaper.unref();
 
