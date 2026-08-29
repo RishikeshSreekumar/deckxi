@@ -1,0 +1,57 @@
+name: Weekly edition update
+
+on:
+  schedule:
+    # Mondays 06:00 UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply form drift
+        id: drift
+        run: |
+          {
+            echo "summary<<EOF"
+            pnpm --silent --filter @deckxi/data update-edition
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Validate updated edition
+        run: pnpm --filter @deckxi/data check
+
+      - name: Open pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: data/weekly-edition-update
+          commit-message: "data: weekly edition form-drift update"
+          title: "Weekly edition update"
+          body: |
+            Automated weekly form drift (`update-edition`, seeded by today's date — reproducible).
+
+            ```
+            ${{ steps.drift.outputs.summary }}
+            ```
+
+            The edition validation + balance report runs in CI on this PR; review the
+            stat diff before merging.
+          labels: task, phase-2
+          delete-branch: true
