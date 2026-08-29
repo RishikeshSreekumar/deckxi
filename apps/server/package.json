@@ -1,0 +1,14 @@
+{
+  "name": "@deckxi/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "node --watch dist/index.js"
+  },
+  "dependencies": {
+    "@deckxi/engine": "workspace:*",
+    "@deckxi/shared": "workspace:*"
+  }
+}

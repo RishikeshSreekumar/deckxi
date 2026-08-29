@@ -1,0 +1,14 @@
+{
+  "name": "@deckxi/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@deckxi/engine": "workspace:*",
+    "@deckxi/shared": "workspace:*",
+    "@deckxi/ui": "workspace:*"
+  }
+}
