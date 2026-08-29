@@ -7,7 +7,8 @@
     "build": "tsc -b",
     "dev": "node --watch dist/index.js",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "loadtest": "node dist/loadtest.js"
   },
   "dependencies": {
     "@deckxi/data": "workspace:*",
