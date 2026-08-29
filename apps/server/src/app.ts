@@ -13,6 +13,7 @@ import {
 } from "@deckxi/shared";
 import { registerSockets, type SocketOptions } from "./sockets.js";
 import type { RoomManager, RoomManagerOptions } from "./rooms.js";
+import { InMemoryMatchStore, type MatchStore } from "./store.js";
 
 /** Inbound payloads are tiny (commands, chat); anything bigger is abuse. */
 export const MAX_MESSAGE_BYTES = 16 * 1024;
@@ -33,6 +34,8 @@ export interface AppOptions {
   logger?: boolean;
   rooms?: RoomManagerOptions;
   limits?: SocketOptions["limits"];
+  /** Match persistence; defaults to in-memory (no DATABASE_URL needed). */
+  store?: MatchStore;
 }
 
 export interface App {
@@ -46,12 +49,20 @@ export interface App {
 
 export function buildApp(options: AppOptions = {}): App {
   const fastify = Fastify({ logger: options.logger ?? false });
+  const store = options.store ?? new InMemoryMatchStore();
 
-  fastify.get("/healthz", async () => ({
-    ok: true,
-    protocolVersion: PROTOCOL_VERSION,
-    uptimeSeconds: Math.round(process.uptime()),
-  }));
+  fastify.get("/healthz", async (_request, reply) => {
+    try {
+      await store.ping();
+    } catch {
+      return reply.status(503).send({ ok: false, db: "unreachable" });
+    }
+    return {
+      ok: true,
+      protocolVersion: PROTOCOL_VERSION,
+      uptimeSeconds: Math.round(process.uptime()),
+    };
+  });
 
   const io: GameServer = new Server(fastify.server, {
     maxHttpBufferSize: MAX_MESSAGE_BYTES,
@@ -75,7 +86,10 @@ export function buildApp(options: AppOptions = {}): App {
     next();
   });
 
-  const rooms = registerSockets(io, { rooms: options.rooms, limits: options.limits });
+  const rooms = registerSockets(io, {
+    rooms: { store, ...options.rooms },
+    limits: options.limits,
+  });
   const reaper = setInterval(() => rooms.reapIdle(), 60_000);
   reaper.unref();
 
@@ -97,6 +111,7 @@ export function buildApp(options: AppOptions = {}): App {
       io.disconnectSockets(true);
       await io.close();
       await fastify.close();
+      await store.close();
     },
   };
 }

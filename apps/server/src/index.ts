@@ -16,8 +16,13 @@ export { parseEnv } from "./env.js";
 const isMain = process.argv[1] !== undefined && import.meta.url.endsWith(process.argv[1]);
 
 if (isMain) {
+  const { createStore } = await import("./db/index.js");
   const env = parseEnv();
-  const app = buildApp({ corsOrigins: env.corsOrigins, logger: true });
+  const app = buildApp({
+    corsOrigins: env.corsOrigins,
+    logger: true,
+    store: createStore(env.databaseUrl),
+  });
   const port = await app.listen(env.port, env.host);
   app.fastify.log.info(`${serverInfo()} listening on :${port}`);
 

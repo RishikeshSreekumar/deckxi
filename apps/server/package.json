@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "dev": "node --watch dist/index.js"
+    "dev": "node --watch dist/index.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
     "@deckxi/data": "workspace:*",

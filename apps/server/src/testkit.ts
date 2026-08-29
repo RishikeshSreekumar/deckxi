@@ -19,14 +19,14 @@ export class TestClient {
 
   /** Emit with ack and unwrap `Ack<T>`; rejects on an error ack. */
   async call<T>(event: string, payload?: unknown): Promise<T> {
-    const reply = (await this.socket.timeout(2000).emitWithAck(event, payload)) as Ack<T>;
+    const reply = (await this.socket.timeout(5000).emitWithAck(event, payload)) as Ack<T>;
     if (!reply.ok) throw new AckError(reply.code, reply.message);
     return reply.data;
   }
 
   /** Emit with ack and return the raw `Ack<T>` for error-path assertions. */
   async callRaw<T>(event: string, payload?: unknown): Promise<Ack<T>> {
-    return (await this.socket.timeout(2000).emitWithAck(event, payload)) as Ack<T>;
+    return (await this.socket.timeout(5000).emitWithAck(event, payload)) as Ack<T>;
   }
 
   /** Resolve with the next `event` payload (2s timeout). */

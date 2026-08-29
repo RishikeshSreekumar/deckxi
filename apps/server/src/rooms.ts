@@ -23,6 +23,7 @@ import { CURRENT_EDITION_ID, loadEdition } from "@deckxi/data";
 import type { ErrorCode, RoomPhase, RoomSettings, RoomView, TurnTimerView } from "@deckxi/shared";
 import { generateJoinCode } from "./codes.js";
 import type { SeqEvent } from "./redact.js";
+import { InMemoryMatchStore, type MatchStore } from "./store.js";
 
 export class RoomError extends Error {
   constructor(
@@ -96,6 +97,8 @@ export interface RoomManagerOptions {
   turnTimerMsOverride?: number;
   /** How long a mid-game player may stay disconnected before forfeiting. */
   disconnectGraceMs?: number;
+  /** Where event logs and match results are persisted (default: in-memory). */
+  store?: MatchStore;
 }
 
 export const DEFAULT_SETTINGS: RoomSettings = {
@@ -121,6 +124,7 @@ export class RoomManager {
   private readonly turnTimerMsOverride: number | undefined;
   private readonly disconnectGraceMs: number;
   private readonly graceTimers = new Map<string, NodeJS.Timeout>();
+  private readonly store: MatchStore;
 
   constructor(
     private readonly observer: RoomsObserver,
@@ -131,6 +135,7 @@ export class RoomManager {
     this.maxSpectators = options.maxSpectators ?? DEFAULT_MAX_SPECTATORS;
     this.turnTimerMsOverride = options.turnTimerMsOverride;
     this.disconnectGraceMs = options.disconnectGraceMs ?? DEFAULT_DISCONNECT_GRACE_MS;
+    this.store = options.store ?? new InMemoryMatchStore();
   }
 
   get roomCount(): number {
@@ -327,6 +332,21 @@ export class RoomManager {
     };
     room.phase = "playing";
     this.touch(room);
+
+    const game = room.game;
+    this.persist("createMatch", async () => {
+      await this.store.createMatch({
+        matchId: game.matchId,
+        roomId: room.id,
+        roomCode: room.code,
+        editionId: game.editionId,
+        gameMode: room.settings.gameMode,
+        startedAt: new Date(game.startedAt),
+        players: room.players.map((p) => ({ sessionId: p.id, name: p.name, seat: p.seat })),
+      });
+      await this.store.appendEvents(game.matchId, game.log);
+    });
+
     this.observer.roomState(room);
     this.observer.gameEvents(room, room.game.log);
     this.scheduleTurn(room);
@@ -375,16 +395,33 @@ export class RoomManager {
     game.log.push(...appended);
     game.state = reduceAll(events, game.state);
     this.touch(room);
+    this.persist("appendEvents", () => this.store.appendEvents(game.matchId, appended));
     this.observer.gameEvents(room, appended);
 
     if (game.state.phase === "finished") {
       this.clearTurn(game);
       room.phase = "results";
+      const ended = appended.find((e) => e.event.type === "GAME_ENDED")?.event;
+      this.persist("finishMatch", () =>
+        this.store.finishMatch(game.matchId, {
+          finishedAt: new Date(),
+          winnerSessionId: game.state.winner ?? "",
+          endReason: ended?.type === "GAME_ENDED" ? ended.reason : "unknown",
+          rounds: game.state.round - 1,
+        }),
+      );
       this.observer.timer(room, null);
       this.observer.roomState(room);
     } else {
       this.scheduleTurn(room);
     }
+  }
+
+  /** Persistence is fire-and-forget: a store outage must never stall play. */
+  private persist(label: string, write: () => Promise<void>): void {
+    write().catch((error: unknown) => {
+      console.error(`[store] ${label} failed:`, error);
+    });
   }
 
   // -------------------------------------------------------------------------
