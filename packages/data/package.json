@@ -9,7 +9,8 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./editions/*": "./editions/*"
   },
   "scripts": {
     "build": "tsc -b",

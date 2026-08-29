@@ -22,3 +22,7 @@ dist/
 
 # typescript incremental build info
 *.tsbuildinfo
+
+# playwright
+test-results/
+playwright-report/
