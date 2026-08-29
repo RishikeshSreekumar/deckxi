@@ -4,5 +4,6 @@
  */
 export const APP_NAME = "DeckXI";
 
+export * from "./avatars.js";
 export * from "./edition.js";
 export * from "./protocol.js";

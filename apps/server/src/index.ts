@@ -22,6 +22,12 @@ if (isMain) {
     corsOrigins: env.corsOrigins,
     logger: true,
     store: createStore(env.databaseUrl),
+    auth: {
+      databaseUrl: env.databaseUrl,
+      ...(env.authSecret !== undefined ? { secret: env.authSecret } : {}),
+      baseURL: env.authUrl ?? `http://localhost:${env.port}`,
+      google: env.google,
+    },
   });
   const port = await app.listen(env.port, env.host);
   app.fastify.log.info(`${serverInfo()} listening on :${port}`);

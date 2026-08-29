@@ -4,13 +4,16 @@
  */
 import pg from "pg";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
-import { eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { SeqEvent } from "../redact.js";
 import {
+  DELETED_PLAYER_NAME,
   InMemoryMatchStore,
   type MatchRecord,
   type MatchResult,
   type MatchStore,
+  type UserMatchSummary,
+  type UserStats,
 } from "../store.js";
 import { matchEvents, matchPlayers, matches } from "./schema.js";
 
@@ -36,6 +39,7 @@ export class PostgresMatchStore implements MatchStore {
       record.players.map((p) => ({
         matchId: record.matchId,
         sessionId: p.sessionId,
+        userId: p.userId,
         name: p.name,
         seat: p.seat,
       })),
@@ -64,6 +68,108 @@ export class PostgresMatchStore implements MatchStore {
         rounds: result.rounds,
       })
       .where(eq(matches.id, matchId));
+  }
+
+  async listUserMatches(userId: string, limit = 50): Promise<UserMatchSummary[]> {
+    const mine = await this.db
+      .select({
+        matchId: matches.id,
+        roomCode: matches.roomCode,
+        editionId: matches.editionId,
+        gameMode: matches.gameMode,
+        startedAt: matches.startedAt,
+        finishedAt: matches.finishedAt,
+        rounds: matches.rounds,
+        endReason: matches.endReason,
+        winnerSessionId: matches.winnerSessionId,
+        mySessionId: matchPlayers.sessionId,
+      })
+      .from(matchPlayers)
+      .innerJoin(matches, eq(matches.id, matchPlayers.matchId))
+      .where(eq(matchPlayers.userId, userId))
+      .orderBy(desc(matches.startedAt))
+      .limit(limit);
+    if (mine.length === 0) return [];
+
+    const ids = mine.map((m) => m.matchId);
+    const everyone = await this.db
+      .select({
+        matchId: matchPlayers.matchId,
+        name: matchPlayers.name,
+        userId: matchPlayers.userId,
+        seat: matchPlayers.seat,
+      })
+      .from(matchPlayers)
+      .where(inArray(matchPlayers.matchId, ids))
+      .orderBy(matchPlayers.seat);
+
+    return mine.map((m) => ({
+      matchId: m.matchId,
+      roomCode: m.roomCode,
+      editionId: m.editionId,
+      gameMode: m.gameMode,
+      startedAt: m.startedAt,
+      finishedAt: m.finishedAt,
+      rounds: m.rounds,
+      endReason: m.endReason,
+      players: everyone
+        .filter((p) => p.matchId === m.matchId)
+        .map((p) => ({ name: p.name, userId: p.userId })),
+      outcome:
+        m.finishedAt === null ? "unfinished" : m.winnerSessionId === m.mySessionId ? "won" : "lost",
+    }));
+  }
+
+  async userStats(userId: string): Promise<UserStats> {
+    const [totals] = await this.db
+      .select({
+        games: sql<number>`count(*)::int`,
+        wins: sql<number>`count(*) filter (where ${matches.winnerSessionId} = ${matchPlayers.sessionId})::int`,
+      })
+      .from(matchPlayers)
+      .innerJoin(matches, eq(matches.id, matchPlayers.matchId))
+      .where(eq(matchPlayers.userId, userId));
+
+    const [favourite] = await this.db
+      .select({ stat: sql<string>`${matchEvents.payload}->>'stat'` })
+      .from(matchEvents)
+      .innerJoin(
+        matchPlayers,
+        and(
+          eq(matchPlayers.matchId, matchEvents.matchId),
+          sql`${matchPlayers.sessionId} = ${matchEvents.payload}->>'playerId'`,
+        ),
+      )
+      .where(
+        and(
+          eq(matchPlayers.userId, userId),
+          eq(matchEvents.type, "STAT_SELECTED"),
+          sql`(${matchEvents.payload}->>'auto')::boolean = false`,
+        ),
+      )
+      .groupBy(sql`${matchEvents.payload}->>'stat'`)
+      .orderBy(sql`count(*) desc`)
+      .limit(1);
+
+    return {
+      games: totals?.games ?? 0,
+      wins: totals?.wins ?? 0,
+      favouriteStat: favourite?.stat ?? null,
+    };
+  }
+
+  async reassignUser(fromUserId: string, toUserId: string): Promise<void> {
+    await this.db
+      .update(matchPlayers)
+      .set({ userId: toUserId })
+      .where(eq(matchPlayers.userId, fromUserId));
+  }
+
+  async anonymizeUser(userId: string): Promise<void> {
+    await this.db
+      .update(matchPlayers)
+      .set({ userId: null, name: DELETED_PLAYER_NAME })
+      .where(eq(matchPlayers.userId, userId));
   }
 
   async ping(): Promise<void> {

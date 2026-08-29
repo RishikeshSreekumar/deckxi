@@ -1,10 +1,13 @@
 /**
  * Drizzle schema for match persistence. Three tables:
  *  - matches: one row per game (result columns filled on finish)
- *  - match_players: who sat where (session ids until Phase 6 adds users)
+ *  - match_players: who sat where (room session ids, plus the user behind them)
  *  - match_events: the full engine event log, one row per event
  */
 import { integer, jsonb, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { user } from "./auth-schema.js";
+
+export * from "./auth-schema.js";
 
 export const matches = pgTable("matches", {
   id: uuid("id").primaryKey(),
@@ -26,6 +29,8 @@ export const matchPlayers = pgTable(
       .notNull()
       .references(() => matches.id, { onDelete: "cascade" }),
     sessionId: text("session_id").notNull(),
+    /** The account behind the seat; null for pre-auth guests and bots. */
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
     name: text("name").notNull(),
     seat: integer("seat").notNull(),
   },

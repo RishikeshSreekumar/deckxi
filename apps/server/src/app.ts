@@ -1,11 +1,12 @@
 /**
- * Server assembly: Fastify (HTTP: health, future REST) + Socket.IO (realtime)
- * sharing one listener. The socket handshake enforces protocol version and
- * assigns a guest identity (session tokens arrive in Phase 6).
+ * Server assembly: Fastify (HTTP: health, auth, profile REST) + Socket.IO
+ * (realtime) sharing one listener. The socket handshake enforces protocol
+ * version and resolves the better-auth session cookie into a user identity;
+ * connections without a session still work as anonymous one-offs.
  */
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import cors from "@fastify/cors";
 import { Server, type Socket } from "socket.io";
-import { randomUUID } from "node:crypto";
 import {
   PROTOCOL_VERSION,
   type ClientToServerEvents,
@@ -14,13 +15,21 @@ import {
 import { registerSockets, type SocketOptions } from "./sockets.js";
 import type { RoomManager, RoomManagerOptions } from "./rooms.js";
 import { InMemoryMatchStore, type MatchStore } from "./store.js";
+import {
+  createAuth,
+  toWebHeaders,
+  userFromHeaders,
+  type Auth,
+  type MagicLinkMail,
+} from "./auth.js";
 
 /** Inbound payloads are tiny (commands, chat); anything bigger is abuse. */
 export const MAX_MESSAGE_BYTES = 16 * 1024;
 
 export interface SocketData {
-  /** Anonymous guest identity for this connection (Phase 6 swaps in users). */
-  guestId: string;
+  /** Signed-in user behind this connection; null for cookie-less clients. */
+  userId: string | null;
+  userName: string | null;
   /** Room-scoped session this socket is attached to, once joined. */
   sessionId: string | null;
   roomId: string | null;
@@ -29,6 +38,17 @@ export interface SocketData {
 export type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents, never, SocketData>;
 export type GameServer = Server<ClientToServerEvents, ServerToClientEvents, never, SocketData>;
 
+export interface AuthOptions {
+  /** Postgres for real deployments; omitted → in-memory (dev/tests). */
+  databaseUrl?: string | undefined;
+  secret?: string;
+  /** The server's public URL (OAuth/magic-link callbacks build on it). */
+  baseURL?: string;
+  google?: { clientId: string; clientSecret: string } | undefined;
+  /** Magic-link delivery; dev default logs the URL. */
+  sendMagicLink?: (mail: MagicLinkMail) => void | Promise<void>;
+}
+
 export interface AppOptions {
   corsOrigins?: string[];
   logger?: boolean;
@@ -36,20 +56,45 @@ export interface AppOptions {
   limits?: SocketOptions["limits"];
   /** Match persistence; defaults to in-memory (no DATABASE_URL needed). */
   store?: MatchStore;
+  auth?: AuthOptions;
 }
 
 export interface App {
   fastify: FastifyInstance;
   io: GameServer;
   rooms: RoomManager;
+  auth: Auth;
   /** Bind and return the actual port (pass 0 for an ephemeral test port). */
   listen(port: number, host?: string): Promise<number>;
   close(): Promise<void>;
 }
 
+/** Dev-only fallback; real deployments must set BETTER_AUTH_SECRET. */
+const DEV_SECRET = "deckxi-dev-secret-not-for-production";
+
 export function buildApp(options: AppOptions = {}): App {
   const fastify = Fastify({ logger: options.logger ?? false });
   const store = options.store ?? new InMemoryMatchStore();
+  const corsOrigins = options.corsOrigins ?? ["http://localhost:5173"];
+
+  const authBundle = createAuth({
+    databaseUrl: options.auth?.databaseUrl,
+    secret: options.auth?.secret ?? DEV_SECRET,
+    baseURL: options.auth?.baseURL ?? "http://localhost:3001",
+    trustedOrigins: corsOrigins,
+    google: options.auth?.google,
+    ...(options.auth?.sendMagicLink !== undefined
+      ? { sendMagicLink: options.auth.sendMagicLink }
+      : {}),
+    store,
+  });
+  const auth = authBundle.auth;
+
+  void fastify.register(cors, {
+    origin: corsOrigins,
+    credentials: true,
+    methods: ["GET", "POST", "PATCH", "DELETE"],
+  });
 
   fastify.get("/healthz", async (_request, reply) => {
     try {
@@ -64,26 +109,95 @@ export function buildApp(options: AppOptions = {}): App {
     };
   });
 
+  // ---------------------------------------------------------------------
+  // better-auth: every /api/auth/* route is handled by its fetch handler.
+  // ---------------------------------------------------------------------
+  fastify.route({
+    method: ["GET", "POST"],
+    url: "/api/auth/*",
+    handler: async (request, reply) => {
+      const url = new URL(request.url, `http://${request.headers.host ?? "localhost"}`);
+      const response = await auth.handler(
+        new Request(url, {
+          method: request.method,
+          headers: toWebHeaders(request.headers),
+          ...(request.body != null ? { body: JSON.stringify(request.body) } : {}),
+        }),
+      );
+      reply.status(response.status);
+      response.headers.forEach((value, key) => {
+        // Set-Cookie must not be comma-joined; handled separately below.
+        if (key.toLowerCase() !== "set-cookie") void reply.header(key, value);
+      });
+      const cookies = response.headers.getSetCookie();
+      if (cookies.length > 0) void reply.header("set-cookie", cookies);
+      return reply.send(response.body !== null ? await response.text() : "");
+    },
+  });
+
+  // ---------------------------------------------------------------------
+  // Profile REST — session-cookie authenticated.
+  // ---------------------------------------------------------------------
+  const requireUser = async (request: FastifyRequest) =>
+    await userFromHeaders(auth, request.headers);
+
+  fastify.get("/api/me", async (request, reply) => {
+    const user = await requireUser(request);
+    if (user === null) return reply.status(401).send({ error: "not signed in" });
+    const stats = await store.userStats(user.id);
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        image: user.image,
+        isAnonymous: user.isAnonymous,
+        // Guests carry a placeholder email — never surface it.
+        email: user.isAnonymous ? null : user.email,
+      },
+      stats,
+    };
+  });
+
+  fastify.get("/api/me/matches", async (request, reply) => {
+    const user = await requireUser(request);
+    if (user === null) return reply.status(401).send({ error: "not signed in" });
+    return { matches: await store.listUserMatches(user.id) };
+  });
+
   const io: GameServer = new Server(fastify.server, {
     maxHttpBufferSize: MAX_MESSAGE_BYTES,
     cors: {
-      origin: options.corsOrigins ?? ["http://localhost:5173"],
+      origin: corsOrigins,
       methods: ["GET", "POST"],
+      credentials: true,
     },
   });
 
   // Handshake: reject clients speaking a different protocol version so a
-  // stale tab fails loudly instead of desyncing mid-game.
+  // stale tab fails loudly instead of desyncing mid-game; then resolve the
+  // session cookie (if any) into the user identity behind this socket.
   io.use((socket, next) => {
     const version: unknown = socket.handshake.auth["protocolVersion"];
     if (version !== PROTOCOL_VERSION) {
       next(new Error(`protocol version mismatch: server speaks v${PROTOCOL_VERSION}`));
       return;
     }
-    socket.data.guestId = randomUUID();
+    socket.data.userId = null;
+    socket.data.userName = null;
     socket.data.sessionId = null;
     socket.data.roomId = null;
-    next();
+    userFromHeaders(auth, socket.handshake.headers)
+      .then((user) => {
+        if (user !== null) {
+          socket.data.userId = user.id;
+          socket.data.userName = user.name;
+        }
+        next();
+      })
+      .catch(() => {
+        // Auth store hiccup — let them play as a one-off anonymous client.
+        next();
+      });
   });
 
   const rooms = registerSockets(io, {
@@ -97,6 +211,7 @@ export function buildApp(options: AppOptions = {}): App {
     fastify,
     io,
     rooms,
+    auth,
     async listen(port, host = "127.0.0.1") {
       await fastify.listen({ port, host });
       const address = fastify.server.address();
@@ -111,6 +226,7 @@ export function buildApp(options: AppOptions = {}): App {
       io.disconnectSockets(true);
       await io.close();
       await fastify.close();
+      await authBundle.close();
       await store.close();
     },
   };

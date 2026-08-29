@@ -150,13 +150,22 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
 
     on("room:create", (payload: { name: string; settings?: Partial<RoomSettings> }) => {
       if (socket.data.sessionId !== null) throw new RoomError("already-in-room");
-      const { room, session } = manager.createRoom(payload.name, payload.settings ?? {});
+      const { room, session } = manager.createRoom(
+        payload.name,
+        payload.settings ?? {},
+        socket.data.userId,
+      );
       return attach(room, session);
     });
 
     on("room:join", (payload: { code: string; name: string; spectator?: boolean }) => {
       if (socket.data.sessionId !== null) throw new RoomError("already-in-room");
-      const { room, session } = manager.joinRoom(payload.code, payload.name, payload.spectator);
+      const { room, session } = manager.joinRoom(
+        payload.code,
+        payload.name,
+        payload.spectator,
+        socket.data.userId,
+      );
       return attach(room, session);
     });
 

@@ -9,8 +9,9 @@ import { buildApp, type App, type AppOptions } from "./app.js";
 export interface TestServer {
   app: App;
   url: string;
-  /** Connect a new client (protocol handshake included). */
-  client(): TestClient;
+  /** Connect a new client (protocol handshake included). Pass a cookie
+   *  header to connect as a signed-in user. */
+  client(headers?: Record<string, string>): TestClient;
   close(): Promise<void>;
 }
 
@@ -78,10 +79,11 @@ export async function startTestServer(options: AppOptions = {}): Promise<TestSer
   return {
     app,
     url,
-    client() {
+    client(headers?: Record<string, string>) {
       const socket = connect(url, {
         transports: ["websocket"],
         auth: { protocolVersion: PROTOCOL_VERSION },
+        ...(headers !== undefined ? { extraHeaders: headers } : {}),
       });
       const client = new TestClient(socket);
       clients.push(client);

@@ -38,6 +38,9 @@ export class RoomError extends Error {
 export interface Session {
   /** Globally unique; doubles as the engine PlayerId once a game starts. */
   id: string;
+  /** The signed-in account (guest or full) behind this seat; null for
+   *  cookie-less connections (bots, pre-auth clients). */
+  userId: string | null;
   name: string;
   roomId: string;
   spectator: boolean;
@@ -150,7 +153,11 @@ export class RoomManager {
     return this.sessions.get(sessionId);
   }
 
-  createRoom(name: string, settings?: Partial<RoomSettings>): { room: Room; session: Session } {
+  createRoom(
+    name: string,
+    settings?: Partial<RoomSettings>,
+    userId: string | null = null,
+  ): { room: Room; session: Session } {
     if (this.rooms.size >= this.maxRooms) {
       throw new RoomError("server-full", "no capacity for new rooms");
     }
@@ -167,13 +174,18 @@ export class RoomManager {
     };
     this.rooms.set(room.id, room);
     this.roomIdByCode.set(room.code, room.id);
-    const session = this.addPlayer(room, name);
+    const session = this.addPlayer(room, name, userId);
     room.hostId = session.id;
     this.observer.roomState(room);
     return { room, session };
   }
 
-  joinRoom(code: string, name: string, wantsSpectator = false): { room: Room; session: Session } {
+  joinRoom(
+    code: string,
+    name: string,
+    wantsSpectator = false,
+    userId: string | null = null,
+  ): { room: Room; session: Session } {
     const roomId = this.roomIdByCode.get(code);
     const room = roomId === undefined ? undefined : this.rooms.get(roomId);
     if (room === undefined) throw new RoomError("room-not-found", `no room with code ${code}`);
@@ -185,7 +197,9 @@ export class RoomManager {
       throw new RoomError("room-full", "spectator capacity reached");
     }
 
-    const session = spectator ? this.addSpectator(room, name) : this.addPlayer(room, name);
+    const session = spectator
+      ? this.addSpectator(room, name, userId)
+      : this.addPlayer(room, name, userId);
     this.touch(room);
     this.observer.roomState(room);
     return { room, session };
@@ -342,7 +356,12 @@ export class RoomManager {
         editionId: game.editionId,
         gameMode: room.settings.gameMode,
         startedAt: new Date(game.startedAt),
-        players: room.players.map((p) => ({ sessionId: p.id, name: p.name, seat: p.seat })),
+        players: room.players.map((p) => ({
+          sessionId: p.id,
+          userId: p.userId,
+          name: p.name,
+          seat: p.seat,
+        })),
       });
       await this.store.appendEvents(game.matchId, game.log);
     });
@@ -521,11 +540,12 @@ export class RoomManager {
     this.observer.roomClosed(room, reason);
   }
 
-  private addPlayer(room: Room, name: string): Session {
+  private addPlayer(room: Room, name: string, userId: string | null = null): Session {
     if (room.phase !== "lobby") throw new RoomError("not-in-lobby");
     if (room.players.length >= MAX_PLAYERS) throw new RoomError("room-full");
     const session: Session = {
       id: randomUUID(),
+      userId,
       name,
       roomId: room.id,
       spectator: false,
@@ -540,9 +560,10 @@ export class RoomManager {
     return session;
   }
 
-  private addSpectator(room: Room, name: string): Session {
+  private addSpectator(room: Room, name: string, userId: string | null = null): Session {
     const session: Session = {
       id: randomUUID(),
+      userId,
       name,
       roomId: room.id,
       spectator: true,
