@@ -66,6 +66,9 @@ export function registerSockets(io: GameServer, options: RoomManagerOptions = {}
         );
       }
     },
+    timer(room, timer) {
+      io.to(roomKey(room.id)).emit("game:timer", timer);
+    },
   };
 
   const manager = new RoomManager(observer, options);

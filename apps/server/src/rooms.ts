@@ -20,7 +20,7 @@ import {
   type StatDefinition,
 } from "@deckxi/engine";
 import { CURRENT_EDITION_ID, loadEdition } from "@deckxi/data";
-import type { ErrorCode, RoomPhase, RoomSettings, RoomView } from "@deckxi/shared";
+import type { ErrorCode, RoomPhase, RoomSettings, RoomView, TurnTimerView } from "@deckxi/shared";
 import { generateJoinCode } from "./codes.js";
 import type { SeqEvent } from "./redact.js";
 
@@ -56,6 +56,9 @@ export interface GameInstance {
   /** Full, unredacted event log — server truth; redacted per viewer on send. */
   log: SeqEvent[];
   startedAt: number;
+  /** Epoch ms when the current leader is auto-played; null when finished. */
+  turnDeadline: number | null;
+  turnTimer: NodeJS.Timeout | null;
 }
 
 export interface Room {
@@ -80,6 +83,8 @@ export interface RoomsObserver {
   roomClosed(room: Room, reason: RoomCloseReason): void;
   /** New engine events appended — transport redacts per viewer and delivers. */
   gameEvents(room: Room, events: SeqEvent[]): void;
+  /** Turn timer armed (or cleared, when the game ends). */
+  timer(room: Room, timer: TurnTimerView | null): void;
 }
 
 export interface RoomManagerOptions {
@@ -87,6 +92,8 @@ export interface RoomManagerOptions {
   /** Rooms with no activity for this long are reaped. */
   idleTimeoutMs?: number;
   maxSpectators?: number;
+  /** Test hook: fixed turn length instead of the room's setting. */
+  turnTimerMsOverride?: number;
 }
 
 export const DEFAULT_SETTINGS: RoomSettings = {
@@ -108,6 +115,7 @@ export class RoomManager {
   private readonly maxRooms: number;
   private readonly idleTimeoutMs: number;
   private readonly maxSpectators: number;
+  private readonly turnTimerMsOverride: number | undefined;
 
   constructor(
     private readonly observer: RoomsObserver,
@@ -116,6 +124,7 @@ export class RoomManager {
     this.maxRooms = options.maxRooms ?? DEFAULT_MAX_ROOMS;
     this.idleTimeoutMs = options.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS;
     this.maxSpectators = options.maxSpectators ?? DEFAULT_MAX_SPECTATORS;
+    this.turnTimerMsOverride = options.turnTimerMsOverride;
   }
 
   get roomCount(): number {
@@ -257,11 +266,14 @@ export class RoomManager {
       state: reduceAll([started]),
       log: [{ seq: 0, event: started }],
       startedAt: Date.now(),
+      turnDeadline: null,
+      turnTimer: null,
     };
     room.phase = "playing";
     this.touch(room);
     this.observer.roomState(room);
     this.observer.gameEvents(room, room.game.log);
+    this.scheduleTurn(room);
   }
 
   selectStat(sessionId: string, stat: string): void {
@@ -279,6 +291,7 @@ export class RoomManager {
     const { room, session } = this.requirePlayer(sessionId);
     if (room.hostId !== session.id) throw new RoomError("not-host");
     if (room.phase !== "results") throw new RoomError("game-not-running", "no finished game");
+    if (room.game !== null) this.clearTurn(room.game);
     room.game = null;
     room.phase = "lobby";
     for (const p of room.players) p.ready = false;
@@ -309,9 +322,56 @@ export class RoomManager {
     this.observer.gameEvents(room, appended);
 
     if (game.state.phase === "finished") {
+      this.clearTurn(game);
       room.phase = "results";
+      this.observer.timer(room, null);
       this.observer.roomState(room);
+    } else {
+      this.scheduleTurn(room);
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Turn timers — the server auto-plays leaders who run out of time, so a
+  // stalled (or disconnected) player never blocks the table.
+  // -------------------------------------------------------------------------
+
+  protected scheduleTurn(room: Room): void {
+    const game = room.game;
+    if (game === null || room.phase !== "playing") return;
+    this.clearTurn(game);
+    const durationMs = this.turnTimerMsOverride ?? room.settings.turnTimerSeconds * 1000;
+    const leader = game.state.leader;
+    const deadline = Date.now() + durationMs;
+    game.turnDeadline = deadline;
+    game.turnTimer = setTimeout(() => this.onTurnExpired(room.id, leader, deadline), durationMs);
+    game.turnTimer.unref();
+    this.observer.timer(room, { playerId: leader, deadline });
+  }
+
+  private onTurnExpired(roomId: string, leader: string, deadline: number): void {
+    const room = this.rooms.get(roomId);
+    const game = room?.game;
+    if (room === undefined || game === null || game === undefined) return;
+    // Stale timer (a command landed and rescheduled, or the game ended).
+    if (
+      room.phase !== "playing" ||
+      game.turnDeadline !== deadline ||
+      game.state.leader !== leader
+    ) {
+      return;
+    }
+    try {
+      this.applyEngineCommand(room, { type: "AUTO_PLAY", playerId: leader });
+    } catch {
+      // The engine refused (e.g. a race with game end); nothing to do.
+    }
+  }
+
+  protected clearTurn(game: GameInstance): void {
+    if (game.turnTimer !== null) clearTimeout(game.turnTimer);
+    game.turnTimer = null;
+    game.turnDeadline = null;
   }
 
   /** Reap rooms idle past the timeout. Returns how many were closed. */
@@ -352,6 +412,7 @@ export class RoomManager {
   }
 
   protected closeRoom(room: Room, reason: RoomCloseReason): void {
+    if (room.game !== null) this.clearTurn(room.game);
     this.rooms.delete(room.id);
     this.roomIdByCode.delete(room.code);
     for (const s of [...room.players, ...room.spectators]) this.sessions.delete(s.id);
