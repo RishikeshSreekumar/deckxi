@@ -15,6 +15,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@deckxi/shared": "workspace:*"
+    "@deckxi/shared": "workspace:*",
+    "zod": "^4.4.3"
   }
 }

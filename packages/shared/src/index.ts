@@ -5,3 +5,5 @@
 export const PROTOCOL_VERSION = 1;
 
 export const APP_NAME = "DeckXI";
+
+export * from "./edition.js";
