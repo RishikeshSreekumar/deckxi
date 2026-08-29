@@ -11,6 +11,8 @@ import {
   type ClientToServerEvents,
   type ServerToClientEvents,
 } from "@deckxi/shared";
+import { registerSockets } from "./sockets.js";
+import type { RoomManager, RoomManagerOptions } from "./rooms.js";
 
 /** Inbound payloads are tiny (commands, chat); anything bigger is abuse. */
 export const MAX_MESSAGE_BYTES = 16 * 1024;
@@ -29,11 +31,13 @@ export type GameServer = Server<ClientToServerEvents, ServerToClientEvents, neve
 export interface AppOptions {
   corsOrigins?: string[];
   logger?: boolean;
+  rooms?: RoomManagerOptions;
 }
 
 export interface App {
   fastify: FastifyInstance;
   io: GameServer;
+  rooms: RoomManager;
   /** Bind and return the actual port (pass 0 for an ephemeral test port). */
   listen(port: number, host?: string): Promise<number>;
   close(): Promise<void>;
@@ -70,9 +74,14 @@ export function buildApp(options: AppOptions = {}): App {
     next();
   });
 
+  const rooms = registerSockets(io, options.rooms);
+  const reaper = setInterval(() => rooms.reapIdle(), 60_000);
+  reaper.unref();
+
   return {
     fastify,
     io,
+    rooms,
     async listen(port, host = "127.0.0.1") {
       await fastify.listen({ port, host });
       const address = fastify.server.address();
@@ -82,6 +91,8 @@ export function buildApp(options: AppOptions = {}): App {
       return address.port;
     },
     async close() {
+      clearInterval(reaper);
+      rooms.closeAll();
       io.disconnectSockets(true);
       await io.close();
       await fastify.close();

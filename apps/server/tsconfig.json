@@ -5,6 +5,10 @@
     "outDir": "dist"
   },
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts"],
-  "references": [{ "path": "../../packages/shared" }, { "path": "../../packages/engine" }]
+  "exclude": ["src/**/*.test.ts", "src/testkit.ts"],
+  "references": [
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/engine" },
+    { "path": "../../packages/data" }
+  ]
 }
