@@ -37,3 +37,6 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      - name: Edition validation + balance report
+        run: pnpm --filter @deckxi/data check
