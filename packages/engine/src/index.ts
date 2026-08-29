@@ -9,3 +9,5 @@ export { reduce, reduceAll, nextActivePlayer } from "./reducer.js";
 export { mulberry32, randomInt, shuffle, type Rng } from "./rng.js";
 export { initGame, InvalidConfigError } from "./setup.js";
 export { replay, replayUntil } from "./replay.js";
+export { applyCommand } from "./apply.js";
+export { beats, chooseBestStat, normalizedValue, statValue, worstValue } from "./stats.js";
