@@ -6,3 +6,6 @@ export const ENGINE_NAME = "@deckxi/engine";
 
 export * from "./types.js";
 export { reduce, reduceAll, nextActivePlayer } from "./reducer.js";
+export { mulberry32, randomInt, shuffle, type Rng } from "./rng.js";
+export { initGame, InvalidConfigError } from "./setup.js";
+export { replay, replayUntil } from "./replay.js";
