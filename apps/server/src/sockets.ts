@@ -22,7 +22,7 @@ import {
   type RoomsObserver,
   type Session,
 } from "./rooms.js";
-import { redactEvent, type SeqEvent } from "./redact.js";
+import { redactEvent, redactLog, type SeqEvent } from "./redact.js";
 
 const roomKey = (roomId: string): string => `room:${roomId}`;
 
@@ -142,6 +142,33 @@ export function registerSockets(io: GameServer, options: RoomManagerOptions = {}
       return attach(room, session);
     });
 
+    on("room:resume", (payload: { roomId: string; resumeToken: string }) => {
+      if (socket.data.sessionId !== null) throw new RoomError("already-in-room");
+      const { room, session } = manager.resume(payload.roomId, payload.resumeToken);
+
+      // A zombie socket for the same session (e.g. a half-dead tab) is
+      // superseded: detach it so its eventual disconnect can't forfeit us.
+      const previous = socketBySession.get(session.id);
+      if (previous !== undefined && previous !== socket) {
+        previous.data.sessionId = null;
+        previous.data.roomId = null;
+        void previous.leave(roomKey(room.id));
+        previous.disconnect(true);
+      }
+
+      const joined = attach(room, session);
+      const game = room.game;
+      const viewerId = session.spectator ? null : session.id;
+      return {
+        ...joined,
+        events: game !== null ? redactLog(game.log, viewerId, game.editionId) : [],
+        timer:
+          game !== null && room.phase === "playing" && game.turnDeadline !== null
+            ? { playerId: game.state.leader, deadline: game.turnDeadline }
+            : null,
+      };
+    });
+
     on("room:leave", () => {
       manager.leave(requireSessionId());
       detachSelf();
@@ -181,8 +208,10 @@ export function registerSockets(io: GameServer, options: RoomManagerOptions = {}
     socket.on("disconnect", () => {
       const sessionId = socket.data.sessionId;
       if (sessionId === null) return;
+      // A resume may have superseded this socket already.
+      if (socketBySession.get(sessionId) !== socket) return;
       socketBySession.delete(sessionId);
-      manager.leave(sessionId);
+      manager.handleDisconnect(sessionId);
     });
   });
 

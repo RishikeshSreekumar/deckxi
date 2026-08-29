@@ -94,6 +94,8 @@ export interface RoomManagerOptions {
   maxSpectators?: number;
   /** Test hook: fixed turn length instead of the room's setting. */
   turnTimerMsOverride?: number;
+  /** How long a mid-game player may stay disconnected before forfeiting. */
+  disconnectGraceMs?: number;
 }
 
 export const DEFAULT_SETTINGS: RoomSettings = {
@@ -107,6 +109,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
 const DEFAULT_MAX_ROOMS = 200;
 const DEFAULT_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const DEFAULT_MAX_SPECTATORS = 20;
+const DEFAULT_DISCONNECT_GRACE_MS = 60 * 1000;
 
 export class RoomManager {
   private readonly rooms = new Map<string, Room>();
@@ -116,6 +119,8 @@ export class RoomManager {
   private readonly idleTimeoutMs: number;
   private readonly maxSpectators: number;
   private readonly turnTimerMsOverride: number | undefined;
+  private readonly disconnectGraceMs: number;
+  private readonly graceTimers = new Map<string, NodeJS.Timeout>();
 
   constructor(
     private readonly observer: RoomsObserver,
@@ -125,6 +130,7 @@ export class RoomManager {
     this.idleTimeoutMs = options.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS;
     this.maxSpectators = options.maxSpectators ?? DEFAULT_MAX_SPECTATORS;
     this.turnTimerMsOverride = options.turnTimerMsOverride;
+    this.disconnectGraceMs = options.disconnectGraceMs ?? DEFAULT_DISCONNECT_GRACE_MS;
   }
 
   get roomCount(): number {
@@ -180,10 +186,60 @@ export class RoomManager {
     return { room, session };
   }
 
+  /**
+   * The transport lost this session's socket. Mid-game players get a grace
+   * window to reconnect (the turn timer auto-plays them meanwhile); everyone
+   * else just leaves.
+   */
+  handleDisconnect(sessionId: string): void {
+    const session = this.sessions.get(sessionId);
+    if (session === undefined) return;
+    const room = this.rooms.get(session.roomId);
+    if (room === undefined) return;
+
+    // Grace only matters while a game runs; lobby/results members just leave
+    // (they can rejoin by code). Spectators get grace too — they hold no seat.
+    if (room.phase !== "playing") {
+      this.leave(sessionId);
+      return;
+    }
+
+    session.connected = false;
+    this.clearGrace(sessionId);
+    const timer = setTimeout(() => {
+      this.graceTimers.delete(sessionId);
+      if (this.sessions.get(sessionId)?.connected === false) this.leave(sessionId);
+    }, this.disconnectGraceMs);
+    timer.unref();
+    this.graceTimers.set(sessionId, timer);
+    this.observer.roomState(room);
+  }
+
+  /**
+   * Reconnect: the client presents its resume token and gets its session
+   * back; the caller replays the redacted event log to rebuild client state.
+   */
+  resume(roomId: string, resumeToken: string): { room: Room; session: Session } {
+    const room = this.rooms.get(roomId);
+    if (room === undefined) throw new RoomError("resume-failed", "room is gone");
+    const session = [...room.players, ...room.spectators].find(
+      (s) => s.resumeToken === resumeToken,
+    );
+    if (session === undefined) {
+      throw new RoomError("resume-failed", "no session for this token (grace may have expired)");
+    }
+    this.clearGrace(session.id);
+    session.connected = true;
+    this.touch(room);
+    this.observer.roomState(room);
+    return { room, session };
+  }
+
   /** Voluntary leave, or transport-level disconnect in the lobby. */
   leave(sessionId: string): void {
     const session = this.sessions.get(sessionId);
     if (session === undefined) return;
+    this.clearGrace(sessionId);
     const room = this.rooms.get(session.roomId);
     this.sessions.delete(sessionId);
     if (room === undefined) return;
@@ -374,6 +430,12 @@ export class RoomManager {
     game.turnDeadline = null;
   }
 
+  private clearGrace(sessionId: string): void {
+    const timer = this.graceTimers.get(sessionId);
+    if (timer !== undefined) clearTimeout(timer);
+    this.graceTimers.delete(sessionId);
+  }
+
   /** Reap rooms idle past the timeout. Returns how many were closed. */
   reapIdle(now: number = Date.now()): number {
     let reaped = 0;
@@ -415,7 +477,10 @@ export class RoomManager {
     if (room.game !== null) this.clearTurn(room.game);
     this.rooms.delete(room.id);
     this.roomIdByCode.delete(room.code);
-    for (const s of [...room.players, ...room.spectators]) this.sessions.delete(s.id);
+    for (const s of [...room.players, ...room.spectators]) {
+      this.clearGrace(s.id);
+      this.sessions.delete(s.id);
+    }
     this.observer.roomClosed(room, reason);
   }
 
