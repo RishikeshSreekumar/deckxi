@@ -9,6 +9,9 @@ import { Landing } from "./screens/Landing.js";
 import { Lobby } from "./screens/Lobby.js";
 import { GameTable } from "./screens/GameTable.js";
 import { Results } from "./screens/Results.js";
+import { ProfileScreen } from "./screens/Profile.js";
+import { HistoryScreen } from "./screens/History.js";
+import { PrivacyScreen } from "./screens/Privacy.js";
 import { ConnectionBanner, FloatingReactions, Toasts } from "./components/Chrome.js";
 
 function Screen() {
@@ -20,6 +23,9 @@ function Screen() {
     return (
       <Routes>
         <Route path="/join/:code" element={<Landing />} />
+        <Route path="/profile" element={<ProfileScreen />} />
+        <Route path="/history" element={<HistoryScreen />} />
+        <Route path="/privacy" element={<PrivacyScreen />} />
         <Route path="*" element={<Landing />} />
       </Routes>
     );

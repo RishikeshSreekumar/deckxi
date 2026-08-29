@@ -1148,3 +1148,216 @@ select:focus {
     display: none;
   }
 }
+
+/* -- profile / history / privacy (Phase 6) -------------------------------- */
+
+.profile,
+.history,
+.privacy {
+  gap: 12px;
+}
+
+.profile-chip {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.profile-chip:hover {
+  border-color: var(--accent);
+}
+
+.landing {
+  position: relative;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--team-color);
+  object-fit: cover;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.profile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.profile-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.avatar-button {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.avatar-edit {
+  font-size: 0.75rem;
+  color: var(--accent);
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: 8px;
+}
+
+.avatar-choice {
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: var(--bg-raised);
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+}
+
+.avatar-choice:hover {
+  border-color: var(--line);
+}
+
+.avatar-choice--current {
+  border-color: var(--accent);
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.stat-tile {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.stat-tile strong {
+  font-size: 1.05rem;
+}
+
+.stat-tile span {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.profile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel .button {
+  text-align: center;
+  text-decoration: none;
+  display: block;
+}
+
+.match-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.match-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.match-outcome {
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.match-outcome--won {
+  color: var(--win);
+}
+
+.match-outcome--lost {
+  color: var(--danger);
+}
+
+.match-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.match-detail strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.privacy-copy h2 {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
+  font-size: 1.05rem;
+  margin-top: 18px;
+}
+
+.privacy-copy h2:first-child {
+  margin-top: 0;
+}
+
+.privacy-copy p {
+  color: var(--text-dim);
+  line-height: 1.55;
+}
+
+.privacy-copy a,
+.hint a,
+.notice a {
+  color: var(--accent);
+}

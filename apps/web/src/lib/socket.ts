@@ -33,6 +33,8 @@ export function getSocket(): GameSocket {
     auth: { protocolVersion: PROTOCOL_VERSION },
     // Reconnection is on by default; the store resumes the room on 'connect'.
     transports: ["websocket", "polling"],
+    // Send the better-auth session cookie so the server knows who we are.
+    withCredentials: true,
   });
   return socket;
 }

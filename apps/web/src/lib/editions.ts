@@ -10,6 +10,9 @@ const bundled: Record<string, unknown> = {
   "edition-2026-q3": edition2026q3,
 };
 
+/** The edition this build labels stats with when no game context exists. */
+export const DEFAULT_EDITION_ID = "edition-2026-q3";
+
 const cache = new Map<string, Edition | null>();
 
 /** Load a bundled edition; null when this client doesn't know the id. */

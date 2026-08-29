@@ -3,11 +3,14 @@
  * link (`/join/CODE`) lands here with the code prefilled and focus on Join.
  */
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { JOIN_CODE_LENGTH, MAX_NAME_LENGTH } from "@deckxi/shared";
 import { useStore } from "../store/store.js";
 import { AckError } from "../lib/socket.js";
 import { loadPlayerName } from "../lib/session.js";
+import { fetchProfile, type ProfileUser } from "../lib/api.js";
+import { ensureSession } from "../lib/auth.js";
+import { Avatar } from "../components/Avatar.js";
 
 const CLOSED_COPY = {
   "host-left": "The host left, so the room closed.",
@@ -26,11 +29,29 @@ export function Landing() {
   const [code, setCode] = useState(linkCode?.toUpperCase() ?? "");
   const [busy, setBusy] = useState<"create" | "join" | null>(null);
   const [offerSpectate, setOfferSpectate] = useState(false);
+  const [me, setMe] = useState<ProfileUser | null>(null);
   const joinRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (linkCode !== undefined && loadPlayerName() !== "") joinRef.current?.focus();
   }, [linkCode]);
+
+  // Who am I? Fills the name from the account (generated cricket handle for
+  // fresh guests) and shows the profile chip. Best-effort — offline is fine.
+  useEffect(() => {
+    let cancelled = false;
+    void ensureSession()
+      .then(fetchProfile)
+      .then(({ user }) => {
+        if (cancelled) return;
+        setMe(user);
+        setName((current) => (current === "" ? user.name : current));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const canSubmit = name.trim().length > 0 && busy === null && connection === "online";
 
@@ -49,6 +70,16 @@ export function Landing() {
 
   return (
     <main className="screen landing">
+      <Link to="/profile" className="profile-chip" aria-label="Your profile">
+        {me !== null ? (
+          <>
+            <Avatar image={me.image} name={me.name} size={28} />
+            <span>{me.name}</span>
+          </>
+        ) : (
+          <span>Profile</span>
+        )}
+      </Link>
       <div className="landing-hero">
         <h1 className="brand">
           Deck<span className="brand-xi">XI</span>
