@@ -43,6 +43,16 @@ pnpm test           # Vitest across all packages
 All of these run in CI on every push/PR, and a husky pre-commit hook runs lint-staged on staged
 files.
 
+### Card data pipeline
+
+Card data lives in versioned editions (`packages/data/editions/*.json`), Zod-validated in CI.
+
+```sh
+pnpm --filter @deckxi/data check           # schema validation + balance report
+pnpm --filter @deckxi/data update-edition  # apply weekly form drift (also runs on a Monday cron → PR)
+pnpm --filter @deckxi/data cli list        # admin CLI: list/show/set-stat/set-rarity/add-player/…
+```
+
 ### Environment variables
 
 Each app has a `.env.example` documenting the variables it needs. Copy it to `.env` and fill in

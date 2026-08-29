@@ -14,3 +14,10 @@ export {
 export { computeRating, normalizedStat, regenerateRatings } from "./rating.js";
 export { analyzeBalance, dominates, formatBalanceReport, type BalanceReport } from "./balance.js";
 export { driftEdition, topMovers, type DriftResult } from "./drift.js";
+export {
+  addPlayer,
+  regenAllRatings,
+  removePlayer,
+  setPlayerRarity,
+  setPlayerStat,
+} from "./admin.js";
