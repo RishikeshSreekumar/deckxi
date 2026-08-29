@@ -6,11 +6,23 @@
  * through the RoomsObserver callbacks, so every rule here is unit-testable
  * without a socket in sight.
  */
-import { randomUUID } from "node:crypto";
-import { MAX_PLAYERS, MIN_PLAYERS } from "@deckxi/engine";
-import { CURRENT_EDITION_ID } from "@deckxi/data";
+import { randomInt, randomUUID } from "node:crypto";
+import {
+  applyCommand,
+  CommandRejectedError,
+  initGame,
+  MAX_PLAYERS,
+  MIN_PLAYERS,
+  reduceAll,
+  type CardDefinition,
+  type Command,
+  type GameState,
+  type StatDefinition,
+} from "@deckxi/engine";
+import { CURRENT_EDITION_ID, loadEdition } from "@deckxi/data";
 import type { ErrorCode, RoomPhase, RoomSettings, RoomView } from "@deckxi/shared";
 import { generateJoinCode } from "./codes.js";
+import type { SeqEvent } from "./redact.js";
 
 export class RoomError extends Error {
   constructor(
@@ -36,6 +48,16 @@ export interface Session {
   resumeToken: string;
 }
 
+/** A running (or just-finished) game inside a room. */
+export interface GameInstance {
+  matchId: string;
+  editionId: string;
+  state: GameState;
+  /** Full, unredacted event log — server truth; redacted per viewer on send. */
+  log: SeqEvent[];
+  startedAt: number;
+}
+
 export interface Room {
   id: string;
   code: string;
@@ -45,6 +67,7 @@ export interface Room {
   /** Players in seat order (spectators are not seated). */
   players: Session[];
   spectators: Session[];
+  game: GameInstance | null;
   lastActivityAt: number;
 }
 
@@ -55,6 +78,8 @@ export interface RoomsObserver {
   /** Lobby/presence snapshot changed — broadcast to everyone in the room. */
   roomState(room: Room): void;
   roomClosed(room: Room, reason: RoomCloseReason): void;
+  /** New engine events appended — transport redacts per viewer and delivers. */
+  gameEvents(room: Room, events: SeqEvent[]): void;
 }
 
 export interface RoomManagerOptions {
@@ -117,6 +142,7 @@ export class RoomManager {
       settings: { ...DEFAULT_SETTINGS, ...settings },
       players: [],
       spectators: [],
+      game: null,
       lastActivityAt: Date.now(),
     };
     this.rooms.set(room.id, room);
@@ -159,6 +185,18 @@ export class RoomManager {
       return;
     }
 
+    // Leaving mid-game is a forfeit — the engine decides the consequences.
+    if (
+      room.phase === "playing" &&
+      room.game?.state.players.some((p) => p.id === sessionId && p.active) === true
+    ) {
+      try {
+        this.applyEngineCommand(room, { type: "FORFEIT", playerId: sessionId });
+      } catch {
+        // Game already over or command rejected — removal proceeds regardless.
+      }
+    }
+
     room.players = room.players.filter((s) => s.id !== sessionId);
     if (room.players.length === 0) {
       this.closeRoom(room, "host-left");
@@ -186,6 +224,94 @@ export class RoomManager {
     room.settings = { ...room.settings, ...patch };
     this.touch(room);
     this.observer.roomState(room);
+  }
+
+  // -------------------------------------------------------------------------
+  // Game loop (authoritative: clients send commands, engine decides)
+  // -------------------------------------------------------------------------
+
+  startGame(sessionId: string): void {
+    const { room, session } = this.requirePlayer(sessionId);
+    if (room.hostId !== session.id) throw new RoomError("not-host");
+    if (room.phase !== "lobby") throw new RoomError("not-in-lobby");
+    if (room.players.length < MIN_PLAYERS) {
+      throw new RoomError("not-enough-players", `need at least ${MIN_PLAYERS} players`);
+    }
+    const notReady = room.players.filter((p) => p.id !== room.hostId && !p.ready);
+    if (notReady.length > 0) {
+      throw new RoomError("players-not-ready", notReady.map((p) => p.name).join(", "));
+    }
+
+    const { cards, stats } = buildDeck(room.settings, room.players.length);
+    const started = initGame({
+      players: room.players.map((p) => p.id),
+      cards,
+      stats,
+      seed: randomInt(2 ** 31),
+      maxRounds: room.settings.maxRounds,
+    });
+
+    room.game = {
+      matchId: randomUUID(),
+      editionId: room.settings.editionId,
+      state: reduceAll([started]),
+      log: [{ seq: 0, event: started }],
+      startedAt: Date.now(),
+    };
+    room.phase = "playing";
+    this.touch(room);
+    this.observer.roomState(room);
+    this.observer.gameEvents(room, room.game.log);
+  }
+
+  selectStat(sessionId: string, stat: string): void {
+    const { room, session } = this.requirePlayer(sessionId);
+    this.applyEngineCommand(room, { type: "SELECT_STAT", playerId: session.id, stat });
+  }
+
+  forfeit(sessionId: string): void {
+    const { room, session } = this.requirePlayer(sessionId);
+    this.applyEngineCommand(room, { type: "FORFEIT", playerId: session.id });
+  }
+
+  /** Host resets a finished room back to the lobby for another game. */
+  rematch(sessionId: string): void {
+    const { room, session } = this.requirePlayer(sessionId);
+    if (room.hostId !== session.id) throw new RoomError("not-host");
+    if (room.phase !== "results") throw new RoomError("game-not-running", "no finished game");
+    room.game = null;
+    room.phase = "lobby";
+    for (const p of room.players) p.ready = false;
+    this.touch(room);
+    this.observer.roomState(room);
+  }
+
+  protected applyEngineCommand(room: Room, command: Command): void {
+    if (room.phase !== "playing" || room.game === null) {
+      throw new RoomError("game-not-running");
+    }
+    const game = room.game;
+    let events;
+    try {
+      events = applyCommand(game.state, command);
+    } catch (error) {
+      if (error instanceof CommandRejectedError) {
+        throw new RoomError("command-rejected", error.reason);
+      }
+      throw error;
+    }
+
+    let seq = (game.log.at(-1)?.seq ?? -1) + 1;
+    const appended: SeqEvent[] = events.map((event) => ({ seq: seq++, event }));
+    game.log.push(...appended);
+    game.state = reduceAll(events, game.state);
+    this.touch(room);
+    this.observer.gameEvents(room, appended);
+
+    if (game.state.phase === "finished") {
+      room.phase = "results";
+      this.observer.roomState(room);
+    }
   }
 
   /** Reap rooms idle past the timeout. Returns how many were closed. */
@@ -266,6 +392,36 @@ export class RoomManager {
     this.sessions.set(session.id, session);
     return session;
   }
+}
+
+/**
+ * Draw this game's deck: a random subset of the edition's cards sized
+ * `cardsPerPlayer × players`, plus the edition's stat definitions in engine
+ * form. Server-side randomness is fine — the chosen deck is recorded in
+ * GAME_STARTED and public.
+ */
+function buildDeck(
+  settings: RoomSettings,
+  playerCount: number,
+): { cards: CardDefinition[]; stats: StatDefinition[] } {
+  const edition = loadEdition(settings.editionId);
+  const pool = [...edition.players];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    const a = pool[i] as (typeof pool)[number];
+    pool[i] = pool[j] as (typeof pool)[number];
+    pool[j] = a;
+  }
+  const deckSize = Math.min(pool.length, settings.cardsPerPlayer * playerCount);
+  return {
+    cards: pool.slice(0, deckSize).map((p) => ({ id: p.id, stats: { ...p.stats } })),
+    stats: edition.stats.map((s) => ({
+      key: s.key,
+      direction: s.direction,
+      min: s.min,
+      max: s.max,
+    })),
+  };
 }
 
 export function toRoomView(room: Room): RoomView {

@@ -22,6 +22,7 @@ import {
   type RoomsObserver,
   type Session,
 } from "./rooms.js";
+import { redactEvent, type SeqEvent } from "./redact.js";
 
 const roomKey = (roomId: string): string => `room:${roomId}`;
 
@@ -52,6 +53,18 @@ export function registerSockets(io: GameServer, options: RoomManagerOptions = {}
     roomClosed(room, reason) {
       io.to(roomKey(room.id)).emit("room:closed", { reason });
       detachRoom(room);
+    },
+    gameEvents(room, events: SeqEvent[]) {
+      const editionId = room.game?.editionId ?? room.settings.editionId;
+      for (const session of [...room.players, ...room.spectators]) {
+        const socket = socketBySession.get(session.id);
+        if (socket === undefined) continue;
+        const viewerId = session.spectator ? null : session.id;
+        socket.emit(
+          "game:events",
+          events.map((e) => redactEvent(e, viewerId, editionId)),
+        );
+      }
     },
   };
 
@@ -139,6 +152,26 @@ export function registerSockets(io: GameServer, options: RoomManagerOptions = {}
 
     on("room:settings", (payload: Partial<RoomSettings>) => {
       manager.updateSettings(requireSessionId(), payload);
+      return null;
+    });
+
+    on("room:start", () => {
+      manager.startGame(requireSessionId());
+      return null;
+    });
+
+    on("room:rematch", () => {
+      manager.rematch(requireSessionId());
+      return null;
+    });
+
+    on("game:selectStat", (payload: { stat: string }) => {
+      manager.selectStat(requireSessionId(), payload.stat);
+      return null;
+    });
+
+    on("game:forfeit", () => {
+      manager.forfeit(requireSessionId());
       return null;
     });
 
