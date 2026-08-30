@@ -13,6 +13,7 @@ import {
   type ServerToClientEvents,
 } from "@deckxi/shared";
 import { originMatcher } from "./origins.js";
+import { requestId, type Logger } from "./logging.js";
 import { registerSockets, type SocketOptions } from "./sockets.js";
 import type { RoomManager, RoomManagerOptions } from "./rooms.js";
 import { InMemoryMatchStore, type MatchStore } from "./store.js";
@@ -52,7 +53,8 @@ export interface AuthOptions {
 
 export interface AppOptions {
   corsOrigins?: string[];
-  logger?: boolean;
+  /** `false` (tests) silences logging; an object is passed to pino verbatim. */
+  logger?: boolean | Record<string, unknown>;
   rooms?: RoomManagerOptions;
   limits?: SocketOptions["limits"];
   /** Match persistence; defaults to in-memory (no DATABASE_URL needed). */
@@ -74,7 +76,13 @@ export interface App {
 const DEV_SECRET = "deckxi-dev-secret-not-for-production";
 
 export function buildApp(options: AppOptions = {}): App {
-  const fastify = Fastify({ logger: options.logger ?? false });
+  const fastify = Fastify({
+    logger: options.logger ?? false,
+    // Correlation starts here: one id per request, reused from upstream when
+    // the caller already has one (#65).
+    genReqId: (request) => requestId(request.headers),
+  });
+  const log = fastify.log as unknown as Logger;
   const store = options.store ?? new InMemoryMatchStore();
   const corsOrigins = options.corsOrigins ?? ["http://localhost:5173"];
   const allowOrigin = originMatcher(corsOrigins);
@@ -221,8 +229,9 @@ export function buildApp(options: AppOptions = {}): App {
   });
 
   const rooms = registerSockets(io, {
-    rooms: { store, ...options.rooms },
+    rooms: { store, logger: log, ...options.rooms },
     limits: options.limits,
+    logger: log,
   });
   const reaper = setInterval(() => rooms.reapIdle(), 60_000);
   reaper.unref();

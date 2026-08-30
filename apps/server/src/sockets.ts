@@ -25,6 +25,7 @@ import {
 } from "./rooms.js";
 import { redactEvent, redactLog, type SeqEvent } from "./redact.js";
 import { DEFAULT_LIMITS, TokenBucket, type RateLimits } from "./rateLimit.js";
+import { nullLogger, type Logger } from "./logging.js";
 
 const roomKey = (roomId: string): string => `room:${roomId}`;
 
@@ -36,10 +37,12 @@ function toAckError(error: unknown): { ok: false; code: ErrorCode; message: stri
 export interface SocketOptions {
   rooms?: RoomManagerOptions | undefined;
   limits?: Partial<RateLimits> | undefined;
+  logger?: Logger | undefined;
 }
 
 export function registerSockets(io: GameServer, options: SocketOptions = {}): RoomManager {
   const limits: RateLimits = { ...DEFAULT_LIMITS, ...options.limits };
+  const log = options.logger ?? nullLogger;
   const socketBySession = new Map<string, GameSocket>();
 
   const detachRoom = (room: Room): void => {
@@ -82,6 +85,11 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
   const manager = new RoomManager(observer, options.rooms);
 
   io.on("connection", (socket) => {
+    // Every line from this connection carries who and where, so one player's
+    // whole session can be pulled out of the stream by socketId (#65).
+    let socketLog = log.child({ socketId: socket.id, userId: socket.data.userId });
+    socketLog.debug({ event: "socket.connected" }, "socket connected");
+
     const globalBucket = new TokenBucket(limits.global.capacity, limits.global.refillPerSec);
     const chatBucket = new TokenBucket(limits.chat.capacity, limits.chat.refillPerSec);
     const reactionBucket = new TokenBucket(
@@ -115,6 +123,18 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
           try {
             ack({ ok: true, data: handler(parsed.data as never) ?? null });
           } catch (error) {
+            if (error instanceof RoomError) {
+              // Expected: the player asked for something the rules refuse.
+              socketLog.debug(
+                { event: "command.rejected", command: event, code: error.code },
+                error.message,
+              );
+            } else {
+              socketLog.error(
+                { event: "command.failed", command: event, err: error },
+                "handler threw",
+              );
+            }
             ack(toAckError(error));
           }
         },
@@ -125,6 +145,12 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       socket.data.sessionId = session.id;
       socket.data.roomId = room.id;
       socketBySession.set(session.id, socket);
+      socketLog = log.child({
+        socketId: socket.id,
+        userId: socket.data.userId,
+        roomId: room.id,
+        sessionId: session.id,
+      });
       void socket.join(roomKey(room.id));
       return {
         protocolVersion: PROTOCOL_VERSION,
@@ -253,7 +279,8 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       return null;
     });
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", (reason) => {
+      socketLog.debug({ event: "socket.disconnected", reason }, "socket disconnected");
       const sessionId = socket.data.sessionId;
       if (sessionId === null) return;
       // A resume may have superseded this socket already.

@@ -26,6 +26,12 @@ const envSchema = z.object({
   BETTER_AUTH_URL: z.string().url().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
+  /** pino level; `debug` locally when chasing something, `info` deployed. */
+  LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).optional(),
+  /** Build identifier (git sha) stamped on every log line and error report. */
+  RELEASE: z.string().optional(),
+  /** Cloud Run sets this per revision; a usable release id when RELEASE isn't set. */
+  K_REVISION: z.string().optional(),
 });
 
 export interface Env {
@@ -37,6 +43,8 @@ export interface Env {
   authSecret: string | undefined;
   authUrl: string | undefined;
   google: { clientId: string; clientSecret: string } | undefined;
+  logLevel: string;
+  release: string | undefined;
 }
 
 /**
@@ -72,5 +80,7 @@ export function parseEnv(source: NodeJS.ProcessEnv = process.env): Env {
       parsed.GOOGLE_CLIENT_ID !== undefined && parsed.GOOGLE_CLIENT_SECRET !== undefined
         ? { clientId: parsed.GOOGLE_CLIENT_ID, clientSecret: parsed.GOOGLE_CLIENT_SECRET }
         : undefined,
+    logLevel: parsed.LOG_LEVEL ?? (parsed.APP_ENV === "development" ? "debug" : "info"),
+    release: parsed.RELEASE ?? parsed.K_REVISION,
   };
 }

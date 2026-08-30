@@ -22,6 +22,7 @@ import {
 import { CURRENT_EDITION_ID, loadEdition } from "@deckxi/data";
 import type { ErrorCode, RoomPhase, RoomSettings, RoomView, TurnTimerView } from "@deckxi/shared";
 import { generateJoinCode } from "./codes.js";
+import { nullLogger, type Logger } from "./logging.js";
 import type { SeqEvent } from "./redact.js";
 import { InMemoryMatchStore, type MatchStore } from "./store.js";
 
@@ -102,6 +103,8 @@ export interface RoomManagerOptions {
   disconnectGraceMs?: number;
   /** Where event logs and match results are persisted (default: in-memory). */
   store?: MatchStore;
+  /** Structured logger; defaults to silence (tests, library use). */
+  logger?: Logger;
 }
 
 export const DEFAULT_SETTINGS: RoomSettings = {
@@ -128,6 +131,7 @@ export class RoomManager {
   private readonly disconnectGraceMs: number;
   private readonly graceTimers = new Map<string, NodeJS.Timeout>();
   private readonly store: MatchStore;
+  protected readonly log: Logger;
 
   constructor(
     private readonly observer: RoomsObserver,
@@ -139,6 +143,7 @@ export class RoomManager {
     this.turnTimerMsOverride = options.turnTimerMsOverride;
     this.disconnectGraceMs = options.disconnectGraceMs ?? DEFAULT_DISCONNECT_GRACE_MS;
     this.store = options.store ?? new InMemoryMatchStore();
+    this.log = options.logger ?? nullLogger;
   }
 
   get roomCount(): number {
@@ -176,6 +181,10 @@ export class RoomManager {
     this.roomIdByCode.set(room.code, room.id);
     const session = this.addPlayer(room, name, userId);
     room.hostId = session.id;
+    this.log.info(
+      { event: "room.created", roomId: room.id, code: room.code, userId, sessionId: session.id },
+      "room created",
+    );
     this.observer.roomState(room);
     return { room, session };
   }
@@ -200,6 +209,10 @@ export class RoomManager {
     const session = spectator
       ? this.addSpectator(room, name, userId)
       : this.addPlayer(room, name, userId);
+    this.log.info(
+      { event: "room.joined", roomId: room.id, userId, sessionId: session.id, spectator },
+      "player joined",
+    );
     this.touch(room);
     this.observer.roomState(room);
     return { room, session };
@@ -346,6 +359,16 @@ export class RoomManager {
     };
     room.phase = "playing";
     this.touch(room);
+    this.log.info(
+      {
+        event: "game.started",
+        roomId: room.id,
+        matchId: room.game.matchId,
+        editionId: room.game.editionId,
+        players: room.players.length,
+      },
+      "game started",
+    );
 
     const game = room.game;
     this.persist("createMatch", async () => {
@@ -421,6 +444,17 @@ export class RoomManager {
       this.clearTurn(game);
       room.phase = "results";
       const ended = appended.find((e) => e.event.type === "GAME_ENDED")?.event;
+      this.log.info(
+        {
+          event: "game.finished",
+          roomId: room.id,
+          matchId: game.matchId,
+          reason: ended?.type === "GAME_ENDED" ? ended.reason : "unknown",
+          rounds: game.state.round - 1,
+          durationMs: Date.now() - game.startedAt,
+        },
+        "game finished",
+      );
       this.persist("finishMatch", () =>
         this.store.finishMatch(game.matchId, {
           finishedAt: new Date(),
@@ -439,7 +473,7 @@ export class RoomManager {
   /** Persistence is fire-and-forget: a store outage must never stall play. */
   private persist(label: string, write: () => Promise<void>): void {
     write().catch((error: unknown) => {
-      console.error(`[store] ${label} failed:`, error);
+      this.log.error({ event: "store.write_failed", op: label, err: error }, "store write failed");
     });
   }
 
@@ -530,6 +564,15 @@ export class RoomManager {
   }
 
   protected closeRoom(room: Room, reason: RoomCloseReason): void {
+    this.log.info(
+      {
+        event: "room.closed",
+        roomId: room.id,
+        matchId: room.game?.matchId ?? null,
+        reason,
+      },
+      "room closed",
+    );
     if (room.game !== null) this.clearTurn(room.game);
     this.rooms.delete(room.id);
     this.roomIdByCode.delete(room.code);

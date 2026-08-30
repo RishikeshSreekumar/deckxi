@@ -5,6 +5,7 @@
 import { APP_NAME, PROTOCOL_VERSION } from "@deckxi/shared";
 import { buildApp } from "./app.js";
 import { parseEnv } from "./env.js";
+import { loggerOptions } from "./logging.js";
 
 export function serverInfo(): string {
   return `${APP_NAME} server (protocol v${PROTOCOL_VERSION})`;
@@ -20,7 +21,11 @@ if (isMain) {
   const env = parseEnv();
   const app = buildApp({
     corsOrigins: env.corsOrigins,
-    logger: true,
+    logger: loggerOptions({
+      level: env.logLevel,
+      appEnv: env.appEnv,
+      release: env.release,
+    }),
     store: createStore(env.databaseUrl),
     auth: {
       databaseUrl: env.databaseUrl,

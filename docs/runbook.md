@@ -259,6 +259,50 @@ Point the app at the restored branch — add a new version to the
 container start, so a running revision keeps the old value until it restarts) —
 confirm, then make it permanent.
 
+## Observability
+
+### Logs
+
+The server writes one JSON object per line to stdout, and that is the entire
+log pipeline: Cloud Run ships container stdout to Cloud Logging, which is free
+up to 50 GiB a month and keeps 30 days. **No hosted log vendor is wired up on
+purpose** — a drain (Better Stack, Axiom, Datadog) is another account, another
+key to rotate and another bill to watch, and it buys nothing Cloud Logging
+doesn't already give a single-instance server. If one is ever wanted, a Log
+Router sink forwards to it without touching the app.
+
+Every line carries `service`, `env`, `release` (the deployed commit sha), a
+`severity` Cloud Logging understands, and whichever correlation ids are known
+at that point:
+
+| Field       | Present on                                                                                                        |
+| ----------- | ----------------------------------------------------------------------------------------------------------------- |
+| `reqId`     | HTTP requests — reused from `x-request-id` or the Cloud Run trace id, so it joins to the load balancer's own logs |
+| `socketId`  | anything a websocket connection did                                                                               |
+| `userId`    | the account behind the connection (null for cookie-less clients)                                                  |
+| `roomId`    | once the socket has joined a room                                                                                 |
+| `sessionId` | the seat inside that room                                                                                         |
+| `matchId`   | game start/finish and anything about a running match                                                              |
+
+Follow one game end to end:
+
+```sh
+gcloud logging read \
+  'resource.labels.service_name="deckxi-api-staging" AND jsonPayload.roomId="<uuid>"' \
+  --limit 200 --format='value(timestamp, jsonPayload.event, jsonPayload.message)'
+```
+
+Named events worth knowing: `room.created`, `room.joined`, `room.closed`,
+`game.started`, `game.finished`, `command.rejected` (a player asked for
+something the rules refuse — routine, `debug`), `command.failed` (a handler
+threw — never routine), `store.write_failed` (persistence degraded, gameplay
+unaffected).
+
+Cookies and `Authorization` headers are redacted before anything is written.
+
+Locally, `LOG_LEVEL=debug` is the default and the lines are raw JSON; pipe
+through `pnpm dlx pino-pretty` when reading them by eye.
+
 ## Incidents
 
 1. **Is it up?** `curl https://api-staging.deckxi.rishikeshs.dev/health`. A

@@ -107,7 +107,7 @@ jobs:
             --concurrency 250 \
             --timeout 3600 \
             --no-cpu-throttling \
-            --set-env-vars "^@^APP_ENV=${{ inputs.environment }}@HOST=0.0.0.0@BETTER_AUTH_URL=${{ inputs.api_url }}@CORS_ORIGINS=${{ inputs.cors_origins }}" \
+            --set-env-vars "^@^APP_ENV=${{ inputs.environment }}@HOST=0.0.0.0@BETTER_AUTH_URL=${{ inputs.api_url }}@CORS_ORIGINS=${{ inputs.cors_origins }}@RELEASE=${{ github.sha }}" \
             --set-secrets "DATABASE_URL=deckxi-${{ inputs.environment }}-database-url:latest,BETTER_AUTH_SECRET=deckxi-${{ inputs.environment }}-auth-secret:latest,GOOGLE_CLIENT_ID=deckxi-${{ inputs.environment }}-google-client-id:latest,GOOGLE_CLIENT_SECRET=deckxi-${{ inputs.environment }}-google-client-secret:latest" \
             --quiet
 
