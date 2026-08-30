@@ -751,8 +751,26 @@ select:focus {
   gap: var(--space-4);
 }
 
+/* One line, always. With the chat toggle sharing the row there is not enough
+   width on a small phone for six 44px targets, and letting them wrap costs
+   ~50px of height the table does not have — it pushed the row off a 360x640
+   screen. Scrolling keeps both the targets and the height budget. */
 .table-social .emote-bar {
   flex: 1;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  scrollbar-width: none;
+}
+
+.table-social .emote-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.table-social .emote-button {
+  flex: 0 0 auto;
 }
 
 .emote-bar {

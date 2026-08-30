@@ -17,11 +17,34 @@ const SCENARIOS = [
   { name: "results", path: "results", ready: "results" },
 ] as const;
 
+/** Opened rather than seeded: the drawer's state lives in the component. */
+const OPEN_CHAT = "table-chat";
+
 async function seed(page: Page, scenario: string, ready: string) {
   await page.goto(`/__visual/${scenario}`);
   await expect(page.getByTestId(ready)).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
 }
+
+/**
+ * The in-game chat drawer restyled onto v2 tokens during the redesign and had
+ * no visual coverage of its own — the one component whose every colour changed
+ * with nothing watching.
+ */
+test(`${OPEN_CHAT} — dark`, async ({ page }) => {
+  await seed(page, "table-turn", "game-table");
+  await page.getByTestId("game-chat").getByRole("button").first().click();
+  await page.mouse.move(0, 0);
+  await expect(page).toHaveScreenshot(`${OPEN_CHAT}-dark.png`);
+});
+
+test(`${OPEN_CHAT} — light`, async ({ page }) => {
+  await seed(page, "table-turn", "game-table");
+  await page.getByTestId("theme-toggle").first().click();
+  await page.getByTestId("game-chat").getByRole("button").first().click();
+  await page.mouse.move(0, 0);
+  await expect(page).toHaveScreenshot(`${OPEN_CHAT}-light.png`);
+});
 
 for (const scenario of SCENARIOS) {
   test(`${scenario.name} — dark`, async ({ page }) => {
