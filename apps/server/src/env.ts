@@ -2,14 +2,24 @@
  * Environment parsing — fail fast and loudly on a bad config.
  */
 import { z } from "zod";
+import { parseOrigins } from "./origins.js";
+
+/** Which deployment this process is: local dev, staging, or production. */
+export type AppEnv = "development" | "staging" | "production";
 
 const envSchema = z.object({
+  /** Deployment tier. Staging and production are held to the same rules. */
+  APP_ENV: z.enum(["development", "staging", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   HOST: z.string().default("0.0.0.0"),
-  /** Optional until Phase 7 — without it match persistence is in-memory. */
+  /** Optional in dev — without it match persistence is in-memory. */
   DATABASE_URL: z.string().url().optional(),
-  /** Comma-separated allowed web origins for CORS / websocket upgrades. */
-  CORS_ORIGINS: z.string().default("http://localhost:5173"),
+  /**
+   * Comma-separated allowed web origins for CORS / websocket upgrades. A
+   * leading `*` label is allowed for preview deploys
+   * (`https://*.deckxi-web.pages.dev`). Required outside dev.
+   */
+  CORS_ORIGINS: z.string().optional(),
   /** Session signing secret; required outside local dev. */
   BETTER_AUTH_SECRET: z.string().min(16).optional(),
   /** The server's public URL (OAuth/magic-link callbacks build on it). */
@@ -19,6 +29,7 @@ const envSchema = z.object({
 });
 
 export interface Env {
+  appEnv: AppEnv;
   port: number;
   host: string;
   databaseUrl: string | undefined;
@@ -28,15 +39,33 @@ export interface Env {
   google: { clientId: string; clientSecret: string } | undefined;
 }
 
+/**
+ * A deployed server must not fall back to dev defaults: a missing database,
+ * a dev session secret or a localhost origin allowlist would each be a
+ * silent production bug, so refuse to boot instead.
+ */
+function requiredInDeployment(parsed: z.infer<typeof envSchema>): string[] {
+  if (parsed.APP_ENV === "development") return [];
+  const missing: string[] = [];
+  if (parsed.DATABASE_URL === undefined) missing.push("DATABASE_URL");
+  if (parsed.BETTER_AUTH_SECRET === undefined) missing.push("BETTER_AUTH_SECRET");
+  if (parsed.BETTER_AUTH_URL === undefined) missing.push("BETTER_AUTH_URL");
+  if (parsed.CORS_ORIGINS === undefined) missing.push("CORS_ORIGINS");
+  return missing;
+}
+
 export function parseEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const parsed = envSchema.parse(source);
+  const missing = requiredInDeployment(parsed);
+  if (missing.length > 0) {
+    throw new Error(`APP_ENV=${parsed.APP_ENV} requires: ${missing.join(", ")}`);
+  }
   return {
+    appEnv: parsed.APP_ENV,
     port: parsed.PORT,
     host: parsed.HOST,
     databaseUrl: parsed.DATABASE_URL,
-    corsOrigins: parsed.CORS_ORIGINS.split(",")
-      .map((o) => o.trim())
-      .filter((o) => o.length > 0),
+    corsOrigins: parseOrigins(parsed.CORS_ORIGINS ?? "http://localhost:5173"),
     authSecret: parsed.BETTER_AUTH_SECRET,
     authUrl: parsed.BETTER_AUTH_URL,
     google:

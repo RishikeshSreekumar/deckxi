@@ -1,0 +1,265 @@
+# Deploy runbook
+
+## Where things run
+
+Pre-launch, only **staging** exists, and every piece of it sits on a free tier —
+not on GCP trial credits, which expire. Domain: `deckxi.rishikeshs.dev`.
+
+| Piece    | Staging (live now)                                         | Cost   |
+| -------- | ---------------------------------------------------------- | ------ |
+| Web      | Cloudflare Pages `deckxi-web`, branch `main`               | free   |
+|          | `https://staging.deckxi.rishikeshs.dev`                    |        |
+| API      | Cloud Run `deckxi-api-staging` (`deploy-api-cloudrun.yml`) | free\* |
+|          | `https://api-staging.deckxi.rishikeshs.dev`                |        |
+| Database | Neon branch `staging`                                      | free   |
+
+\* Cloud Run's always-free tier is 2M requests, 180k vCPU-seconds and 360k
+GiB-seconds per month. One instance capped at 1 vCPU covers roughly 50 hours of
+active play per month before anything is billable, and it scales to zero when
+idle. Artifact Registry gives 0.5 GB free, which is why the repo has a cleanup
+policy keeping the last few images.
+
+**Production is not provisioned.** At launch, pick a target and provision it:
+
+- **Stay on Cloud Run** — nothing to do but create a `production` service and
+  point `deploy.yml`'s production job at `deploy-api-cloudrun.yml`.
+- **Move to Fly** — `fly.production.toml` and `deploy-api.yml` are already
+  written and kept current; see "Migrating the API to Fly" below.
+
+The API is deliberately **one instance per environment** (`--max-instances 1` on
+Cloud Run, `max_machines_running = 1` on Fly): rooms live in process memory, so
+a second instance would split players across two game states. Do not scale it
+out before the Redis adapter (Phase 10, #86).
+
+Two Cloud Run constraints that matter for a realtime game, both survivable
+because the server already has reconnect grace and turn timers:
+
+- A request — including a websocket — is capped at **60 minutes**, so a very
+  long session gets dropped and has to reconnect.
+- Scaling to zero after an idle period ends every room, same as a redeploy.
+
+## Pipelines
+
+| Trigger         | What runs                                                            |
+| --------------- | -------------------------------------------------------------------- |
+| Any PR          | `ci.yml` (lint/typecheck/test, image build) + Pages preview deploy   |
+| Merge to `main` | `deploy.yml` → migrate staging DB → deploy staging API; web → `main` |
+| Tag `v*`        | production jobs — dormant until production is provisioned            |
+| Manual          | `deploy.yml` → _Run workflow_ → pick an environment                  |
+
+Migrations always run **before** the new image goes live, as a separate job, so
+a failed migration aborts the deploy rather than leaving new code on an old
+schema. Keep migrations backwards compatible (add columns nullable, backfill,
+drop in a later release) — that's what makes rollback safe.
+
+## One-time setup
+
+### Google Cloud
+
+```sh
+gcloud projects create deckxi --name=DeckXI          # or reuse an existing one
+gcloud config set project deckxi
+gcloud services enable run.googleapis.com artifactregistry.googleapis.com \
+  secretmanager.googleapis.com iamcredentials.googleapis.com
+gcloud artifacts repositories create deckxi \
+  --repository-format=docker --location="$REGION"
+```
+
+Billing must be enabled on the project even to use the free tier. Set a budget
+alert at a low number (₹100 / $1) — a budget doesn't cap spend, but it tells you
+the moment something drifts out of the free tier.
+
+Keep the last few images only, so Artifact Registry stays under its 0.5 GB free
+allowance:
+
+```sh
+gcloud artifacts repositories set-cleanup-policies deckxi \
+  --location="$REGION" --policy=cleanup-policy.json
+```
+
+Secrets (one per value, referenced by the deploy with `--set-secrets`):
+
+```sh
+for s in database-url auth-secret google-client-id google-client-secret; do
+  gcloud secrets create "deckxi-staging-$s" --replication-policy=automatic
+done
+printf '%s' 'postgres://…?sslmode=require' | \
+  gcloud secrets versions add deckxi-staging-database-url --data-file=-
+openssl rand -base64 32 | \
+  gcloud secrets versions add deckxi-staging-auth-secret --data-file=-
+```
+
+Non-secret config (`APP_ENV`, `CORS_ORIGINS`, `BETTER_AUTH_URL`) is passed by
+the workflow from `deploy.yml`, so it is reviewable in a PR.
+
+### Keyless deploys (Workload Identity Federation)
+
+Rather than pasting a service account JSON key into GitHub, let GitHub's OIDC
+token stand in for the service account. Create the pool/provider, restrict it to
+this repository, and grant the deployer the roles it needs:
+
+```sh
+gcloud iam service-accounts create github-deployer
+gcloud iam workload-identity-pools create github --location=global
+gcloud iam workload-identity-pools providers create-oidc github \
+  --location=global --workload-identity-pool=github \
+  --issuer-uri=https://token.actions.githubusercontent.com \
+  --attribute-mapping='google.subject=assertion.sub,attribute.repository=assertion.repository' \
+  --attribute-condition='assertion.repository=="RishikeshSreekumar/deckxi"'
+```
+
+Roles on `github-deployer@…`: `roles/run.admin`,
+`roles/artifactregistry.writer`, `roles/iam.serviceAccountUser`, and
+`roles/secretmanager.secretAccessor` on each secret. Then bind the repo to the
+service account with `roles/iam.workloadIdentityUser` on principalSet
+`…/attribute.repository/RishikeshSreekumar/deckxi`.
+
+### Neon
+
+Create the project, then a `staging` branch off the default. Branches are
+copy-on-write, so staging costs nothing. Take the **pooled** connection string
+(host contains `-pooler`) and add `?sslmode=require`.
+
+### GitHub
+
+Environment `staging` (add `production` at launch) holding `DATABASE_URL`.
+
+Repository **variables**: `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_WIF_PROVIDER`
+(the full provider resource name), `GCP_SERVICE_ACCOUNT`.
+
+Repository **secrets**: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+
+Create the token as a **Custom token** (not one of the templates — the Workers
+template grants a pile of unrelated permissions and doesn't cover Pages) with a
+single permission: **Account → Cloudflare Pages → Edit**, scoped to your
+account. That is everything `wrangler pages deploy` needs, since the workflow
+passes the account ID explicitly. Note it is account-scoped, not project-scoped.
+
+### Cloudflare Pages
+
+Project `deckxi-web`, production branch set to **`production`** (so `main`
+deploys land on the staging alias, and nothing reaches the public domain until
+you tag). Custom domains: `deckxi.rishikeshs.dev` on the project at launch,
+`staging.deckxi.rishikeshs.dev` CNAME'd to `main.deckxi-web.pages.dev` now.
+
+### DNS / TLS
+
+Map the API's custom domain so browsers see the API as same-site with the web
+app — `*.run.app` is on the Public Suffix List, so the raw Cloud Run URL would
+be cross-site and better-auth's session cookie would need `SameSite=None`:
+
+```sh
+gcloud beta run domain-mappings create --service deckxi-api-staging \
+  --domain api-staging.deckxi.rishikeshs.dev --region "$REGION"
+```
+
+This needs the domain verified in Google Search Console (a TXT record) and a
+region that supports domain mappings — the command fails clearly if not. Add the
+records it prints to Cloudflare DNS as **DNS-only** (grey cloud). Google issues
+and renews the certificate.
+
+Pages handles TLS for the web hostnames itself.
+
+## Deploying
+
+- **Staging:** merge to `main`. Watch the _Deploy_ workflow; it ends with a
+  `/healthz` smoke test.
+- **Production:** promote a commit that has been on staging.
+
+  ```sh
+  git tag -a v0.3.0 -m "…" && git push origin v0.3.0
+  ```
+
+- **Manual:** _Actions → Deploy → Run workflow → environment_.
+
+Verify by hand after a release:
+
+```sh
+curl -s https://api-staging.deckxi.rishikeshs.dev/healthz     # {"ok":true,…}
+gcloud run services describe deckxi-api-staging --region "$REGION"
+```
+
+Then open the web app, create a room, join it from a second browser, play a
+round — the smoke test only proves the process is up, not that websockets are
+reaching it through DNS, TLS and the proxy.
+
+## Rollback
+
+Code — Cloud Run keeps every revision, so rollback is a traffic switch with no
+rebuild:
+
+```sh
+gcloud run revisions list --service deckxi-api-staging --region "$REGION"
+gcloud run services update-traffic deckxi-api-staging \
+  --region "$REGION" --to-revisions <good-revision>=100
+```
+
+On Fly the equivalent is `fly releases rollback -a <app>`. Either way, if you
+rolled back production, re-tag the good commit (`v0.3.1`) so `main`'s history
+matches what's live — never leave production on an image no tag points at.
+
+Web: Cloudflare Pages → project → _Deployments_ → the previous production
+deployment → **Rollback**.
+
+Database: rolling code back is safe only if the migration was backwards
+compatible. Otherwise restore, don't reverse:
+
+```sh
+# Neon keeps point-in-time history; branch from before the migration
+neonctl branches create --name hotfix-restore --parent production@2026-08-30T12:00:00Z
+```
+
+Point the app at the restored branch — add a new version to the
+`deckxi-<env>-database-url` secret and redeploy (Cloud Run resolves `:latest` at
+container start, so a running revision keeps the old value until it restarts) —
+confirm, then make it permanent.
+
+## Incidents
+
+1. **Is it up?** `curl https://api-staging.deckxi.rishikeshs.dev/healthz`. A
+   503 with `{"db":"unreachable"}` is Neon or the connection string; anything
+   else (timeout, 502, a 503 from the proxy) is the service.
+2. **Logs:**
+   `gcloud run services logs read deckxi-api-staging --region "$REGION" --limit 100`.
+3. **Restart:** redeploy the current revision. It clears in-memory rooms, so
+   every live game ends. Say so before doing it.
+4. **Neon down / connection storm:** check the Neon status page and the
+   project's connection count. `PostgresMatchStore` pools at 10 connections;
+   the game itself keeps running without the database — only persistence and
+   sign-in break.
+5. **Free tier exceeded / surprise bill:** `--max-instances 1` caps the damage
+   by construction. Check the budget alert, then confirm nothing pinned the
+   service warm (`--min-instances` should be 0).
+
+Known blast radius: a restart, a redeploy, or a scale-to-zero after an idle
+period drops all live rooms. That is accepted until Phase 10 adds the Redis
+adapter and multi-instance support.
+
+## Failure modes worth recognising
+
+| Symptom                                                | Cause                                                                                               |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| Deploy fails at the _Migrate_ job                      | Bad migration. Nothing shipped; fix forward on a branch.                                            |
+| Server exits at boot with `APP_ENV=… requires: …`      | A secret is missing or unreadable — check `--set-secrets` and the deployer's `secretAccessor` role. |
+| Browser console: CORS / websocket `origin not allowed` | The web origin isn't in `CORS_ORIGINS` for that environment.                                        |
+| PR preview can't reach the API                         | Preview host doesn't match `https://*.deckxi-web.pages.dev`.                                        |
+| CI: "schema.ts has changes with no migration"          | Run `pnpm --filter @deckxi/server db:generate`, commit the SQL.                                     |
+
+## Migrating the API to Fly
+
+`fly.staging.toml`, `fly.production.toml` and `deploy-api.yml` are kept current
+so this stays a config change rather than a rewrite — it's the same image.
+
+1. `fly apps create deckxi-api` and set its secrets (`DATABASE_URL`,
+   `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`).
+2. Add `FLY_API_TOKEN` to the GitHub environment.
+3. `fly certs add -a deckxi-api api.deckxi.rishikeshs.dev`, and add the DNS
+   records **alongside** the Cloud Run ones — don't delete anything yet.
+4. Deploy to Fly, then check `/healthz` against the Fly hostname directly.
+5. Flip DNS to Fly. Games in progress on the old service keep running until
+   their players reconnect.
+6. Point the `deploy.yml` job at `deploy-api.yml`, then delete the Cloud Run
+   service and its domain mapping.
+
+Both platforms read the same `DATABASE_URL` and run a single instance, so the
+only real cutover moment is the DNS flip.

@@ -1,0 +1,71 @@
+name: Deploy API
+
+# Reusable: run Drizzle migrations, then roll the Fly app, then smoke-test it.
+# Migrations run first and separately so a failed migration never leaves new
+# code pointed at an old schema — see docs/runbook.md.
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub environment holding the secrets (staging | production)
+        required: true
+        type: string
+      fly_config:
+        description: Fly config file to deploy
+        required: true
+        type: string
+      api_url:
+        description: Public API base URL, smoke-tested after deploy
+        required: true
+        type: string
+    secrets:
+      FLY_API_TOKEN:
+        required: true
+      DATABASE_URL:
+        required: true
+
+jobs:
+  migrate:
+    name: Migrate (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Apply migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm --filter @deckxi/server db:migrate
+
+  deploy:
+    name: Deploy (${{ inputs.environment }})
+    needs: migrate
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.api_url }}
+    concurrency:
+      group: deploy-api-${{ inputs.environment }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: flyctl deploy --config ${{ inputs.fly_config }} --remote-only --wait-timeout 300
+      - name: Smoke test /healthz
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            body=$(curl -fsS "${{ inputs.api_url }}/healthz") && break
+            echo "attempt $attempt failed; retrying in 10s"
+            sleep 10
+          done
+          echo "$body"
+          echo "$body" | grep -q '"ok":true'

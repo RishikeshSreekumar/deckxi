@@ -1,0 +1,68 @@
+name: Deploy
+
+# merge to main  → staging
+# tag v*         → production (promote a commit that already passed staging)
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to deploy
+        type: choice
+        options: [staging, production]
+        default: staging
+
+permissions:
+  contents: read
+  id-token: write # Workload Identity Federation for the Cloud Run deploy
+
+jobs:
+  verify:
+    name: Lint, typecheck & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Test
+        run: pnpm test
+
+  # Pre-launch, staging runs on Cloud Run: its always-free tier costs nothing
+  # and, unlike the GCP trial credits, doesn't expire. Production is not
+  # provisioned yet — see docs/runbook.md → "Where things run".
+  staging:
+    needs: verify
+    if: github.ref == 'refs/heads/main' || inputs.environment == 'staging'
+    uses: ./.github/workflows/deploy-api-cloudrun.yml
+    with:
+      environment: staging
+      service: deckxi-api-staging
+      api_url: https://api-staging.deckxi.rishikeshs.dev
+      cors_origins: https://staging.deckxi.rishikeshs.dev,https://*.deckxi-web.pages.dev
+    secrets:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  # Dormant until launch: nothing tags `v*` yet, and no Fly app exists. Swap
+  # `uses:` for deploy-api-cloudrun.yml to launch on Cloud Run instead.
+  production:
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.environment == 'production'
+    uses: ./.github/workflows/deploy-api.yml
+    with:
+      environment: production
+      fly_config: fly.production.toml
+      api_url: https://api.deckxi.rishikeshs.dev
+    secrets:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}

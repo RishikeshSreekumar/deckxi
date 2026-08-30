@@ -1,0 +1,3 @@
+# Client-side routing: every unknown path is served the SPA shell so deep
+# links like /join/ABCD and /cards/share/:id work on a hard refresh.
+/*  /index.html  200

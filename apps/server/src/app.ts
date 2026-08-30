@@ -12,6 +12,7 @@ import {
   type ClientToServerEvents,
   type ServerToClientEvents,
 } from "@deckxi/shared";
+import { originMatcher } from "./origins.js";
 import { registerSockets, type SocketOptions } from "./sockets.js";
 import type { RoomManager, RoomManagerOptions } from "./rooms.js";
 import { InMemoryMatchStore, type MatchStore } from "./store.js";
@@ -76,6 +77,7 @@ export function buildApp(options: AppOptions = {}): App {
   const fastify = Fastify({ logger: options.logger ?? false });
   const store = options.store ?? new InMemoryMatchStore();
   const corsOrigins = options.corsOrigins ?? ["http://localhost:5173"];
+  const allowOrigin = originMatcher(corsOrigins);
 
   const authBundle = createAuth({
     databaseUrl: options.auth?.databaseUrl,
@@ -91,7 +93,11 @@ export function buildApp(options: AppOptions = {}): App {
   const auth = authBundle.auth;
 
   void fastify.register(cors, {
-    origin: corsOrigins,
+    // A disallowed origin simply gets no CORS header — the browser blocks the
+    // response. Erroring here would turn probes into noisy 500s.
+    origin: (origin, cb) => {
+      cb(null, allowOrigin(origin));
+    },
     credentials: true,
     methods: ["GET", "POST", "PATCH", "DELETE"],
   });
@@ -167,7 +173,9 @@ export function buildApp(options: AppOptions = {}): App {
   const io: GameServer = new Server(fastify.server, {
     maxHttpBufferSize: MAX_MESSAGE_BYTES,
     cors: {
-      origin: corsOrigins,
+      origin: (origin, cb) => {
+        cb(null, allowOrigin(origin ?? undefined) ? (origin ?? true) : false);
+      },
       methods: ["GET", "POST"],
       credentials: true,
     },
@@ -177,6 +185,12 @@ export function buildApp(options: AppOptions = {}): App {
   // stale tab fails loudly instead of desyncing mid-game; then resolve the
   // session cookie (if any) into the user identity behind this socket.
   io.use((socket, next) => {
+    // Websocket upgrades aren't subject to the browser's CORS preflight, so
+    // the allowlist is enforced here too rather than only in the cors option.
+    if (!allowOrigin(socket.handshake.headers.origin)) {
+      next(new Error("origin not allowed"));
+      return;
+    }
     const version: unknown = socket.handshake.auth["protocolVersion"];
     if (version !== PROTOCOL_VERSION) {
       next(new Error(`protocol version mismatch: server speaks v${PROTOCOL_VERSION}`));

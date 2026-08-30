@@ -1,0 +1,85 @@
+name: Deploy web
+
+# PR            → Cloudflare Pages preview (points at the staging API)
+# merge to main → `main` branch deploy = staging.deckxi.rishikeshs.dev
+# tag v*        → `production` branch deploy = deckxi.rishikeshs.dev
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: deploy-web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build & deploy
+    runs-on: ubuntu-latest
+    # Fork PRs can't see the Cloudflare secrets; CI still lints and tests them.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Resolve target
+        id: target
+        run: |
+          if [ "${{ startsWith(github.ref, 'refs/tags/v') }}" = "true" ]; then
+            echo "branch=production" >> "$GITHUB_OUTPUT"
+            echo "api=https://api.deckxi.rishikeshs.dev" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "branch=main" >> "$GITHUB_OUTPUT"
+            echo "api=https://api-staging.deckxi.rishikeshs.dev" >> "$GITHUB_OUTPUT"
+          else
+            # Preview: branch name becomes <branch>.deckxi-web.pages.dev, which
+            # the staging API allows via its wildcard origin.
+            echo "branch=pr-${{ github.event.number }}" >> "$GITHUB_OUTPUT"
+            echo "api=https://api-staging.deckxi.rishikeshs.dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        env:
+          VITE_API_URL: ${{ steps.target.outputs.api }}
+        run: pnpm --filter @deckxi/web build
+
+      - name: Publish to Cloudflare Pages
+        id: publish
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/web/dist --project-name=deckxi-web --branch=${{ steps.target.outputs.branch }}
+
+      - name: Comment preview URL
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          PREVIEW_URL: ${{ steps.publish.outputs.deployment-url }}
+        with:
+          script: |
+            const url = process.env.PREVIEW_URL;
+            if (!url) return;
+            const marker = "<!-- deckxi-preview -->";
+            const body = `${marker}\nPreview: ${url} (talking to the staging API)`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const mine = comments.data.find((c) => c.body?.includes(marker));
+            if (mine) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }

@@ -1,0 +1,40 @@
+# Production API — fly deploy --config fly.production.toml
+# Secrets (fly secrets set -a deckxi-api): DATABASE_URL, BETTER_AUTH_SECRET,
+# GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET.
+app = "deckxi-api"
+primary_region = "fra"
+
+[build]
+dockerfile = "Dockerfile"
+
+[env]
+APP_ENV = "production"
+PORT = "3001"
+HOST = "0.0.0.0"
+BETTER_AUTH_URL = "https://api.deckxi.rishikeshs.dev"
+CORS_ORIGINS = "https://deckxi.rishikeshs.dev"
+
+[http_service]
+internal_port = 3001
+force_https = true
+# Exactly one always-on machine: in-memory rooms can't be shared across
+# instances until the Redis adapter lands (Phase 10).
+auto_stop_machines = "off"
+auto_start_machines = true
+min_machines_running = 1
+max_machines_running = 1
+
+[[http_service.checks]]
+grace_period = "10s"
+interval = "15s"
+timeout = "5s"
+method = "GET"
+path = "/healthz"
+
+[deploy]
+# One machine means a rolling deploy is a brief blip; clients reconnect.
+strategy = "immediate"
+
+[[vm]]
+size = "shared-cpu-1x"
+memory = "512mb"
