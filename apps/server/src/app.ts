@@ -4,7 +4,7 @@
  * version and resolves the better-auth session cookie into a user identity;
  * connections without a session still work as anonymous one-offs.
  */
-import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import cors from "@fastify/cors";
 import { Server, type Socket } from "socket.io";
 import {
@@ -102,7 +102,7 @@ export function buildApp(options: AppOptions = {}): App {
     methods: ["GET", "POST", "PATCH", "DELETE"],
   });
 
-  fastify.get("/healthz", async (_request, reply) => {
+  const health = async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
       await store.ping();
     } catch {
@@ -113,7 +113,13 @@ export function buildApp(options: AppOptions = {}): App {
       protocolVersion: PROTOCOL_VERSION,
       uptimeSeconds: Math.round(process.uptime()),
     };
-  });
+  };
+
+  // `/health` is the canonical one: Cloud Run's frontend reserves the exact
+  // path `/healthz` and answers it itself, so a request there never reaches
+  // this process. `/healthz` stays registered for Fly and local use.
+  fastify.get("/health", health);
+  fastify.get("/healthz", health);
 
   // ---------------------------------------------------------------------
   // better-auth: every /api/auth/* route is handled by its fetch handler.

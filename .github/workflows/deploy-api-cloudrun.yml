@@ -32,9 +32,11 @@ permissions:
   id-token: write
 
 env:
-  # Override with a GCP_REGION repository variable. Must be a region that
-  # supports Cloud Run domain mappings if you map a custom domain to it.
-  REGION: ${{ vars.GCP_REGION || 'asia-south1' }}
+  # Override with a GCP_REGION repository variable. Must be one of the regions
+  # that support Cloud Run domain mappings, which excludes asia-south1
+  # (Mumbai): asia-east1, asia-northeast1, asia-southeast1, europe-north1,
+  # europe-west1, europe-west4, us-central1, us-east1, us-east4, us-west1.
+  REGION: ${{ vars.GCP_REGION || 'asia-southeast1' }}
   REPOSITORY: deckxi
 
 jobs:
@@ -109,10 +111,10 @@ jobs:
             --set-secrets "DATABASE_URL=deckxi-${{ inputs.environment }}-database-url:latest,BETTER_AUTH_SECRET=deckxi-${{ inputs.environment }}-auth-secret:latest,GOOGLE_CLIENT_ID=deckxi-${{ inputs.environment }}-google-client-id:latest,GOOGLE_CLIENT_SECRET=deckxi-${{ inputs.environment }}-google-client-secret:latest" \
             --quiet
 
-      - name: Smoke test /healthz
+      - name: Smoke test /health
         run: |
           for attempt in 1 2 3 4 5 6; do
-            body=$(curl -fsS "${{ inputs.api_url }}/healthz") && break
+            body=$(curl -fsS "${{ inputs.api_url }}/health") && break
             echo "attempt $attempt failed; retrying in 10s"
             sleep 10
           done

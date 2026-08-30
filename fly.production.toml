@@ -2,7 +2,7 @@
 # Secrets (fly secrets set -a deckxi-api): DATABASE_URL, BETTER_AUTH_SECRET,
 # GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET.
 app = "deckxi-api"
-primary_region = "fra"
+primary_region = "bom"
 
 [build]
 dockerfile = "Dockerfile"
@@ -29,7 +29,7 @@ grace_period = "10s"
 interval = "15s"
 timeout = "5s"
 method = "GET"
-path = "/healthz"
+path = "/health"
 
 [deploy]
 # One machine means a rolling deploy is a brief blip; clients reconnect.

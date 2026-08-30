@@ -37,6 +37,11 @@ because the server already has reconnect grace and turn timers:
 - A request — including a websocket — is capped at **60 minutes**, so a very
   long session gets dropped and has to reconnect.
 - Scaling to zero after an idle period ends every room, same as a redeploy.
+- The exact path `/healthz` is reserved by Cloud Run's frontend and never
+  reaches the container, which is why the health endpoint is served at
+  `/health` (`/healthz` stays registered for Fly and local use). To tell the
+  two apart: a response carrying `x-cloud-trace-context` came from the app, one
+  without it was answered upstream.
 
 ## Pipelines
 
@@ -77,7 +82,21 @@ gcloud artifacts repositories set-cleanup-policies deckxi \
   --location="$REGION" --policy=cleanup-policy.json
 ```
 
-Secrets (one per value, referenced by the deploy with `--set-secrets`):
+### Where each config value lives
+
+Secret that the running server needs → Secret Manager. Secret that CI needs →
+GitHub. Not secret → the workflow, where it shows up in a diff.
+
+| Value                                        | Lives in                                                                                                                   |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `BETTER_AUTH_SECRET`                         | Secret Manager `deckxi-<env>-auth-secret`                                                                                  |
+| `GOOGLE_CLIENT_ID`                           | Secret Manager `deckxi-<env>-google-client-id`                                                                             |
+| `GOOGLE_CLIENT_SECRET`                       | Secret Manager `deckxi-<env>-google-client-secret`                                                                         |
+| `DATABASE_URL`                               | Secret Manager `deckxi-<env>-database-url` **and** the GitHub environment (the migrate job runs in Actions, not Cloud Run) |
+| `APP_ENV`, `CORS_ORIGINS`, `BETTER_AUTH_URL` | `deploy.yml` inputs                                                                                                        |
+
+`deploy-api-cloudrun.yml` references those secret names literally, so a typo
+surfaces as a container that won't boot rather than a warning.
 
 ```sh
 for s in database-url auth-secret google-client-id google-client-secret; do
@@ -87,10 +106,23 @@ printf '%s' 'postgres://…?sslmode=require' | \
   gcloud secrets versions add deckxi-staging-database-url --data-file=-
 openssl rand -base64 32 | \
   gcloud secrets versions add deckxi-staging-auth-secret --data-file=-
+printf '%s' 'YOUR_CLIENT_ID' | \
+  gcloud secrets versions add deckxi-staging-google-client-id --data-file=-
+printf '%s' 'YOUR_CLIENT_SECRET' | \
+  gcloud secrets versions add deckxi-staging-google-client-secret --data-file=-
 ```
 
-Non-secret config (`APP_ENV`, `CORS_ORIGINS`, `BETTER_AUTH_URL`) is passed by
-the workflow from `deploy.yml`, so it is reviewable in a PR.
+Use `printf`, not `echo`: a trailing newline becomes part of the secret and
+shows up much later as an unexplained OAuth rejection.
+
+Rotating a value means adding a **new version and redeploying** — Cloud Run
+resolves `:latest` when the container starts, so a running revision keeps the
+old value until it restarts.
+
+Google OAuth credentials come from Console → APIs & Services. Configure the
+consent screen first (External; while it is in Testing mode only accounts listed
+under Test users can sign in), then create a Web application client with
+redirect URI `https://api-<env>.deckxi.rishikeshs.dev/api/auth/callback/google`.
 
 ### Keyless deploys (Workload Identity Federation)
 
@@ -153,17 +185,27 @@ gcloud beta run domain-mappings create --service deckxi-api-staging \
   --domain api-staging.deckxi.rishikeshs.dev --region "$REGION"
 ```
 
-This needs the domain verified in Google Search Console (a TXT record) and a
-region that supports domain mappings — the command fails clearly if not. Add the
+This needs the domain verified in Google Search Console (a TXT record). Add the
 records it prints to Cloudflare DNS as **DNS-only** (grey cloud). Google issues
 and renews the certificate.
+
+**Domain mappings only exist in some regions** — `asia-south1` (Mumbai) is not
+one of them, which is why staging runs in `asia-southeast1` (Singapore) despite
+the extra ~40 ms. As of writing the supported set is `asia-east1`,
+`asia-northeast1`, `asia-southeast1`, `europe-north1`, `europe-west1`,
+`europe-west4`, `us-central1`, `us-east1`, `us-east4`, `us-west1`; the create
+command fails with `501 UNIMPLEMENTED` anywhere else. Google's suggested
+alternatives were both rejected here: a global external Application Load
+Balancer costs roughly $18/month, and Firebase Hosting does not proxy
+WebSockets, which is the whole transport. Fly has a Mumbai region (`bom`), so
+the latency gap closes when production moves there.
 
 Pages handles TLS for the web hostnames itself.
 
 ## Deploying
 
 - **Staging:** merge to `main`. Watch the _Deploy_ workflow; it ends with a
-  `/healthz` smoke test.
+  `/health` smoke test.
 - **Production:** promote a commit that has been on staging.
 
   ```sh
@@ -175,7 +217,7 @@ Pages handles TLS for the web hostnames itself.
 Verify by hand after a release:
 
 ```sh
-curl -s https://api-staging.deckxi.rishikeshs.dev/healthz     # {"ok":true,…}
+curl -s https://api-staging.deckxi.rishikeshs.dev/health     # {"ok":true,…}
 gcloud run services describe deckxi-api-staging --region "$REGION"
 ```
 
@@ -216,7 +258,7 @@ confirm, then make it permanent.
 
 ## Incidents
 
-1. **Is it up?** `curl https://api-staging.deckxi.rishikeshs.dev/healthz`. A
+1. **Is it up?** `curl https://api-staging.deckxi.rishikeshs.dev/health`. A
    503 with `{"db":"unreachable"}` is Neon or the connection string; anything
    else (timeout, 502, a 503 from the proxy) is the service.
 2. **Logs:**
@@ -237,13 +279,15 @@ adapter and multi-instance support.
 
 ## Failure modes worth recognising
 
-| Symptom                                                | Cause                                                                                               |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| Deploy fails at the _Migrate_ job                      | Bad migration. Nothing shipped; fix forward on a branch.                                            |
-| Server exits at boot with `APP_ENV=… requires: …`      | A secret is missing or unreadable — check `--set-secrets` and the deployer's `secretAccessor` role. |
-| Browser console: CORS / websocket `origin not allowed` | The web origin isn't in `CORS_ORIGINS` for that environment.                                        |
-| PR preview can't reach the API                         | Preview host doesn't match `https://*.deckxi-web.pages.dev`.                                        |
-| CI: "schema.ts has changes with no migration"          | Run `pnpm --filter @deckxi/server db:generate`, commit the SQL.                                     |
+| Symptom                                                | Cause                                                                                                                                                                                   |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Deploy fails at the _Migrate_ job                      | Bad migration. Nothing shipped; fix forward on a branch.                                                                                                                                |
+| Google's `Error 404 (Not Found)!!1` page on `/healthz` | Cloud Run reserves that exact path and answers it itself — the request never reaches the container. Use `/health`. A response with no `x-cloud-trace-context` header never hit the app. |
+| Google's `Error 404` page on every path                | DNS reaches Google but no domain mapping claims that Host. Check `gcloud beta run domain-mappings list --region "$REGION"`, and that the service is in the region you think it is.      |
+| Server exits at boot with `APP_ENV=… requires: …`      | A secret is missing or unreadable — check `--set-secrets` and the deployer's `secretAccessor` role.                                                                                     |
+| Browser console: CORS / websocket `origin not allowed` | The web origin isn't in `CORS_ORIGINS` for that environment.                                                                                                                            |
+| PR preview can't reach the API                         | Preview host doesn't match `https://*.deckxi-web.pages.dev`.                                                                                                                            |
+| CI: "schema.ts has changes with no migration"          | Run `pnpm --filter @deckxi/server db:generate`, commit the SQL.                                                                                                                         |
 
 ## Migrating the API to Fly
 
@@ -255,7 +299,7 @@ so this stays a config change rather than a rewrite — it's the same image.
 2. Add `FLY_API_TOKEN` to the GitHub environment.
 3. `fly certs add -a deckxi-api api.deckxi.rishikeshs.dev`, and add the DNS
    records **alongside** the Cloud Run ones — don't delete anything yet.
-4. Deploy to Fly, then check `/healthz` against the Fly hostname directly.
+4. Deploy to Fly, then check `/health` against the Fly hostname directly.
 5. Flip DNS to Fly. Games in progress on the old service keep running until
    their players reconnect.
 6. Point the `deploy.yml` job at `deploy-api.yml`, then delete the Cloud Run
