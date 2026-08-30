@@ -1,0 +1,168 @@
+/**
+ * Contrast audit over the generated palettes (#98).
+ *
+ * Checks every text-on-surface and interactive pair we actually ship, in both
+ * themes, against WCAG 2.1 AA. Writes docs/design/contrast.md so the result is
+ * re-checkable rather than remembered.
+ *
+ *   node scripts/contrast-audit.mjs           write the report
+ *   node scripts/contrast-audit.mjs --check   fail on any regression
+ */
+import { readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const OUT = join(root, "..", "..", "docs", "design", "contrast.md");
+
+// Read the token source rather than the generated TS mirror: this script is
+// plain ESM, and the resolution it needs is one lookup deep.
+const source = JSON.parse(await readFile(join(root, "tokens", "tokens.json"), "utf8"));
+
+function paletteOf(themeName) {
+  const theme = source.semantic[themeName].color;
+  return Object.fromEntries(
+    Object.entries(theme).map(([role, value]) => {
+      const ref = /^\{color\.([^}]+)\}$/.exec(value);
+      if (ref === null) throw new Error(`--${role} is not a colour reference: ${value}`);
+      return [role, source.primitive.color[ref[1]]];
+    }),
+  );
+}
+
+const darkPalette = paletteOf("dark");
+const lightPalette = paletteOf("light");
+
+const channel = (v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+
+function luminance(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => channel(c / 255));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function ratio(a, b) {
+  const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p);
+  return (x + 0.05) / (y + 0.05);
+}
+
+/**
+ * Every pair the product actually renders. `large` marks text at >=24px or
+ * >=19px bold, where AA is 3:1; `nonText` marks UI boundaries and focus rings,
+ * where the 3:1 non-text threshold applies (WCAG 1.4.11).
+ */
+const PAIRS = [
+  ["text-primary", "surface-base"],
+  ["text-primary", "surface-raised"],
+  ["text-primary", "surface-panel"],
+  ["text-primary", "surface-overlay"],
+  ["text-secondary", "surface-base"],
+  ["text-secondary", "surface-raised"],
+  ["text-secondary", "surface-panel"],
+  ["text-secondary", "surface-overlay"],
+  ["text-muted", "surface-base"],
+  ["text-muted", "surface-panel"],
+  ["text-accent", "surface-base"],
+  ["text-accent", "surface-panel"],
+  ["text-inverse", "surface-inverse"],
+  ["interactive-on-accent", "interactive-accent"],
+  ["interactive-on-accent", "interactive-accent-hover"],
+  ["interactive-on-accent", "interactive-accent-active"],
+  ["status-win", "surface-base"],
+  ["status-win", "surface-raised"],
+  ["status-danger", "surface-base"],
+  ["status-danger", "surface-raised"],
+  ["status-warning", "surface-base"],
+  ["status-warning-on", "status-warning-surface"],
+  ["rarity-star", "surface-panel"],
+  // Controls carry --border-strong precisely because it has to clear 3:1 on
+  // every surface a control can sit on. --border-default is the decorative
+  // hairline between panels and is not load-bearing for identifying a control.
+  ["border-strong", "surface-base", { nonText: true }],
+  ["border-strong", "surface-raised", { nonText: true }],
+  ["border-strong", "surface-panel", { nonText: true }],
+  ["border-default", "surface-base", { exempt: true }],
+  ["interactive-focus", "surface-base", { nonText: true }],
+  ["interactive-focus", "surface-panel", { nonText: true }],
+  ["interactive-focus", "surface-raised", { nonText: true }],
+  ["interactive-accent", "surface-base", { nonText: true }],
+  // Disabled text is exempt from AA (WCAG 1.4.3), recorded for reference only.
+  ["text-disabled", "surface-raised", { exempt: true }],
+];
+
+function audit(palette) {
+  return PAIRS.map(([fg, bg, opts = {}]) => {
+    const value = ratio(palette[fg], palette[bg]);
+    const threshold = opts.nonText === true ? 3 : opts.large === true ? 3 : 4.5;
+    return {
+      fg,
+      bg,
+      value,
+      threshold,
+      exempt: opts.exempt === true,
+      pass: opts.exempt === true || value >= threshold,
+    };
+  });
+}
+
+function table(rows) {
+  const head =
+    "| Foreground | Background | Ratio | Needs | Result |\n| --- | --- | --- | --- | --- |";
+  const body = rows
+    .map((r) => {
+      const verdict = r.exempt ? "exempt (disabled)" : r.pass ? "pass" : "**FAIL**";
+      return `| \`--${r.fg}\` | \`--${r.bg}\` | ${r.value.toFixed(2)}:1 | ${r.threshold}:1 | ${verdict} |`;
+    })
+    .join("\n");
+  return `${head}\n${body}`;
+}
+
+const themes = [
+  ["Dark", darkPalette],
+  ["Light", lightPalette],
+];
+const results = themes.map(([name, palette]) => [name, audit(palette)]);
+const failures = results.flatMap(([name, rows]) =>
+  rows
+    .filter((r) => !r.pass)
+    .map((r) => `${name}: --${r.fg} on --${r.bg} (${r.value.toFixed(2)}:1)`),
+);
+
+const report = `<!-- GENERATED by packages/ui/scripts/contrast-audit.mjs — run \`pnpm --filter @deckxi/ui contrast\` to refresh. -->
+
+# Contrast audit
+
+Every text-on-surface and interactive pair DeckXI actually renders, in both themes,
+against WCAG 2.1 AA: **4.5:1** for body text, **3:1** for non-text boundaries and focus
+indicators (1.4.11). Disabled text is exempt (1.4.3) and recorded for reference.
+
+Colour values come from the generated palettes, so this report cannot drift from the
+tokens — regenerate it whenever \`packages/ui/tokens/tokens.json\` changes.
+
+${results.map(([name, rows]) => `## ${name} theme\n\n${table(rows)}`).join("\n\n")}
+
+## Notes
+
+- \`--text-muted\` is the tightest pair in both themes. It is deliberately the floor of
+  what we ship for real copy; anything quieter than muted must be non-essential.
+- Light-theme \`--text-secondary\` on \`--surface-panel\` was the specific concern raised in
+  #90 against the v1 palette. Under v2 it clears AA with room to spare.
+- Focus rings are checked against all three surfaces a control can sit on, because a
+  ring that only reads on the base surface is a ring that disappears inside a panel.
+`;
+
+if (process.argv.includes("--check")) {
+  if (failures.length > 0) {
+    console.error(`Contrast failures:\n${failures.map((f) => `  ${f}`).join("\n")}`);
+    process.exit(1);
+  }
+  console.log("Contrast audit: all pairs pass.");
+} else {
+  const prettier = (await import("prettier")).default;
+  await writeFile(OUT, await prettier.format(report, { parser: "markdown" }));
+  console.log(
+    failures.length > 0
+      ? `Wrote ${OUT} with ${failures.length} FAILING pair(s):\n${failures.join("\n")}`
+      : `Wrote ${OUT} — all pairs pass.`,
+  );
+}

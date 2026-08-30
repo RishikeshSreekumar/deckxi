@@ -57,6 +57,12 @@ jobs:
       - name: Format check
         run: pnpm format:check
 
+      - name: Design tokens up to date
+        run: pnpm tokens:check
+
+      - name: Contrast audit (WCAG AA)
+        run: pnpm --filter @deckxi/ui contrast:check
+
       - name: Typecheck
         run: pnpm typecheck
 

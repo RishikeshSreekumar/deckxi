@@ -13,7 +13,11 @@
     "./styles.css": "./src/styles.css"
   },
   "scripts": {
-    "build": "tsc -b"
+    "tokens": "node scripts/generate-tokens.mjs",
+    "tokens:check": "node scripts/generate-tokens.mjs --check",
+    "contrast": "node scripts/contrast-audit.mjs",
+    "contrast:check": "node scripts/contrast-audit.mjs --check",
+    "build": "node scripts/generate-tokens.mjs && tsc -b"
   },
   "dependencies": {
     "@deckxi/data": "workspace:*",
@@ -24,6 +28,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.1.0",
+    "prettier": "^3.6.0",
     "react": "^19.1.0"
   }
 }
