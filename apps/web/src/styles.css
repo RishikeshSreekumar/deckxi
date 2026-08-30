@@ -1511,3 +1511,92 @@ select:focus {
 .admin-phase--playing {
   color: var(--status-win);
 }
+
+/* The inspector and the feed are read at a glance and then read closely, so
+   they get a monospace, tabular treatment the player-facing screens never do. */
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+@media (min-width: 40rem) {
+  .admin-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.admin-field strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-seats,
+.admin-feed-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.admin-seat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.admin-hand,
+.admin-feed-row {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.admin-feed-title {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-secondary);
+}
+
+.admin-feed-list {
+  gap: var(--space-2);
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.admin-feed-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+}
+
+.admin-feed-fields {
+  grid-column: 2;
+  opacity: 0.75;
+}
+
+.admin-feed-event {
+  color: var(--text-primary);
+}
+
+.admin-feed-row--error .admin-feed-event {
+  color: var(--status-danger);
+}
+
+.admin-feed-row--warn .admin-feed-event {
+  color: var(--status-warning, var(--status-danger));
+}

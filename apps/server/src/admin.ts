@@ -22,6 +22,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { userFromHeaders, type Auth } from "./auth.js";
 import type { RoomManager, Room } from "./rooms.js";
 import type { Logger } from "./logging.js";
+import type { EventFeed } from "./feed.js";
 
 export interface AdminAccess {
   /** How this caller proved it: a signed-in admin, or the shared token. */
@@ -111,11 +112,95 @@ export function toAdminRoomSummary(room: Room, now: number = Date.now()): AdminR
   };
 }
 
+/**
+ * The room as the server actually holds it (#68) — including every hand.
+ * This is the one view in the system that is deliberately unredacted: the
+ * point of an inspector is to answer "what does the server think", and a
+ * redacted inspector answers "what does one player think", which is the
+ * question you already had a client for.
+ */
+export interface AdminRoomDetail extends AdminRoomSummary {
+  settings: Record<string, unknown>;
+  hostId: string;
+  sessions: {
+    id: string;
+    name: string;
+    userId: string | null;
+    seat: number;
+    spectator: boolean;
+    ready: boolean;
+    connected: boolean;
+  }[];
+  game: {
+    matchId: string;
+    editionId: string;
+    phase: string;
+    round: number;
+    leader: string;
+    pot: string[];
+    winner: string | null;
+    startedAt: number;
+    turnDeadline: number | null;
+    events: number;
+    players: { id: string; active: boolean; hand: string[] }[];
+  } | null;
+  /** Tail of this match's event log, unredacted, oldest first. */
+  recentEvents: { seq: number; type: string; event: unknown }[];
+}
+
+const RECENT_EVENTS = 30;
+
+export function toAdminRoomDetail(room: Room, now: number = Date.now()): AdminRoomDetail {
+  const game = room.game;
+  return {
+    ...toAdminRoomSummary(room, now),
+    settings: { ...room.settings },
+    hostId: room.hostId,
+    sessions: [...room.players, ...room.spectators].map((s) => ({
+      id: s.id,
+      name: s.name,
+      userId: s.userId,
+      seat: s.seat,
+      spectator: s.spectator,
+      ready: s.ready,
+      connected: s.connected,
+    })),
+    game:
+      game === null
+        ? null
+        : {
+            matchId: game.matchId,
+            editionId: game.editionId,
+            phase: game.state.phase,
+            round: game.state.round,
+            leader: game.state.leader,
+            pot: [...game.state.pot],
+            winner: game.state.winner,
+            startedAt: game.startedAt,
+            turnDeadline: game.turnDeadline,
+            events: game.log.length,
+            players: game.state.players.map((p) => ({
+              id: p.id,
+              active: p.active,
+              hand: [...p.hand],
+            })),
+          },
+    recentEvents:
+      game === null
+        ? []
+        : game.log
+            .slice(-RECENT_EVENTS)
+            .map((e) => ({ seq: e.seq, type: e.event.type, event: e.event })),
+  };
+}
+
 export interface AdminRoutesOptions {
   auth: Auth;
   rooms: RoomManager;
   config: AdminConfig;
   log: Logger;
+  /** Recent server events, tee'd off the logger (#68). */
+  feed: EventFeed;
 }
 
 export function registerAdminRoutes(fastify: FastifyInstance, options: AdminRoutesOptions): void {
@@ -157,6 +242,33 @@ export function registerAdminRoutes(fastify: FastifyInstance, options: AdminRout
         // a full table in round 12 is more interesting than an empty lobby.
         .sort((a, b) => b.players + b.spectators - (a.players + a.spectators));
       return { rooms: list, counts: { rooms: list.length, games: rooms.activeGames } };
+    }),
+  );
+
+  /** Server truth for one room, hands included (#68). */
+  fastify.get(
+    "/api/admin/rooms/:roomId",
+    admin((request, _access) => {
+      const { roomId } = request.params as { roomId: string };
+      const room = rooms.getRoom(roomId);
+      // A closed room is genuinely gone from memory; its match log lives on in
+      // the replay debugger (#69), which is where that question belongs.
+      if (room === undefined) return { room: null };
+      return { room: toAdminRoomDetail(room) };
+    }),
+  );
+
+  /**
+   * Live event feed. Cursor-based rather than time-based: the dashboard asks
+   * for everything after the last seq it saw, so a slow poll skips nothing it
+   * could still have had.
+   */
+  fastify.get(
+    "/api/admin/events",
+    admin((request) => {
+      const query = request.query as { since?: string; roomId?: string };
+      const since = Number(query.since ?? 0);
+      return options.feed.since(Number.isFinite(since) && since > 0 ? since : 0, 200, query.roomId);
     }),
   );
 }

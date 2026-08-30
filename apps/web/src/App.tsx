@@ -41,6 +41,9 @@ const ShareCardScreen = lazy(() =>
 const AdminScreen = lazy(() =>
   import("./screens/Admin.js").then((m) => ({ default: m.AdminScreen })),
 );
+const AdminRoomScreen = lazy(() =>
+  import("./screens/AdminRoom.js").then((m) => ({ default: m.AdminRoomScreen })),
+);
 
 function Screen() {
   const room = useStore((s) => s.room);
@@ -58,6 +61,7 @@ function Screen() {
           <Route path="/cards" element={<CardsGalleryScreen />} />
           <Route path="/cards/share/:cardId" element={<ShareCardScreen />} />
           <Route path="/admin" element={<AdminScreen />} />
+          <Route path="/admin/rooms/:roomId" element={<AdminRoomScreen />} />
           <Route path="*" element={<Landing />} />
         </Routes>
       </Suspense>

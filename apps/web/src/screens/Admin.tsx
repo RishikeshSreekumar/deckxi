@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ThemeToggle } from "../components/Chrome.js";
+import { AdminFeed } from "../components/AdminFeed.js";
 import {
   fetchAdminRooms,
   fetchAdminSession,
@@ -121,7 +122,8 @@ export function AdminScreen() {
               </span>
               <div className="match-detail">
                 <strong>
-                  {room.code} · {room.hostName ?? "no host"}
+                  <Link to={`/admin/rooms/${room.roomId}`}>{room.code}</Link> ·{" "}
+                  {room.hostName ?? "no host"}
                 </strong>
                 <span className="hint">
                   {room.players} player{room.players === 1 ? "" : "s"}
@@ -135,6 +137,8 @@ export function AdminScreen() {
           ))}
         </ul>
       )}
+
+      <AdminFeed />
 
       <p className="hint">
         Signed in as {session.data?.email ?? session.data?.via ?? "…"} · refreshing every{" "}

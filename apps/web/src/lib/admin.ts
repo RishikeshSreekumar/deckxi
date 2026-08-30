@@ -49,6 +49,55 @@ export async function adminGet<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+export interface AdminRoomDetail extends AdminRoomSummary {
+  settings: Record<string, unknown>;
+  hostId: string;
+  sessions: {
+    id: string;
+    name: string;
+    userId: string | null;
+    seat: number;
+    spectator: boolean;
+    ready: boolean;
+    connected: boolean;
+  }[];
+  game: {
+    matchId: string;
+    editionId: string;
+    phase: string;
+    round: number;
+    leader: string;
+    pot: string[];
+    winner: string | null;
+    startedAt: number;
+    turnDeadline: number | null;
+    events: number;
+    players: { id: string; active: boolean; hand: string[] }[];
+  } | null;
+  recentEvents: { seq: number; type: string; event: unknown }[];
+}
+
+export interface FeedEntry {
+  seq: number;
+  at: number;
+  level: string;
+  event: string;
+  message: string | null;
+  fields: Record<string, string | number | boolean | null>;
+}
+
 export const fetchAdminSession = (): Promise<AdminSession> => adminGet<AdminSession>("/session");
 
 export const fetchAdminRooms = (): Promise<AdminRooms> => adminGet<AdminRooms>("/rooms");
+
+export const fetchAdminRoom = (roomId: string): Promise<{ room: AdminRoomDetail | null }> =>
+  adminGet<{ room: AdminRoomDetail | null }>(`/rooms/${encodeURIComponent(roomId)}`);
+
+export const fetchAdminEvents = (
+  since: number,
+  roomId?: string,
+): Promise<{ entries: FeedEntry[]; cursor: number }> => {
+  const params = new URLSearchParams({ since: String(since) });
+  if (roomId !== undefined) params.set("roomId", roomId);
+  return adminGet<{ entries: FeedEntry[]; cursor: number }>(`/events?${params.toString()}`);
+};

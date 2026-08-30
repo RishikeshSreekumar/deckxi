@@ -17,6 +17,7 @@ import { requestId, type Logger } from "./logging.js";
 import { registerErrorTracking } from "./errors.js";
 import { createMetrics, type Metrics } from "./metrics.js";
 import { registerAdminRoutes } from "./admin.js";
+import { EventFeed, teeLogger } from "./feed.js";
 import { registerSockets, type SocketOptions } from "./sockets.js";
 import type { RoomManager, RoomManagerOptions } from "./rooms.js";
 import { InMemoryMatchStore, type MatchStore } from "./store.js";
@@ -99,7 +100,10 @@ export function buildApp(options: AppOptions = {}): App {
     // the caller already has one (#65).
     genReqId: (request) => requestId(request.headers),
   });
-  const log = fastify.log as unknown as Logger;
+  // Everything logged is also kept in a bounded in-memory ring for the admin
+  // dashboard's live feed (#68), so the two can never disagree.
+  const feed = new EventFeed();
+  const log = teeLogger(fastify.log as unknown as Logger, feed);
   const metrics = createMetrics();
   const store = options.store ?? new InMemoryMatchStore();
   const corsOrigins = options.corsOrigins ?? ["http://localhost:5173"];
@@ -262,6 +266,7 @@ export function buildApp(options: AppOptions = {}): App {
     rooms,
     config: { token: options.admin?.token, emails: options.admin?.emails },
     log,
+    feed,
   });
 
   // Gauges read live state, so they are registered once the owners exist.

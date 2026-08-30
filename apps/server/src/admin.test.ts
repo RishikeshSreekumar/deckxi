@@ -166,6 +166,93 @@ describe("live rooms", () => {
   });
 });
 
+describe("room inspector", () => {
+  it("shows server truth, hands included", async () => {
+    const host = server.client();
+    await host.connected();
+    const joined = await host.call<RoomJoined>("room:create", { name: "Host" });
+    const guest = server.client();
+    await guest.connected();
+    await guest.call<RoomJoined>("room:join", { code: joined.room.code, name: "Guest" });
+    await guest.call("room:ready", { ready: true });
+    await host.call("room:start", undefined);
+
+    const body = (await (
+      await get(`/api/admin/rooms/${joined.roomId}`, { authorization: `Bearer ${TOKEN}` })
+    ).json()) as {
+      room: {
+        sessions: { name: string; seat: number }[];
+        game: { round: number; leader: string; players: { id: string; hand: string[] }[] };
+        recentEvents: { seq: number; type: string }[];
+      };
+    };
+    expect(body.room.sessions.map((s) => s.name).sort()).toEqual(["Guest", "Host"]);
+    expect(body.room.game.round).toBe(1);
+    // The whole point of the inspector: hands the players cannot see.
+    for (const player of body.room.game.players) {
+      expect(player.hand.length).toBeGreaterThan(0);
+    }
+    expect(body.room.recentEvents[0]).toMatchObject({ seq: 0, type: "GAME_STARTED" });
+  });
+
+  it("says a closed room is gone rather than inventing one", async () => {
+    const response = await get("/api/admin/rooms/00000000-0000-0000-0000-000000000000", {
+      authorization: `Bearer ${TOKEN}`,
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ room: null });
+  });
+});
+
+describe("live event feed", () => {
+  it("streams room and game events, and advances by cursor", async () => {
+    const host = server.client();
+    await host.connected();
+    const joined = await host.call<RoomJoined>("room:create", { name: "Host" });
+
+    const auth = { authorization: `Bearer ${TOKEN}` };
+    const first = (await (await get("/api/admin/events", auth)).json()) as {
+      entries: { event: string; fields: Record<string, unknown> }[];
+      cursor: number;
+    };
+    expect(first.entries.map((e) => e.event)).toContain("room.created");
+    expect(first.entries.find((e) => e.event === "room.created")?.fields["roomId"]).toBe(
+      joined.roomId,
+    );
+
+    const guest = server.client();
+    await guest.connected();
+    await guest.call<RoomJoined>("room:join", { code: joined.room.code, name: "Guest" });
+    await guest.call("room:ready", { ready: true });
+    await host.call("room:start", undefined);
+
+    const next = (await (await get(`/api/admin/events?since=${first.cursor}`, auth)).json()) as {
+      entries: { event: string }[];
+    };
+    const events = next.entries.map((e) => e.event);
+    expect(events).toContain("room.joined");
+    expect(events).toContain("game.started");
+    // Engine events reach the feed even though their log level is off.
+    expect(events).toContain("game.event");
+    expect(events).not.toContain("room.created");
+  });
+
+  it("filters the feed to one room", async () => {
+    const a = server.client();
+    await a.connected();
+    const roomA = await a.call<RoomJoined>("room:create", { name: "A" });
+    const b = server.client();
+    await b.connected();
+    await b.call<RoomJoined>("room:create", { name: "B" });
+
+    const body = (await (
+      await get(`/api/admin/events?roomId=${roomA.roomId}`, { authorization: `Bearer ${TOKEN}` })
+    ).json()) as { entries: { fields: Record<string, unknown> }[] };
+    expect(body.entries.length).toBeGreaterThan(0);
+    for (const entry of body.entries) expect(entry.fields["roomId"]).toBe(roomA.roomId);
+  });
+});
+
 describe("room summary", () => {
   it("counts players still inside their reconnect grace as disconnected", () => {
     const room = {

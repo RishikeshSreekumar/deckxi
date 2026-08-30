@@ -70,6 +70,21 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
     },
     gameEvents(room, events: SeqEvent[]) {
       const editionId = room.game?.editionId ?? room.settings.editionId;
+      for (const { seq, event } of events) {
+        // Debug level: on stdout this is off in a deployment, but the ops
+        // feed tees before the level filter, so the dashboard still sees
+        // every move (#68).
+        log.debug(
+          {
+            event: "game.event",
+            roomId: room.id,
+            matchId: room.game?.matchId ?? null,
+            type: event.type,
+            seq,
+          },
+          event.type,
+        );
+      }
       for (const session of [...room.players, ...room.spectators]) {
         const socket = socketBySession.get(session.id);
         if (socket === undefined) continue;
