@@ -3,18 +3,41 @@
  * room, the server's room phase decides what you see. Results wait for the
  * reveal presenter to finish the final round — never spoil the climax.
  */
+import { Suspense, lazy } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { useStore } from "./store/store.js";
 import { Landing } from "./screens/Landing.js";
 import { Lobby } from "./screens/Lobby.js";
 import { GameTable } from "./screens/GameTable.js";
 import { Results } from "./screens/Results.js";
-import { ProfileScreen } from "./screens/Profile.js";
-import { HistoryScreen } from "./screens/History.js";
-import { PrivacyScreen } from "./screens/Privacy.js";
-import { CardsGalleryScreen } from "./screens/CardsGallery.js";
-import { ShareCardScreen } from "./screens/ShareCard.js";
-import { ConnectionBanner, FloatingReactions, Toasts } from "./components/Chrome.js";
+import {
+  ConnectionBanner,
+  FloatingReactions,
+  InstallPrompt,
+  Toasts,
+  UpdatePrompt,
+} from "./components/Chrome.js";
+
+/**
+ * Split out of the initial bundle (#107): none of these are on the path into
+ * a game, and the gallery in particular drags the whole edition with it. What
+ * stays eager is exactly what a player needs to land, join and play.
+ */
+const ProfileScreen = lazy(() =>
+  import("./screens/Profile.js").then((m) => ({ default: m.ProfileScreen })),
+);
+const HistoryScreen = lazy(() =>
+  import("./screens/History.js").then((m) => ({ default: m.HistoryScreen })),
+);
+const PrivacyScreen = lazy(() =>
+  import("./screens/Privacy.js").then((m) => ({ default: m.PrivacyScreen })),
+);
+const CardsGalleryScreen = lazy(() =>
+  import("./screens/CardsGallery.js").then((m) => ({ default: m.CardsGalleryScreen })),
+);
+const ShareCardScreen = lazy(() =>
+  import("./screens/ShareCard.js").then((m) => ({ default: m.ShareCardScreen })),
+);
 
 function Screen() {
   const room = useStore((s) => s.room);
@@ -23,15 +46,17 @@ function Screen() {
 
   if (room === null) {
     return (
-      <Routes>
-        <Route path="/join/:code" element={<Landing />} />
-        <Route path="/profile" element={<ProfileScreen />} />
-        <Route path="/history" element={<HistoryScreen />} />
-        <Route path="/privacy" element={<PrivacyScreen />} />
-        <Route path="/cards" element={<CardsGalleryScreen />} />
-        <Route path="/cards/share/:cardId" element={<ShareCardScreen />} />
-        <Route path="*" element={<Landing />} />
-      </Routes>
+      <Suspense fallback={<main className="screen" />}>
+        <Routes>
+          <Route path="/join/:code" element={<Landing />} />
+          <Route path="/profile" element={<ProfileScreen />} />
+          <Route path="/history" element={<HistoryScreen />} />
+          <Route path="/privacy" element={<PrivacyScreen />} />
+          <Route path="/cards" element={<CardsGalleryScreen />} />
+          <Route path="/cards/share/:cardId" element={<ShareCardScreen />} />
+          <Route path="*" element={<Landing />} />
+        </Routes>
+      </Suspense>
     );
   }
   if (room.phase === "lobby") return <Lobby room={room} />;
@@ -45,8 +70,10 @@ export function App() {
   return (
     <BrowserRouter>
       <ConnectionBanner />
+      <UpdatePrompt />
       <Screen />
       <FloatingReactions />
+      <InstallPrompt />
       <Toasts />
     </BrowserRouter>
   );

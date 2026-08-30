@@ -3,11 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>DeckXI — cricket trump cards, live with friends</title>
+    <meta name="description" content="Cricket trump cards, live with friends." />
+
     <!-- Status-bar tint for the pre-JS paint; src/lib/theme.ts replaces both
          with a single tag once it knows the user's explicit preference. -->
     <meta name="theme-color" content="#eef2f9" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)" />
-    <title>DeckXI — cricket trump cards, live with friends</title>
+
+    <!-- Identity. The SVG is the real icon; the .ico exists so the browser's
+         automatic /favicon.ico request does not fall through the SPA rewrite
+         and get handed index.html. -->
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="alternate icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- iOS has no manifest support worth the name; these are its equivalents.
+         apple-touch-startup-image is deliberately omitted — it needs one asset
+         per device size, forever, and the default splash is acceptable. See
+         docs/design/pwa.md. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="DeckXI" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- Share card for the app itself. Per-card OG images are composed
+         separately at /cards/share/:cardId. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="DeckXI — cricket trump cards, live with friends" />
+    <meta property="og:description" content="Cricket trump cards, live with friends." />
+    <meta property="og:image" content="/og-default.png" />
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
     <div id="root"></div>

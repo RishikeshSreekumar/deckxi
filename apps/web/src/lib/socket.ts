@@ -26,6 +26,18 @@ export class AckError extends Error {
   }
 }
 
+/**
+ * The device knows it has no network. Deliberately not an `AckError`: the
+ * server never sends this, and putting it in the shared ErrorCode union would
+ * claim otherwise.
+ */
+export class OfflineError extends Error {
+  constructor() {
+    super("You're offline.");
+    this.name = "OfflineError";
+  }
+}
+
 let socket: GameSocket | null = null;
 
 export function getSocket(): GameSocket {
@@ -46,6 +58,10 @@ export async function call<E extends keyof ClientToServerEvents, T>(
   event: E,
   payload: Parameters<ClientToServerEvents[E]>[0],
 ): Promise<T> {
+  // Fail fast when the device knows it has no network. Waiting out the 8s ack
+  // timeout to say "the server didn't respond" is both slower and a lie —
+  // eight seconds of dead UI when the honest answer was available instantly.
+  if (typeof navigator !== "undefined" && !navigator.onLine) throw new OfflineError();
   // Socket.IO's emitWithAck typing fights the mapped event union; the
   // payload/event pair above is already statically checked by our signature.
   const s = getSocket() as unknown as {
@@ -58,6 +74,7 @@ export async function call<E extends keyof ClientToServerEvents, T>(
 
 /** Human copy for server error codes surfaced in toasts. */
 export function errorMessage(error: unknown): string {
+  if (error instanceof OfflineError) return "You're offline — reconnecting when you're back.";
   if (error instanceof AckError) {
     const copy: Partial<Record<ErrorCode, string>> = {
       "room-not-found": "That room doesn't exist (or has closed).",

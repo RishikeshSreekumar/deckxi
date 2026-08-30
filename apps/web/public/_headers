@@ -6,3 +6,15 @@
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+# The service worker and the manifest must never be cached the way hashed
+# assets are: a stale sw.js is how an installed PWA gets stuck on an old build
+# with no way out but clearing site data.
+/sw.js
+  Cache-Control: no-cache
+
+/registerSW.js
+  Cache-Control: no-cache
+
+/manifest.webmanifest
+  Cache-Control: no-cache

@@ -989,6 +989,45 @@ select:focus {
   color: var(--text-inverse);
 }
 
+/* Update and install bars: bottom-anchored, above the toasts, clear of the
+   safe area. Deliberately quiet — neither is urgent, and neither may cover a
+   control the player is reaching for. */
+.update-bar,
+.install-bar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--space-6) + var(--toast-lift, 0px) + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 45;
+  width: min(92vw, 420px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-6);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  box-shadow: var(--elevation-overlay);
+  animation: rise var(--dur-fast) var(--ease-out);
+}
+
+.update-bar-actions {
+  display: flex;
+  gap: var(--space-4);
+  margin-left: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .update-bar,
+  .install-bar {
+    animation: none;
+  }
+}
+
 /* -- profile / history / privacy ------------------------------------------- */
 
 /* Landing's floating chrome — theme toggle plus the profile chip. Absolute so

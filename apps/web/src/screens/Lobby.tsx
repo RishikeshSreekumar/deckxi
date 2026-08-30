@@ -3,7 +3,6 @@
  * link/QR, and a small chat while everyone gathers.
  */
 import { useEffect, useMemo, useState } from "react";
-import QRCode from "qrcode";
 import { MAX_CHAT_LENGTH, type RoomSettings, type RoomView } from "@deckxi/shared";
 import { RoomCode } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
@@ -20,7 +19,10 @@ function InvitePanel({ code }: { code: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    QRCode.toDataURL(url, { margin: 1, width: 176 })
+    // qrcode is ~40kB and only ever renders here, so it loads when the lobby
+    // does rather than riding in the initial bundle (#107).
+    void import("qrcode")
+      .then(({ default: QRCode }) => QRCode.toDataURL(url, { margin: 1, width: 176 }))
       .then((dataUrl) => {
         if (!cancelled) setQr(dataUrl);
       })

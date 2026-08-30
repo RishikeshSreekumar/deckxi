@@ -82,3 +82,10 @@ jobs:
             git --no-pager diff --stat -- apps/server/drizzle
             exit 1
           fi
+
+      - name: Build
+        run: pnpm build
+
+      # Payload, not Lighthouse — see docs/design/performance.md for why.
+      - name: Mobile performance budget
+        run: pnpm --filter @deckxi/web budget:check

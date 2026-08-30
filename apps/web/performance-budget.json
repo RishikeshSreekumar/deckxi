@@ -1,0 +1,12 @@
+{
+  "$comment": [
+    "Mobile performance budget (#107). Checked by scripts/check-budget.mjs; see",
+    "docs/design/performance.md for the field-side targets this pairs with.",
+    "Raising a number here is a decision — say why in the commit message."
+  ],
+  "budgets": {
+    "initial-js-gzip-kb": 150,
+    "initial-css-gzip-kb": 12,
+    "initial-requests": 6
+  }
+}

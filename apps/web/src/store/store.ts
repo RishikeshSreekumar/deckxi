@@ -23,7 +23,13 @@ import { call, errorMessage, getSocket } from "../lib/socket.js";
 import { clearSession, loadSession, saveSession, savePlayerName } from "../lib/session.js";
 import { sounds } from "../lib/sounds.js";
 
-export type ConnectionStatus = "connecting" | "online" | "reconnecting";
+/**
+ * "reconnecting" means the server is unreachable; "offline" means the device
+ * says it has no network at all. They read identically to the code that
+ * retries but not to the player — telling someone in a lift that we are
+ * "reconnecting, hang tight" is a hopeful lie (#111).
+ */
+export type ConnectionStatus = "connecting" | "online" | "reconnecting" | "offline";
 
 export interface Toast {
   id: number;
@@ -243,13 +249,28 @@ export function initSocket(): void {
   });
 
   socket.on("disconnect", () => {
-    set({ connection: "reconnecting" });
+    set({ connection: navigator.onLine ? "reconnecting" : "offline" });
+  });
+
+  // navigator.onLine is the only signal that separates "no signal" from "the
+  // server is slow". It is not authoritative about reaching *our* server, so
+  // it only ever downgrades us to "offline" and hands back to the socket's own
+  // state on the way up.
+  window.addEventListener("offline", () => {
+    set({ connection: "offline" });
+  });
+  window.addEventListener("online", () => {
+    if (get().connection !== "offline") return;
+    set({ connection: socket.connected ? "online" : "reconnecting" });
+    if (!socket.connected) socket.connect();
   });
   socket.io.on("reconnect_attempt", () => {
     set({ connection: "reconnecting" });
   });
   socket.io.on("error", () => {
-    if (get().connection === "connecting") set({ connection: "reconnecting" });
+    if (get().connection === "connecting") {
+      set({ connection: navigator.onLine ? "reconnecting" : "offline" });
+    }
   });
 
   socket.on("room:state", (room: RoomView) => {

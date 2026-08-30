@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:visual": "playwright test -c playwright.visual.config.ts",
-    "export:cards": "node scripts/export-cards.mjs"
+    "export:cards": "node scripts/export-cards.mjs",
+    "icons": "node scripts/generate-icons.mjs",
+    "budget": "node scripts/check-budget.mjs",
+    "budget:check": "node scripts/check-budget.mjs --check"
   },
   "dependencies": {
     "@deckxi/data": "workspace:*",
@@ -30,6 +33,8 @@
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^5.0.0",
-    "vite": "^7.1.0"
+    "vite": "^7.1.0",
+    "vite-plugin-pwa": "^1.3.0",
+    "workbox-window": "^7.4.1"
   }
 }

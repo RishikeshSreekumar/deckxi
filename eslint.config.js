@@ -20,6 +20,10 @@ export default tseslint.config(
         setTimeout: "readonly",
         clearTimeout: "readonly",
         URL: "readonly",
+        Buffer: "readonly",
+        // Evaluated inside a Playwright page, not in node — the icon and card
+        // export scripts both drive a browser.
+        document: "readonly",
       },
     },
   },
