@@ -86,12 +86,48 @@ export interface FeedEntry {
   fields: Record<string, string | number | boolean | null>;
 }
 
+export interface MatchListRow {
+  matchId: string;
+  roomCode: string;
+  editionId: string;
+  gameMode: string;
+  startedAt: string;
+  finishedAt: string | null;
+  rounds: number | null;
+  endReason: string | null;
+  playerNames: string[];
+}
+
+/** A match with its full, unredacted engine event log — the replay input. */
+export interface StoredMatch {
+  matchId: string;
+  roomId: string;
+  roomCode: string;
+  editionId: string;
+  gameMode: string;
+  startedAt: string;
+  players: { sessionId: string; userId: string | null; name: string; seat: number }[];
+  events: { seq: number; event: Record<string, unknown> }[];
+  result: {
+    finishedAt: string;
+    winnerSessionId: string;
+    endReason: string;
+    rounds: number;
+  } | null;
+}
+
 export const fetchAdminSession = (): Promise<AdminSession> => adminGet<AdminSession>("/session");
 
 export const fetchAdminRooms = (): Promise<AdminRooms> => adminGet<AdminRooms>("/rooms");
 
 export const fetchAdminRoom = (roomId: string): Promise<{ room: AdminRoomDetail | null }> =>
   adminGet<{ room: AdminRoomDetail | null }>(`/rooms/${encodeURIComponent(roomId)}`);
+
+export const fetchAdminMatches = (): Promise<{ matches: MatchListRow[] }> =>
+  adminGet<{ matches: MatchListRow[] }>("/matches");
+
+export const fetchAdminMatch = (matchId: string): Promise<{ match: StoredMatch | null }> =>
+  adminGet<{ match: StoredMatch | null }>(`/matches/${encodeURIComponent(matchId)}`);
 
 export const fetchAdminEvents = (
   since: number,

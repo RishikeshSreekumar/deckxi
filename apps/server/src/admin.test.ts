@@ -253,6 +253,56 @@ describe("live event feed", () => {
   });
 });
 
+describe("replay debugger", () => {
+  it("serves the match list and a full, replayable event log", async () => {
+    const host = server.client();
+    await host.connected();
+    const joined = await host.call<RoomJoined>("room:create", { name: "Host" });
+    const guest = server.client();
+    await guest.connected();
+    await guest.call<RoomJoined>("room:join", { code: joined.room.code, name: "Guest" });
+    await guest.call("room:ready", { ready: true });
+    await host.call("room:start", undefined);
+    await host.call("game:forfeit", undefined);
+
+    const auth = { authorization: `Bearer ${TOKEN}` };
+    const list = (await (await get("/api/admin/matches", auth)).json()) as {
+      matches: { matchId: string; roomCode: string; playerNames: string[]; endReason: string }[];
+    };
+    expect(list.matches).toHaveLength(1);
+    const row = list.matches[0] as (typeof list.matches)[number];
+    expect(row.roomCode).toBe(joined.room.code);
+    expect(row.playerNames.sort()).toEqual(["Guest", "Host"]);
+    expect(row.endReason).toBe("opponents-forfeited");
+
+    const body = (await (await get(`/api/admin/matches/${row.matchId}`, auth)).json()) as {
+      match: {
+        events: { seq: number; event: { type: string; config?: { seed: number } } }[];
+        result: { endReason: string } | null;
+      };
+    };
+    const events = body.match.events;
+    expect(events[0]?.event.type).toBe("GAME_STARTED");
+    // Unredacted: the seed and the deal are exactly what the server acted on,
+    // which is what makes the replay a replay rather than a reconstruction.
+    expect(events[0]?.event.config?.seed).toEqual(expect.any(Number));
+    expect(events.at(-1)?.event.type).toBe("GAME_ENDED");
+    expect(body.match.result?.endReason).toBe("opponents-forfeited");
+  });
+
+  it("answers null for a match nobody has", async () => {
+    const response = await get("/api/admin/matches/does-not-exist", {
+      authorization: `Bearer ${TOKEN}`,
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ match: null });
+  });
+
+  it("keeps the match log behind the same 404 as everything else", async () => {
+    expect((await get("/api/admin/matches")).status).toBe(404);
+  });
+});
+
 describe("room summary", () => {
   it("counts players still inside their reconnect grace as disconnected", () => {
     const room = {

@@ -44,6 +44,12 @@ const AdminScreen = lazy(() =>
 const AdminRoomScreen = lazy(() =>
   import("./screens/AdminRoom.js").then((m) => ({ default: m.AdminRoomScreen })),
 );
+const AdminReplayListScreen = lazy(() =>
+  import("./screens/AdminReplay.js").then((m) => ({ default: m.AdminReplayListScreen })),
+);
+const AdminReplayScreen = lazy(() =>
+  import("./screens/AdminReplay.js").then((m) => ({ default: m.AdminReplayScreen })),
+);
 
 function Screen() {
   const room = useStore((s) => s.room);
@@ -62,6 +68,8 @@ function Screen() {
           <Route path="/cards/share/:cardId" element={<ShareCardScreen />} />
           <Route path="/admin" element={<AdminScreen />} />
           <Route path="/admin/rooms/:roomId" element={<AdminRoomScreen />} />
+          <Route path="/admin/replay" element={<AdminReplayListScreen />} />
+          <Route path="/admin/replay/:matchId" element={<AdminReplayScreen />} />
           <Route path="*" element={<Landing />} />
         </Routes>
       </Suspense>

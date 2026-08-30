@@ -47,6 +47,19 @@ export interface UserStats {
   favouriteStat: string | null;
 }
 
+/** One row of the admin match list (#69) — enough to pick a replay. */
+export interface MatchListRow {
+  matchId: string;
+  roomCode: string;
+  editionId: string;
+  gameMode: string;
+  startedAt: Date;
+  finishedAt: Date | null;
+  rounds: number | null;
+  endReason: string | null;
+  playerNames: string[];
+}
+
 export interface MatchStore {
   createMatch(record: MatchRecord): Promise<void>;
   appendEvents(matchId: string, events: readonly SeqEvent[]): Promise<void>;
@@ -54,6 +67,10 @@ export interface MatchStore {
   /** Most recent matches this user played in, newest first. */
   listUserMatches(userId: string, limit?: number): Promise<UserMatchSummary[]>;
   userStats(userId: string): Promise<UserStats>;
+  /** Recent matches across everyone, newest first (admin replay list). */
+  listMatches(limit?: number): Promise<MatchListRow[]>;
+  /** A match with its full, unredacted event log; null when unknown. */
+  getMatch(matchId: string): Promise<StoredMatch | null>;
   /** Guest→account upgrade: move all match participation to the new user. */
   reassignUser(fromUserId: string, toUserId: string): Promise<void>;
   /** Account deletion: unlink and scrub the display name from match rows. */
@@ -147,6 +164,28 @@ export class InMemoryMatchStore implements MatchStore {
       }
     }
     return Promise.resolve({ games, wins, favouriteStat });
+  }
+
+  listMatches(limit = HISTORY_LIMIT): Promise<MatchListRow[]> {
+    const rows = [...this.matches.values()]
+      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
+      .slice(0, limit)
+      .map((match) => ({
+        matchId: match.matchId,
+        roomCode: match.roomCode,
+        editionId: match.editionId,
+        gameMode: match.gameMode,
+        startedAt: match.startedAt,
+        finishedAt: match.result?.finishedAt ?? null,
+        rounds: match.result?.rounds ?? null,
+        endReason: match.result?.endReason ?? null,
+        playerNames: match.players.map((p) => p.name),
+      }));
+    return Promise.resolve(rows);
+  }
+
+  getMatch(matchId: string): Promise<StoredMatch | null> {
+    return Promise.resolve(this.matches.get(matchId) ?? null);
   }
 
   reassignUser(fromUserId: string, toUserId: string): Promise<void> {

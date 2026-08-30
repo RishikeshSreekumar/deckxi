@@ -1600,3 +1600,27 @@ select:focus {
 .admin-feed-row--warn .admin-feed-event {
   color: var(--status-warning, var(--status-danger));
 }
+
+.replay-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.replay-controls input[type="range"] {
+  width: 100%;
+}
+
+/* Every hand face up, side by side — the replay's whole point is seeing what
+   no single player could. */
+.replay-hands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+}
+
+.replay-hand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}

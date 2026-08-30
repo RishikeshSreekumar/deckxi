@@ -138,6 +138,10 @@ export function AdminScreen() {
         </ul>
       )}
 
+      <p className="hint">
+        <Link to="/admin/replay">Replay a finished match →</Link>
+      </p>
+
       <AdminFeed />
 
       <p className="hint">

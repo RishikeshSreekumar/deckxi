@@ -9,9 +9,11 @@ import type { SeqEvent } from "../redact.js";
 import {
   DELETED_PLAYER_NAME,
   InMemoryMatchStore,
+  type MatchListRow,
   type MatchRecord,
   type MatchResult,
   type MatchStore,
+  type StoredMatch,
   type UserMatchSummary,
   type UserStats,
 } from "../store.js";
@@ -155,6 +157,81 @@ export class PostgresMatchStore implements MatchStore {
       games: totals?.games ?? 0,
       wins: totals?.wins ?? 0,
       favouriteStat: favourite?.stat ?? null,
+    };
+  }
+
+  /** Recent matches across everyone — the replay debugger's picker (#69). */
+  async listMatches(limit = 50): Promise<MatchListRow[]> {
+    const rows = await this.db
+      .select({
+        matchId: matches.id,
+        roomCode: matches.roomCode,
+        editionId: matches.editionId,
+        gameMode: matches.gameMode,
+        startedAt: matches.startedAt,
+        finishedAt: matches.finishedAt,
+        rounds: matches.rounds,
+        endReason: matches.endReason,
+      })
+      .from(matches)
+      .orderBy(desc(matches.startedAt))
+      .limit(limit);
+    if (rows.length === 0) return [];
+
+    const names = await this.db
+      .select({ matchId: matchPlayers.matchId, name: matchPlayers.name })
+      .from(matchPlayers)
+      .where(
+        inArray(
+          matchPlayers.matchId,
+          rows.map((r) => r.matchId),
+        ),
+      )
+      .orderBy(matchPlayers.seat);
+
+    return rows.map((row) => ({
+      ...row,
+      playerNames: names.filter((n) => n.matchId === row.matchId).map((n) => n.name),
+    }));
+  }
+
+  async getMatch(matchId: string): Promise<StoredMatch | null> {
+    const [match] = await this.db.select().from(matches).where(eq(matches.id, matchId)).limit(1);
+    if (match === undefined) return null;
+    const players = await this.db
+      .select()
+      .from(matchPlayers)
+      .where(eq(matchPlayers.matchId, matchId))
+      .orderBy(matchPlayers.seat);
+    const events = await this.db
+      .select({ seq: matchEvents.seq, payload: matchEvents.payload })
+      .from(matchEvents)
+      .where(eq(matchEvents.matchId, matchId))
+      .orderBy(matchEvents.seq);
+
+    return {
+      matchId: match.id,
+      roomId: match.roomId,
+      roomCode: match.roomCode,
+      editionId: match.editionId,
+      gameMode: match.gameMode,
+      startedAt: match.startedAt,
+      players: players.map((p) => ({
+        sessionId: p.sessionId,
+        userId: p.userId,
+        name: p.name,
+        seat: p.seat,
+      })),
+      events: events.map((e) => ({ seq: e.seq, event: e.payload as SeqEvent["event"] })),
+      result:
+        match.finishedAt === null
+          ? null
+          : {
+              finishedAt: match.finishedAt,
+              winnerSessionId: match.winnerSessionId ?? "",
+              endReason: match.endReason ?? "unknown",
+              rounds: match.rounds ?? 0,
+            },
     };
   }
 

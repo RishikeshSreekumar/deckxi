@@ -267,6 +267,7 @@ export function buildApp(options: AppOptions = {}): App {
     config: { token: options.admin?.token, emails: options.admin?.emails },
     log,
     feed,
+    store,
   });
 
   // Gauges read live state, so they are registered once the owners exist.

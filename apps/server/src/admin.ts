@@ -23,6 +23,7 @@ import { userFromHeaders, type Auth } from "./auth.js";
 import type { RoomManager, Room } from "./rooms.js";
 import type { Logger } from "./logging.js";
 import type { EventFeed } from "./feed.js";
+import type { MatchStore } from "./store.js";
 
 export interface AdminAccess {
   /** How this caller proved it: a signed-in admin, or the shared token. */
@@ -201,6 +202,8 @@ export interface AdminRoutesOptions {
   log: Logger;
   /** Recent server events, tee'd off the logger (#68). */
   feed: EventFeed;
+  /** Persisted matches, for the replay debugger (#69). */
+  store: MatchStore;
 }
 
 export function registerAdminRoutes(fastify: FastifyInstance, options: AdminRoutesOptions): void {
@@ -255,6 +258,31 @@ export function registerAdminRoutes(fastify: FastifyInstance, options: AdminRout
       // the replay debugger (#69), which is where that question belongs.
       if (room === undefined) return { room: null };
       return { room: toAdminRoomDetail(room) };
+    }),
+  );
+
+  /**
+   * Replay debugger (#69). The engine is deterministic and event-sourced, so
+   * "debug a game" is "replay its log" — no special recording, no snapshots,
+   * and the same bytes the server actually acted on. The client folds the log
+   * with the same reducer the server used, which is why this endpoint ships
+   * the raw events rather than a rendered sequence of states.
+   */
+  fastify.get(
+    "/api/admin/matches",
+    admin(async (request) => {
+      const { limit } = request.query as { limit?: string };
+      const size = Number(limit ?? 50);
+      return { matches: await options.store.listMatches(Number.isFinite(size) ? size : 50) };
+    }),
+  );
+
+  fastify.get(
+    "/api/admin/matches/:matchId",
+    admin(async (request) => {
+      const { matchId } = request.params as { matchId: string };
+      const match = await options.store.getMatch(matchId);
+      return { match };
     }),
   );
 
