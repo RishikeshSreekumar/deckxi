@@ -32,6 +32,8 @@ const envSchema = z.object({
   RELEASE: z.string().optional(),
   /** Bearer token for /metrics and the admin API; unset means loopback only. */
   ADMIN_TOKEN: z.string().min(16).optional(),
+  /** Comma-separated account emails allowed into /admin. Unset means nobody. */
+  ADMIN_EMAILS: z.string().optional(),
   /** Cloud Run sets this per revision; a usable release id when RELEASE isn't set. */
   K_REVISION: z.string().optional(),
 });
@@ -48,6 +50,7 @@ export interface Env {
   logLevel: string;
   release: string | undefined;
   adminToken: string | undefined;
+  adminEmails: string[];
 }
 
 /**
@@ -86,5 +89,9 @@ export function parseEnv(source: NodeJS.ProcessEnv = process.env): Env {
     logLevel: parsed.LOG_LEVEL ?? (parsed.APP_ENV === "development" ? "debug" : "info"),
     release: parsed.RELEASE ?? parsed.K_REVISION,
     adminToken: parsed.ADMIN_TOKEN,
+    adminEmails: (parsed.ADMIN_EMAILS ?? "")
+      .split(",")
+      .map((email) => email.trim())
+      .filter((email) => email.length > 0),
   };
 }

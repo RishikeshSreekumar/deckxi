@@ -384,6 +384,38 @@ with an email notification channel. Cloud Monitoring's alerting has no charge
 for log-based metrics at this scale; keep the notification channel to email
 (SMS is billable).
 
+### Admin dashboard
+
+`/admin` on the web app (staging: `https://staging.deckxi.rishikeshs.dev/admin`)
+shows the rooms the server currently has open — phase, occupancy, who dropped,
+the round in progress and how long the room has been idle.
+
+Getting in needs one of:
+
+- **an account** whose email is in `ADMIN_EMAILS`. That is a repository/
+  environment **variable** (Settings → Variables), not a secret, and it is
+  passed through by `deploy-api-cloudrun.yml`. Unset means nobody can get in,
+  which is the safe default and also what a fresh clone does. There is no role
+  column deliberately — see the note at the top of `apps/server/src/admin.ts`.
+  Sign in with Google or a magic link first; a guest session can never match,
+  because guests carry a placeholder email.
+- **`ADMIN_TOKEN`** as a bearer token, for curl and scripts. Optional; when
+  unset, `/metrics` falls back to loopback-only and the admin API is
+  session-only.
+
+```sh
+curl -s -H "Authorization: Bearer $ADMIN_TOKEN" \
+  https://api-staging.deckxi.rishikeshs.dev/api/admin/rooms | jq
+```
+
+Everything under `/api/admin` answers **404** to an unauthorised caller,
+including the dashboard's own "am I an admin" probe. So a 404 from the admin
+UI means "you are not an admin" as often as it means "typo" — that ambiguity is
+bought deliberately, since an endpoint that answers 401 has confirmed it exists.
+
+The dashboard polls every 5 seconds and stops polling while its tab is hidden,
+so a forgotten tab cannot hold a scale-to-zero instance warm.
+
 ## Incidents
 
 1. **Is it up?** `curl https://api-staging.deckxi.rishikeshs.dev/health`. A

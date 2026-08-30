@@ -162,6 +162,11 @@ export class RoomManager {
     return count;
   }
 
+  /** Every open room — the admin dashboard's source of truth (#67). */
+  listRooms(): Room[] {
+    return [...this.rooms.values()];
+  }
+
   getRoom(roomId: string): Room | undefined {
     return this.rooms.get(roomId);
   }

@@ -1484,3 +1484,30 @@ select:focus {
     transform: none;
   }
 }
+
+/* -- /admin ---------------------------------------------------------------- */
+
+/* Operator surface, not a player one: denser than the rest of the app on
+   purpose, because the job is scanning a list rather than reading one. */
+.admin-summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+}
+
+.admin-rooms {
+  gap: var(--space-3);
+}
+
+.admin-room {
+  padding: var(--space-4) var(--space-5);
+}
+
+.admin-phase {
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-phase--playing {
+  color: var(--status-win);
+}

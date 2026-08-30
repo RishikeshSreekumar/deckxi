@@ -34,7 +34,7 @@ if (isMain) {
       baseURL: env.authUrl ?? `http://localhost:${env.port}`,
       google: env.google,
     },
-    admin: { token: env.adminToken },
+    admin: { token: env.adminToken, emails: env.adminEmails },
   });
   installProcessHandlers(app.fastify.log as unknown as Logger);
   const port = await app.listen(env.port, env.host);
