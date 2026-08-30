@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App.js";
 import { initSocket } from "./store/store.js";
 import { ensureSession } from "./lib/auth.js";
+import "@deckxi/ui/styles.css";
 import "./styles.css";
 
 // Identity first (guest session cookie), then connect — the socket handshake

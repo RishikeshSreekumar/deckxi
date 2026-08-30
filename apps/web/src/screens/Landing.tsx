@@ -10,7 +10,7 @@ import { AckError } from "../lib/socket.js";
 import { loadPlayerName } from "../lib/session.js";
 import { fetchProfile, type ProfileUser } from "../lib/api.js";
 import { ensureSession } from "../lib/auth.js";
-import { Avatar } from "../components/Avatar.js";
+import { Avatar } from "@deckxi/ui";
 
 const CLOSED_COPY = {
   "host-left": "The host left, so the room closed.",

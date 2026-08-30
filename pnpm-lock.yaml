@@ -166,9 +166,19 @@ importers:
 
   packages/ui:
     dependencies:
+      '@deckxi/data':
+        specifier: workspace:*
+        version: link:../data
       '@deckxi/shared':
         specifier: workspace:*
         version: link:../shared
+    devDependencies:
+      '@types/react':
+        specifier: ^19.1.0
+        version: 19.2.18
+      react:
+        specifier: ^19.1.0
+        version: 19.2.8
 
 packages:
 

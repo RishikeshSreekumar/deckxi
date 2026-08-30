@@ -1,0 +1,713 @@
+/**
+ * @deckxi/ui — design tokens + component kit styles.
+ *
+ * Token layers:
+ *   1. Scales (spacing, radii, type, elevation, motion) — theme-invariant.
+ *   2. Palette — dark "night match" theme on :root (the product default),
+ *      light theme under [data-theme="light"].
+ * Component styles here cover only what the kit owns: buttons, toasts,
+ * avatars, timer ring, room code, dialog/sheet, and the TrumpCard.
+ * App-level layout/screens stay in the app's own stylesheet.
+ */
+
+:root {
+  /* -- scales (theme-invariant) -- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius: 14px;
+  --radius-pill: 999px;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.85rem;
+  --text-md: 1rem;
+  --text-lg: 1.3rem;
+  --text-xl: 1.6rem;
+  --text-2xl: 2.6rem;
+
+  --dur-fast: 0.15s;
+  --dur-med: 0.3s;
+  --dur-slow: 0.5s;
+  --ease-out: cubic-bezier(0.25, 0.8, 0.4, 1);
+  --ease-spring: cubic-bezier(0.2, 0.7, 0.3, 1.1);
+
+  /* -- palette: dark "night match" (default) -- */
+  color-scheme: dark;
+  --bg: #0b1220;
+  --bg-raised: #131c30;
+  --bg-panel: #16213a;
+  --line: #24304d;
+  --text: #e8edf7;
+  --text-dim: #93a1bd;
+  --accent: #38bdf8;
+  --accent-strong: #0ea5e9;
+  --on-accent: #04121f;
+  --gold: #fbbf24;
+  --danger: #f87171;
+  --win: #4ade80;
+  --backdrop: rgba(4, 8, 16, 0.7);
+  --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 6px 18px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 12px 32px rgba(0, 0, 0, 0.55);
+
+  /* -- card & rarity -- */
+  --team-color: #3b4a6b;
+  --card-face: linear-gradient(160deg, var(--bg-raised), var(--bg-panel));
+  --card-ink: #fff;
+  --rarity-star: var(--gold);
+  --rarity-star-glow: rgba(251, 191, 36, 0.28);
+  --rarity-legend-glow: rgba(56, 189, 248, 0.45);
+  --holo: linear-gradient(
+    115deg,
+    transparent 25%,
+    rgba(255, 130, 220, 0.16) 38%,
+    rgba(255, 255, 255, 0.2) 46%,
+    rgba(120, 220, 255, 0.22) 54%,
+    rgba(160, 255, 180, 0.14) 62%,
+    transparent 75%
+  );
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #eef2f9;
+  --bg-raised: #ffffff;
+  --bg-panel: #f7f9fe;
+  --line: #cdd7e8;
+  --text: #16213a;
+  --text-dim: #5a6a8a;
+  --accent: #0284c7;
+  --accent-strong: #0369a1;
+  --on-accent: #ffffff;
+  --gold: #b45309;
+  --danger: #dc2626;
+  --win: #15803d;
+  --backdrop: rgba(22, 33, 58, 0.4);
+  --shadow-1: 0 2px 8px rgba(22, 33, 58, 0.12);
+  --shadow-2: 0 6px 18px rgba(22, 33, 58, 0.16);
+  --shadow-3: 0 12px 32px rgba(22, 33, 58, 0.22);
+
+  --card-face: linear-gradient(160deg, #ffffff, #eef2f9);
+  --rarity-star-glow: rgba(180, 83, 9, 0.25);
+  --rarity-legend-glow: rgba(2, 132, 199, 0.35);
+}
+
+/* -- buttons ---------------------------------------------------------------- */
+
+.button {
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) 18px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: filter var(--dur-fast);
+}
+
+.button:hover:not(:disabled) {
+  filter: brightness(1.2);
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.button--primary {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: var(--on-accent);
+}
+
+.button--ghost {
+  background: transparent;
+}
+
+.button--danger {
+  background: transparent;
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.icon-button {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+}
+
+.icon-button:hover {
+  background: var(--bg-raised);
+}
+
+/* -- toasts ----------------------------------------------------------------- */
+
+.toasts {
+  position: fixed;
+  bottom: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  z-index: 40;
+  width: min(92vw, 380px);
+}
+
+.toast {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+  color: var(--text);
+  padding: 10px 14px;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: var(--shadow-3);
+  animation: rise 0.25s var(--ease-out);
+}
+
+.toast--error {
+  border-color: var(--danger);
+}
+
+/* -- avatar ----------------------------------------------------------------- */
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--team-color);
+  object-fit: cover;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+/* -- timer ring ------------------------------------------------------------- */
+
+.timer-ring {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+
+.timer-track {
+  stroke: var(--line);
+}
+
+.timer-arc {
+  stroke: var(--accent);
+  transition: stroke-dashoffset 0.1s linear;
+}
+
+.timer-ring--urgent .timer-arc {
+  stroke: var(--danger);
+}
+
+.timer-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xs);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.timer-ring--urgent .timer-label {
+  color: var(--danger);
+}
+
+/* -- room code -------------------------------------------------------------- */
+
+.room-code {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.code-char {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) 0;
+  width: 38px;
+  text-align: center;
+  font-size: var(--text-lg);
+  font-weight: 800;
+}
+
+/* -- dialog / sheet --------------------------------------------------------- */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--backdrop);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 30;
+}
+
+.dialog {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 20px var(--space-4) max(20px, env(safe-area-inset-bottom));
+  width: min(100%, 460px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  animation: rise 0.2s var(--ease-out);
+}
+
+.dialog-title {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+@media (min-width: 720px) {
+  .dialog-backdrop {
+    align-items: center;
+  }
+
+  .dialog {
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-3);
+  }
+}
+
+/* -- trump card ------------------------------------------------------------- */
+
+.card {
+  background: var(--card-face);
+  border: 2px solid var(--team-color);
+  border-radius: 12px;
+  overflow: hidden;
+  width: 100%;
+  box-shadow: var(--shadow-2);
+  position: relative;
+}
+
+.card--full {
+  max-width: 300px;
+}
+
+.card--reveal {
+  width: clamp(120px, 26vw, 180px);
+  font-size: 0.8rem;
+}
+
+.card--hand {
+  width: 140px;
+  font-size: 0.75rem;
+}
+
+/* Inner frame layer — the physical-object bevel; rarity foils live here. */
+.card-frame {
+  position: absolute;
+  inset: 2px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.card-head {
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--team-color) 78%, #ffffff) 0%,
+    var(--team-color) 42%,
+    color-mix(in srgb, var(--team-color) 62%, #000000) 100%
+  );
+  color: var(--card-ink);
+  padding: var(--space-2) 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  position: relative;
+  overflow: hidden;
+  min-height: 3.2em;
+  justify-content: flex-end;
+}
+
+.card-portrait {
+  position: absolute;
+  right: -4px;
+  bottom: -6px;
+  height: 130%;
+  opacity: 0.28;
+  pointer-events: none;
+}
+
+.card-name {
+  font-weight: 800;
+  font-size: 1.05em;
+  line-height: 1.15;
+  position: relative;
+  padding-right: 34px;
+}
+
+.card-meta {
+  font-size: 0.8em;
+  opacity: 0.92;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.role-icon {
+  width: 1.1em;
+  height: 1.1em;
+  flex-shrink: 0;
+}
+
+.rarity-mark {
+  font-size: 0.9em;
+}
+
+.card--star .rarity-mark {
+  color: var(--rarity-star);
+  text-shadow: 0 0 6px var(--rarity-star-glow);
+}
+
+.card--legend .rarity-mark {
+  color: #d7f4ff;
+  text-shadow: 0 0 8px var(--rarity-legend-glow);
+}
+
+/* Rating badge — a shield overlapping the header edge. */
+.card-rating {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  width: 2.6em;
+  height: 2.9em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 1.05em;
+  color: var(--card-ink);
+  z-index: 2;
+}
+
+.card-rating svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.card-rating span {
+  position: relative;
+  font-size: 0.95em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* -- stat table (stats are gameplay, not decoration) -- */
+
+.card-stats {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  position: relative;
+}
+
+.stat-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+}
+
+[data-theme="light"] .stat-row {
+  border-bottom-color: rgba(22, 33, 58, 0.08);
+}
+
+.stat-row:last-child {
+  border-bottom: none;
+}
+
+/* Value meter — normalized against the stat's min/max from the edition. */
+.stat-row::before {
+  content: "";
+  position: absolute;
+  inset: 2px auto 2px 0;
+  width: var(--meter, 0%);
+  background: color-mix(in srgb, var(--team-color) 22%, transparent);
+  border-radius: 0 4px 4px 0;
+  pointer-events: none;
+}
+
+.stat-button,
+.stat-static {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--space-2);
+  align-items: center;
+  width: 100%;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  position: relative;
+}
+
+.stat-button {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.stat-button:hover,
+.stat-button:focus-visible {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.stat-name {
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-button .stat-name {
+  color: var(--text);
+}
+
+.stat-dir {
+  color: var(--text-dim);
+  font-size: 0.7em;
+}
+
+.stat-value {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-row--hot {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.stat-row--hot .stat-name,
+.stat-row--hot .stat-value {
+  color: var(--accent);
+}
+
+/* -- card back (the brand mark) -- */
+
+.card--back {
+  aspect-ratio: 5 / 7;
+  border-color: var(--line);
+  background: #0d1526;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.card-back-art {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* -- rarity treatments -- */
+
+/* Star: gold foil inner frame + warm glow. */
+.card--star {
+  box-shadow:
+    var(--shadow-2),
+    0 0 14px var(--rarity-star-glow);
+}
+
+.card--star .card-frame {
+  border: 1.5px solid transparent;
+  background: linear-gradient(
+      130deg,
+      rgba(251, 191, 36, 0.9),
+      rgba(255, 240, 200, 0.95) 30%,
+      rgba(180, 120, 20, 0.9) 55%,
+      rgba(251, 191, 36, 0.9) 80%
+    )
+    border-box;
+  mask:
+    linear-gradient(#000 0 0) padding-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+/* Legend: holographic foil — a static holo tint always present, with a
+   travelling sheen on top. Reduced motion keeps the tint, drops the sweep. */
+.card--legend {
+  box-shadow:
+    var(--shadow-2),
+    0 0 18px var(--rarity-legend-glow);
+}
+
+.card--legend .card-frame {
+  border: 1.5px solid transparent;
+  background: linear-gradient(
+      130deg,
+      rgba(120, 220, 255, 0.9),
+      rgba(255, 160, 235, 0.85) 30%,
+      rgba(255, 255, 255, 0.95) 50%,
+      rgba(140, 255, 190, 0.85) 70%,
+      rgba(120, 220, 255, 0.9)
+    )
+    border-box;
+  mask:
+    linear-gradient(#000 0 0) padding-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.card--legend::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--holo);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.card--legend::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--holo);
+  pointer-events: none;
+  z-index: 2;
+  animation: sheen 3.2s ease-in-out infinite;
+}
+
+/* -- outcome states -- */
+
+.card--winner {
+  border-color: var(--win);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--win) 50%, transparent);
+}
+
+.card--loser {
+  filter: saturate(0.5) brightness(0.75);
+}
+
+/* -- motion vocabulary ------------------------------------------------------ */
+
+@keyframes sheen {
+  0%,
+  60% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes flip-in {
+  from {
+    transform: rotateY(90deg) scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: rotateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.5);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Deal: a card arriving in your hand — slides up from the deck with a tilt. */
+@keyframes deal-in {
+  from {
+    transform: translateY(40px) rotate(-6deg) scale(0.85);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    transform: translateY(0) rotate(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.deal-in {
+  animation: deal-in var(--dur-slow) var(--ease-spring) both;
+}
+
+/* Win-sweep: losing cards slide toward the winner and vanish; on a tie they
+   sink into the pot instead. Drive direction with --sweep-x per slot. */
+@keyframes win-sweep {
+  to {
+    transform: translateX(var(--sweep-x, 0px)) scale(0.7);
+    opacity: 0;
+  }
+}
+
+@keyframes pot-sink {
+  to {
+    transform: translateY(60px) scale(0.7);
+    opacity: 0;
+  }
+}
+
+.sweep-to-winner {
+  animation: win-sweep 0.6s var(--ease-out) 1.2s both;
+}
+
+.sweep-to-pot {
+  animation: pot-sink 0.6s var(--ease-out) 1.2s both;
+}
+
+/* -- reduced motion --------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .dialog,
+  .deal-in,
+  .sweep-to-winner,
+  .sweep-to-pot {
+    animation: none;
+  }
+
+  .card--legend::after {
+    animation: none;
+    display: none;
+  }
+}

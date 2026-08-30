@@ -1,11 +1,20 @@
 /**
  * Countdown ring for the turn timer, driven by the server deadline so clock
- * drift only affects the picture, never the rules.
+ * drift only affects the picture, never the rules. Sound-agnostic: the app
+ * passes `onTick` to beep on the final seconds.
  */
 import { useEffect, useState } from "react";
-import { sounds } from "../lib/sounds.js";
 
-export function TimerRing({ deadline, seconds }: { deadline: number; seconds: number }) {
+export function TimerRing({
+  deadline,
+  seconds,
+  onTick,
+}: {
+  deadline: number;
+  seconds: number;
+  /** Called once per second change while ≤5s remain (for tick sounds). */
+  onTick?: (secondsLeft: number) => void;
+}) {
   const [remaining, setRemaining] = useState(() => Math.max(0, deadline - Date.now()));
 
   useEffect(() => {
@@ -14,11 +23,11 @@ export function TimerRing({ deadline, seconds }: { deadline: number; seconds: nu
       const ms = Math.max(0, deadline - Date.now());
       setRemaining(ms);
       const s = Math.ceil(ms / 1000);
-      if (s !== last && s <= 5 && s > 0) sounds.tick();
+      if (s !== last && s <= 5 && s > 0) onTick?.(s);
       last = s;
     }, 100);
     return () => clearInterval(tick);
-  }, [deadline]);
+  }, [deadline, onTick]);
 
   const total = seconds * 1000;
   const fraction = total > 0 ? Math.min(1, remaining / total) : 0;

@@ -2,9 +2,14 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "resolveJsonModule": true
   },
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts"],
-  "references": [{ "path": "../shared" }]
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"],
+  "references": [{ "path": "../shared" }, { "path": "../data" }]
 }

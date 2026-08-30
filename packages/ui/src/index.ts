@@ -1,4 +1,19 @@
 /**
- * @deckxi/ui — design system, design tokens and the TrumpCard renderer.
+ * @deckxi/ui — design system: tokens, the TrumpCard renderer and the core
+ * component kit. Import "@deckxi/ui/styles.css" for tokens + kit styles.
  */
-export const UI_NAME = "@deckxi/ui";
+export * as tokens from "./tokens.js";
+export {
+  getEdition,
+  getCardInfo,
+  statName,
+  formatStatValue,
+  DEFAULT_EDITION_ID,
+  type CardInfo,
+} from "./editions.js";
+export { TrumpCard, type TrumpCardProps, type CardSize } from "./TrumpCard.js";
+export { CardBackArt, RoleIcon, RolePortrait } from "./cardArt.js";
+export { Avatar } from "./Avatar.js";
+export { TimerRing } from "./TimerRing.js";
+export { Dialog } from "./Dialog.js";
+export { RoomCode } from "./RoomCode.js";

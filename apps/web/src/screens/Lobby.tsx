@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { MAX_CHAT_LENGTH, type RoomSettings, type RoomView } from "@deckxi/shared";
+import { RoomCode } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
 import { MuteButton } from "../components/Chrome.js";
 
@@ -32,13 +33,7 @@ function InvitePanel({ code }: { code: string }) {
   return (
     <section className="panel invite-panel">
       <h2>Invite friends</h2>
-      <div className="room-code" aria-label={`Room code ${code.split("").join(" ")}`}>
-        {[...code].map((c, i) => (
-          <span key={i} className="code-char">
-            {c}
-          </span>
-        ))}
-      </div>
+      <RoomCode code={code} />
       <div className="invite-actions">
         <button
           type="button"

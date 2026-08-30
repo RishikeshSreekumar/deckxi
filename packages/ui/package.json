@@ -9,12 +9,21 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./styles.css": "./src/styles.css"
   },
   "scripts": {
     "build": "tsc -b"
   },
   "dependencies": {
+    "@deckxi/data": "workspace:*",
     "@deckxi/shared": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "react": "^19.1.0"
   }
 }

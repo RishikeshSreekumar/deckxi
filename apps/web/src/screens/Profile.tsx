@@ -8,9 +8,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { AVATARS, MAX_NAME_LENGTH } from "@deckxi/shared";
 import { authClient, ensureSession } from "../lib/auth.js";
 import { fetchProfile, type Profile } from "../lib/api.js";
-import { DEFAULT_EDITION_ID, statName } from "../lib/editions.js";
+import { Avatar, DEFAULT_EDITION_ID, statName } from "@deckxi/ui";
 import { savePlayerName } from "../lib/session.js";
-import { Avatar } from "../components/Avatar.js";
 
 export function ProfileScreen() {
   const navigate = useNavigate();

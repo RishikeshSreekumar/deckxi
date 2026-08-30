@@ -7,12 +7,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { RoomView } from "@deckxi/shared";
 import type { ResolvedRound } from "../game/clientGame.js";
+import { Dialog, TimerRing, TrumpCard, statName } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
-import { TrumpCard } from "../components/TrumpCard.js";
-import { TimerRing } from "../components/TimerRing.js";
 import { EmoteBar } from "../components/EmoteBar.js";
 import { MuteButton } from "../components/Chrome.js";
-import { statName } from "../lib/editions.js";
 import { sounds } from "../lib/sounds.js";
 
 type Stage = "flip" | "verdict";
@@ -75,6 +73,7 @@ function RevealOverlay({
   selfId: string | null;
 }) {
   const winnerId = round.result.kind === "won" ? round.result.winner : null;
+  const winnerIndex = round.revealed.findIndex((r) => r.playerId === winnerId);
   return (
     <div className={`reveal reveal--${stage}`} data-testid="reveal">
       <p className="reveal-stat">
@@ -90,7 +89,19 @@ function RevealOverlay({
             <span className="reveal-owner">
               {r.playerId === selfId ? "You" : (names[r.playerId] ?? r.playerId)}
             </span>
-            <div className="reveal-flipper">
+            <div
+              className={[
+                "reveal-flipper",
+                stage === "verdict" && r.playerId !== winnerId
+                  ? winnerId === null
+                    ? "sweep-to-pot"
+                    : "sweep-to-winner"
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              style={{ "--sweep-x": `${(winnerIndex - i) * 110}%` } as React.CSSProperties}
+            >
               <TrumpCard
                 editionId={editionId}
                 cardId={r.cardId}
@@ -208,7 +219,11 @@ export function GameTable({ room }: { room: RoomView }) {
                 🂠 {game.handCounts[id] ?? 0}
               </span>
               {isLeader && timer !== null && timer.playerId === id && (
-                <TimerRing deadline={timer.deadline} seconds={room.settings.turnTimerSeconds} />
+                <TimerRing
+                  deadline={timer.deadline}
+                  seconds={room.settings.turnTimerSeconds}
+                  onTick={() => sounds.tick()}
+                />
               )}
             </div>
           );
@@ -258,15 +273,21 @@ export function GameTable({ room }: { room: RoomView }) {
           <div className="hand">
             <div className="hand-top">
               {yourTurn && timer !== null && timer.playerId === selfId && (
-                <TimerRing deadline={timer.deadline} seconds={room.settings.turnTimerSeconds} />
+                <TimerRing
+                  deadline={timer.deadline}
+                  seconds={room.settings.turnTimerSeconds}
+                  onTick={() => sounds.tick()}
+                />
               )}
-              <TrumpCard
-                editionId={editionId}
-                cardId={topCard}
-                size="full"
-                {...(yourTurn ? { onSelectStat: (stat: string) => void selectStat(stat) } : {})}
-                {...(pendingStat !== null ? { pendingStat } : {})}
-              />
+              <div className="deal-in" key={`${game.round}-${topCard ?? "none"}`}>
+                <TrumpCard
+                  editionId={editionId}
+                  cardId={topCard}
+                  size="full"
+                  {...(yourTurn ? { onSelectStat: (stat: string) => void selectStat(stat) } : {})}
+                  {...(pendingStat !== null ? { pendingStat } : {})}
+                />
+              </div>
             </div>
             <div className="hand-rest" aria-label={`${game.yourHand.length} cards in hand`}>
               {game.yourHand.slice(1, 8).map((_, i) => (
@@ -287,40 +308,33 @@ export function GameTable({ room }: { room: RoomView }) {
       {!spectator && <EmoteBar />}
 
       {menuOpen && (
-        <div className="sheet-backdrop" onClick={() => setMenuOpen(false)}>
-          <div
-            className="sheet"
-            role="dialog"
-            aria-label="Game menu"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {!spectator && !game.finished && (
-              <button
-                type="button"
-                className="button button--danger"
-                onClick={() => {
-                  setMenuOpen(false);
-                  void forfeit().catch(() => undefined);
-                }}
-              >
-                Forfeit the game
-              </button>
-            )}
+        <Dialog title="Game menu" onClose={() => setMenuOpen(false)}>
+          {!spectator && !game.finished && (
             <button
               type="button"
-              className="button button--ghost"
+              className="button button--danger"
               onClick={() => {
                 setMenuOpen(false);
-                void leaveRoom();
+                void forfeit().catch(() => undefined);
               }}
             >
-              Leave room
+              Forfeit the game
             </button>
-            <button type="button" className="button" onClick={() => setMenuOpen(false)}>
-              Back to the game
-            </button>
-          </div>
-        </div>
+          )}
+          <button
+            type="button"
+            className="button button--ghost"
+            onClick={() => {
+              setMenuOpen(false);
+              void leaveRoom();
+            }}
+          >
+            Leave room
+          </button>
+          <button type="button" className="button" onClick={() => setMenuOpen(false)}>
+            Back to the game
+          </button>
+        </Dialog>
       )}
     </main>
   );
