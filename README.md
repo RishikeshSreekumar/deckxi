@@ -63,6 +63,18 @@ cp apps/server/.env.example apps/server/.env
 cp apps/web/.env.example apps/web/.env
 ```
 
+## Deployment
+
+The SPA runs on Cloudflare Pages, the API on a single Cloud Run instance, backed by Neon Postgres —
+every piece on a free tier. Merging to `main` deploys staging; production isn't provisioned until
+launch. Migrations run as a separate job before the new image goes live.
+
+```sh
+docker build -t deckxi-server . && docker run -p 3001:3001 deckxi-server  # build the API image locally
+```
+
+See [`docs/runbook.md`](docs/runbook.md) for setup, deploys, rollback and incident basics.
+
 ## Contributing
 
 - Work happens on branches; `main` is protected and changes land via PR with green CI.

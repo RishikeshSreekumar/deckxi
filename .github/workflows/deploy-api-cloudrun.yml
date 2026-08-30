@@ -1,0 +1,120 @@
+name: Deploy API (Cloud Run)
+
+# Reusable: build the image, push to Artifact Registry, migrate, then roll the
+# Cloud Run service. Sized to stay inside Google's always-free tier — see
+# docs/runbook.md. The Fly path (deploy-api.yml) is kept for the eventual
+# move; only one of the two is provisioned at a time.
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub environment holding the secrets (staging | production)
+        required: true
+        type: string
+      service:
+        description: Cloud Run service name
+        required: true
+        type: string
+      api_url:
+        description: Public API base URL, smoke-tested after deploy
+        required: true
+        type: string
+      cors_origins:
+        description: Comma-separated origin allowlist for this environment
+        required: true
+        type: string
+    secrets:
+      DATABASE_URL:
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  # Override with a GCP_REGION repository variable. Must be a region that
+  # supports Cloud Run domain mappings if you map a custom domain to it.
+  REGION: ${{ vars.GCP_REGION || 'asia-south1' }}
+  REPOSITORY: deckxi
+
+jobs:
+  migrate:
+    name: Migrate (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Apply migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm --filter @deckxi/server db:migrate
+
+  deploy:
+    name: Deploy (${{ inputs.environment }})
+    needs: migrate
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.api_url }}
+    concurrency:
+      group: deploy-api-${{ inputs.environment }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      # Keyless: a Workload Identity Federation provider trusts this repo, so
+      # there is no long-lived service account key sitting in GitHub secrets.
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - uses: docker/setup-buildx-action@v3
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/server:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy
+        run: |
+          gcloud run deploy ${{ inputs.service }} \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/server:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 3001 \
+            --cpu 1 --memory 512Mi \
+            --min-instances 0 \
+            --max-instances 1 \
+            --concurrency 250 \
+            --timeout 3600 \
+            --no-cpu-throttling \
+            --set-env-vars "^@^APP_ENV=${{ inputs.environment }}@HOST=0.0.0.0@BETTER_AUTH_URL=${{ inputs.api_url }}@CORS_ORIGINS=${{ inputs.cors_origins }}" \
+            --set-secrets "DATABASE_URL=deckxi-${{ inputs.environment }}-database-url:latest,BETTER_AUTH_SECRET=deckxi-${{ inputs.environment }}-auth-secret:latest,GOOGLE_CLIENT_ID=deckxi-${{ inputs.environment }}-google-client-id:latest,GOOGLE_CLIENT_SECRET=deckxi-${{ inputs.environment }}-google-client-secret:latest" \
+            --quiet
+
+      - name: Smoke test /healthz
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            body=$(curl -fsS "${{ inputs.api_url }}/healthz") && break
+            echo "attempt $attempt failed; retrying in 10s"
+            sleep 10
+          done
+          echo "$body"
+          echo "$body" | grep -q '"ok":true'

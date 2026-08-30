@@ -10,6 +10,7 @@ import type { ResolvedRound } from "../game/clientGame.js";
 import { Dialog, TimerRing, TrumpCard, statName } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
 import { EmoteBar } from "../components/EmoteBar.js";
+import { GameChat } from "../components/GameChat.js";
 import { MuteButton } from "../components/Chrome.js";
 import { sounds } from "../lib/sounds.js";
 
@@ -305,7 +306,10 @@ export function GameTable({ room }: { room: RoomView }) {
         )}
       </section>
 
-      {!spectator && <EmoteBar />}
+      <div className="table-social">
+        {!spectator && <EmoteBar />}
+        <GameChat />
+      </div>
 
       {menuOpen && (
         <Dialog title="Game menu" onClose={() => setMenuOpen(false)}>

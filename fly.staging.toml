@@ -1,0 +1,36 @@
+# Staging API — fly deploy --config fly.staging.toml
+# Secrets (fly secrets set -a deckxi-api-staging): DATABASE_URL,
+# BETTER_AUTH_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET.
+app = "deckxi-api-staging"
+primary_region = "fra"
+
+[build]
+dockerfile = "Dockerfile"
+
+[env]
+APP_ENV = "staging"
+PORT = "3001"
+HOST = "0.0.0.0"
+BETTER_AUTH_URL = "https://api-staging.deckxi.rishikeshs.dev"
+CORS_ORIGINS = "https://staging.deckxi.rishikeshs.dev,https://*.deckxi-web.pages.dev"
+
+[http_service]
+internal_port = 3001
+force_https = true
+# Socket.IO needs a long-lived process: one machine, and no autoscaling until
+# the Redis adapter lands (Phase 10). Staging may sleep when idle.
+auto_stop_machines = "suspend"
+auto_start_machines = true
+min_machines_running = 0
+max_machines_running = 1
+
+[[http_service.checks]]
+grace_period = "10s"
+interval = "30s"
+timeout = "5s"
+method = "GET"
+path = "/healthz"
+
+[[vm]]
+size = "shared-cpu-1x"
+memory = "512mb"

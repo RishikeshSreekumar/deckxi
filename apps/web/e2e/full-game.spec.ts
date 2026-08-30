@@ -55,6 +55,19 @@ test("two browsers play a full game", async ({ browser }) => {
   await expect(host.getByTestId("game-table")).toBeVisible();
   await expect(guest.getByTestId("game-table")).toBeVisible();
 
+  // Chat works at the table, not just in the lobby: the host sends, the guest
+  // sees an unread badge, and opening the drawer shows the message.
+  await host.getByRole("button", { name: "Open chat" }).click();
+  await host.getByLabel("Chat message").fill("good luck");
+  await host.getByRole("button", { name: "Send" }).click();
+  await expect(host.getByTestId("game-chat-log")).toContainText("good luck");
+
+  await guest.getByRole("button", { name: "Open chat, 1 unread" }).click();
+  await expect(guest.getByTestId("game-chat-log")).toContainText("Hosty");
+  await expect(guest.getByTestId("game-chat-log")).toContainText("good luck");
+  await guest.getByRole("button", { name: "Close chat" }).click();
+  await host.getByRole("button", { name: "Close chat" }).click();
+
   // Play until the results screen shows on both sides. Whoever holds the
   // pick clicks their first stat; the reveal animation paces the loop and
   // the server's turn timer backstops any missed pick.
