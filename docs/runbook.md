@@ -102,7 +102,7 @@ surfaces as a container that won't boot rather than a warning.
 for s in database-url auth-secret google-client-id google-client-secret; do
   gcloud secrets create "deckxi-staging-$s" --replication-policy=automatic
 done
-printf '%s' 'postgres://…?sslmode=require' | \
+printf '%s' 'postgres://…?sslmode=verify-full' | \
   gcloud secrets versions add deckxi-staging-database-url --data-file=-
 openssl rand -base64 32 | \
   gcloud secrets versions add deckxi-staging-auth-secret --data-file=-
@@ -150,7 +150,10 @@ service account with `roles/iam.workloadIdentityUser` on principalSet
 
 Create the project, then a `staging` branch off the default. Branches are
 copy-on-write, so staging costs nothing. Take the **pooled** connection string
-(host contains `-pooler`) and add `?sslmode=require`.
+(host contains `-pooler`) and add `?sslmode=verify-full`. Not `require`: the
+`pg` driver currently treats it as an alias for `verify-full` but warns that
+pg v9 will downgrade it to weaker libpq semantics, so spelling it out keeps
+today's behaviour when that lands.
 
 ### GitHub
 
