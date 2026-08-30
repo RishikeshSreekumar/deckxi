@@ -7,7 +7,7 @@ import QRCode from "qrcode";
 import { MAX_CHAT_LENGTH, type RoomSettings, type RoomView } from "@deckxi/shared";
 import { RoomCode } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
-import { MuteButton } from "../components/Chrome.js";
+import { MuteButton, ThemeToggle } from "../components/Chrome.js";
 
 function inviteUrl(code: string): string {
   return `${location.origin}/join/${code}`;
@@ -164,12 +164,13 @@ export function Lobby({ room }: { room: RoomView }) {
   const players = useMemo(() => [...room.players].sort((a, b) => a.seat - b.seat), [room.players]);
 
   return (
-    <main className="screen lobby">
+    <main className="screen lobby" data-testid="lobby-screen">
       <header className="screen-head">
         <h1 className="brand brand--small">
           Deck<span className="brand-xi">XI</span>
         </h1>
         <div className="head-actions">
+          <ThemeToggle />
           <MuteButton />
           <button type="button" className="button button--ghost" onClick={() => void leaveRoom()}>
             Leave

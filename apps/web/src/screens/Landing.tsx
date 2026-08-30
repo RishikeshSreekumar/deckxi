@@ -11,6 +11,7 @@ import { loadPlayerName } from "../lib/session.js";
 import { fetchProfile, type ProfileUser } from "../lib/api.js";
 import { ensureSession } from "../lib/auth.js";
 import { Avatar } from "@deckxi/ui";
+import { ThemeToggle } from "../components/Chrome.js";
 
 const CLOSED_COPY = {
   "host-left": "The host left, so the room closed.",
@@ -70,16 +71,19 @@ export function Landing() {
 
   return (
     <main className="screen landing">
-      <Link to="/profile" className="profile-chip" aria-label="Your profile">
-        {me !== null ? (
-          <>
-            <Avatar image={me.image} name={me.name} size={28} />
-            <span>{me.name}</span>
-          </>
-        ) : (
-          <span>Profile</span>
-        )}
-      </Link>
+      <div className="landing-chrome">
+        <ThemeToggle />
+        <Link to="/profile" className="profile-chip" aria-label="Your profile">
+          {me !== null ? (
+            <>
+              <Avatar image={me.image} name={me.name} size={28} />
+              <span>{me.name}</span>
+            </>
+          ) : (
+            <span>Profile</span>
+          )}
+        </Link>
+      </div>
       <div className="landing-hero">
         <h1 className="brand">
           Deck<span className="brand-xi">XI</span>

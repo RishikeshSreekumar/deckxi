@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 import type { RoomView } from "@deckxi/shared";
 import { useStore } from "../store/store.js";
 import { sounds } from "../lib/sounds.js";
-import { MuteButton } from "../components/Chrome.js";
+import { MuteButton, ThemeToggle } from "../components/Chrome.js";
 
 const REASON_COPY = {
   "last-standing": "took every card on the table",
@@ -50,7 +50,10 @@ export function Results({ room }: { room: RoomView }) {
         <h1 className="brand brand--small">
           Deck<span className="brand-xi">XI</span>
         </h1>
-        <MuteButton />
+        <div className="head-actions">
+          <ThemeToggle />
+          <MuteButton />
+        </div>
       </header>
 
       <div className={`panel results-panel ${youWon ? "results-panel--won" : ""}`}>

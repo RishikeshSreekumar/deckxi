@@ -10,6 +10,7 @@ import { authClient, ensureSession } from "../lib/auth.js";
 import { fetchProfile, type Profile } from "../lib/api.js";
 import { Avatar, DEFAULT_EDITION_ID, statName } from "@deckxi/ui";
 import { savePlayerName } from "../lib/session.js";
+import { ThemeToggle } from "../components/Chrome.js";
 
 export function ProfileScreen() {
   const navigate = useNavigate();
@@ -316,6 +317,7 @@ function ScreenHead() {
         Deck<span className="brand-xi">XI</span>
       </Link>
       <h2 style={{ margin: 0 }}>Profile</h2>
+      <ThemeToggle />
     </div>
   );
 }

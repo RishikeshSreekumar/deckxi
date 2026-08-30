@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ensureSession } from "../lib/auth.js";
 import { fetchMatches, fetchProfile, type MatchSummary } from "../lib/api.js";
+import { ThemeToggle } from "../components/Chrome.js";
 
 const OUTCOME_COPY = { won: "Won", lost: "Lost", unfinished: "Unfinished" } as const;
 
@@ -40,6 +41,7 @@ export function HistoryScreen() {
           Deck<span className="brand-xi">XI</span>
         </Link>
         <h2 style={{ margin: 0 }}>Match history</h2>
+        <ThemeToggle />
       </div>
 
       {error !== null && <p className="notice">{error}</p>}

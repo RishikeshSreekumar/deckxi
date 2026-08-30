@@ -11,13 +11,17 @@ import { Dialog, TimerRing, TrumpCard, statName } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
 import { EmoteBar } from "../components/EmoteBar.js";
 import { GameChat } from "../components/GameChat.js";
-import { MuteButton } from "../components/Chrome.js";
+import { MuteButton, ThemeToggle } from "../components/Chrome.js";
 import { sounds } from "../lib/sounds.js";
 
 type Stage = "flip" | "verdict";
 
-const FLIP_MS = 1100;
-const VERDICT_MS = 2100;
+/**
+ * How long each beat of the reveal holds. Mutable so the visual-regression
+ * fixtures can freeze the verdict for a screenshot instead of racing it;
+ * nothing in the running app writes to it.
+ */
+export const revealTiming = { flipMs: 1100, verdictMs: 2100 };
 
 function useRevealPresenter(selfId: string | null) {
   const pending = useStore((s) => s.pendingReveals);
@@ -42,11 +46,11 @@ function useRevealPresenter(selfId: string | null) {
         if (round.result.kind === "tie") sounds.tie();
         else if (round.result.winner === selfId) sounds.roundWin();
         else sounds.roundLose();
-      }, FLIP_MS),
+      }, revealTiming.flipMs),
       window.setTimeout(() => {
         setCurrent(null);
         setPresenting(false);
-      }, FLIP_MS + VERDICT_MS),
+      }, revealTiming.flipMs + revealTiming.verdictMs),
     );
   }, [current, pending, selfId, shiftReveal, setPresenting]);
 
@@ -182,6 +186,7 @@ export function GameTable({ room }: { room: RoomView }) {
           Round {game.round}
         </span>
         <div className="head-actions">
+          <ThemeToggle />
           <MuteButton />
           <button
             type="button"

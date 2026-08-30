@@ -359,7 +359,6 @@ select:focus {
 }
 
 .players-panel .button {
-  width: 100%;
   margin-top: var(--space-4);
 }
 
@@ -563,6 +562,39 @@ select:focus {
   transition: box-shadow var(--dur-med) var(--ease-out);
 }
 
+/* Short viewports: the table must fit without scrolling, because scrolling
+   the emote bar or your own hand off the bottom mid-match is the worst thing
+   this screen can do.
+
+   The hand card's height comes from its content, not an aspect ratio, and
+   the floor is six stat rows at the 44px touch minimum — 264px before
+   anything else exists. So here, and only here, the rows step down to 40px
+   and the chrome around them tightens. */
+@media (orientation: portrait) and (max-height: 700px) {
+  .table-screen {
+    gap: var(--space-3);
+    --stat-row-min: 40px;
+    padding-block: max(var(--space-4), env(safe-area-inset-top))
+      max(var(--space-4), env(safe-area-inset-bottom));
+  }
+
+  .table-screen .card--full {
+    font-size: var(--text-sm);
+  }
+
+  .table-screen .opponent {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .table-screen .table-status {
+    gap: var(--space-3);
+  }
+
+  .table-screen .emote-bar {
+    padding-top: 0;
+  }
+}
+
 .your-area--turn {
   box-shadow:
     0 0 0 2px var(--interactive-accent),
@@ -643,6 +675,31 @@ select:focus {
   /* Without a perspective the reveal's rotateY reads as a flat horizontal
      squash; this is what makes it look like a card turning over. */
   perspective: 1200px;
+}
+
+/* A four-card reveal cannot show four full stat tables on a phone — the
+   second row lands below the fold, which is the one thing the reveal must
+   never do. At the moment of the reveal only the contested stat matters, so
+   on a small or short screen the other rows fold away and the cards stay
+   readable rather than shrinking into unreadability.
+
+   Keyed to either axis: a phone is narrow in portrait and short in
+   landscape, and both squeeze the reveal. */
+@media (max-width: 600px), (max-height: 700px) {
+  .reveal .card-stats .stat-row:not(.stat-row--hot) {
+    display: none;
+  }
+
+  .table-center {
+    overflow: hidden;
+  }
+
+  /* The hand yields the floor during a reveal. On a phone there is not room
+     for both, and your hand is not actionable mid-reveal anyway — the reveal
+     is the moment this screen exists for. */
+  .table-screen:has(.reveal) .your-area {
+    display: none;
+  }
 }
 
 .reveal-slot {
@@ -934,10 +991,19 @@ select:focus {
 
 /* -- profile / history / privacy ------------------------------------------- */
 
-.profile-chip {
+/* Landing's floating chrome — theme toggle plus the profile chip. Absolute so
+   the hero stays optically centred, and inset off the safe area rather than a
+   raw px so it clears a notch in either orientation. */
+.landing-chrome {
   position: absolute;
   top: max(var(--space-5), env(safe-area-inset-top));
   right: max(var(--space-5), env(safe-area-inset-right));
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.profile-chip {
   display: flex;
   align-items: center;
   gap: var(--space-4);
@@ -1063,6 +1129,15 @@ select:focus {
 .panel .button {
   text-align: center;
   text-decoration: none;
+}
+
+/* Buttons in a stacked action column fill it. A 44px-tall button that only
+   spans its own label is still a small target on a phone. */
+.landing-form > .button,
+.players-panel .button,
+.profile-actions .button,
+.results-actions .button {
+  width: 100%;
 }
 
 .match-list {
@@ -1250,6 +1325,12 @@ select:focus {
    stopgap: opponents become a left rail, the reveal takes the remaining
    width, and the hand spans the full width beneath. Keyed to viewport height
    because that — not width — is what is scarce here. */
+/* Height, not width, is what is scarce when the phone is turned — so the
+   table becomes three columns and two rows: your hand on the left, the
+   reveal in the middle, opponents as a rail on the right, with the head and
+   emotes sharing the top row. Stacking any of these vertically (as the old
+   stopgap did) puts a full stat card and an opponent rail into ~390px of
+   height, which does not fit and never did. */
 @media (orientation: landscape) and (max-height: 560px) {
   .screen {
     gap: var(--space-4);
@@ -1259,42 +1340,62 @@ select:focus {
 
   .table-screen {
     display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-rows: auto 1fr auto;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto 1fr;
     gap: var(--space-4);
-    --toast-lift: 88px;
+    --toast-lift: 0px;
+    --stat-row-min: 40px;
+    /* The grid is the viewport here; the opponent rail scrolls inside its
+       cell rather than growing the page. Without min-height: 0 on the items
+       a 1fr row is sized by its tallest child and overflow-y never engages. */
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .table-screen > * {
+    min-height: 0;
+  }
+
+  .table-screen .card--full {
+    font-size: var(--text-sm);
   }
 
   .table-head {
-    grid-column: 1 / -1;
+    grid-area: 1 / 1 / 2 / 3;
+  }
+
+  /* The social row (emotes + chat drawer) is the grid item, not the emote bar
+     inside it — the chat toggle joins it at the table. */
+  .table-social {
+    grid-area: 1 / 3 / 2 / 4;
+  }
+
+  .table-social .emote-bar {
+    padding-top: 0;
+    flex-wrap: nowrap;
+    flex: 0 1 auto;
+  }
+
+  .your-area {
+    grid-area: 2 / 1 / 3 / 2;
+    padding: var(--space-2);
+  }
+
+  .table-center {
+    grid-area: 2 / 2 / 3 / 3;
   }
 
   .opponents {
-    grid-row: 2;
+    grid-area: 2 / 3 / 3 / 4;
     flex-direction: column;
+    /* A fixed rail: left to itself it takes a third of the screen and the
+       reveal gets squeezed into a column. */
+    width: 128px;
+    flex: 0 0 auto;
     overflow-x: hidden;
     overflow-y: auto;
     touch-action: pan-y;
     mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 24px), transparent 100%);
-  }
-
-  .table-center {
-    grid-row: 2;
-    grid-column: 2;
-  }
-
-  .your-area {
-    grid-column: 1 / -1;
-    padding: var(--space-2);
-  }
-
-  .card--full {
-    max-width: 220px;
-    font-size: var(--text-sm);
-  }
-
-  .emote-bar {
-    padding-top: 0;
   }
 }
 

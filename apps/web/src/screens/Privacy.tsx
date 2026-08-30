@@ -3,6 +3,7 @@
  * rid of it. Linked from the profile screen.
  */
 import { Link } from "react-router-dom";
+import { ThemeToggle } from "../components/Chrome.js";
 
 export function PrivacyScreen() {
   return (
@@ -12,6 +13,7 @@ export function PrivacyScreen() {
           Deck<span className="brand-xi">XI</span>
         </Link>
         <h2 style={{ margin: 0 }}>Privacy</h2>
+        <ThemeToggle />
       </div>
 
       <div className="panel privacy-copy">

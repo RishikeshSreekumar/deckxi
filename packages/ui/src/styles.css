@@ -605,6 +605,11 @@
   transition: background var(--dur-fast) var(--ease-out);
 }
 
+/* --stat-row-min lets a screen that is genuinely short on height step the
+   rows down (the game table does, on small phones and in landscape). It is
+   the one place the 44px minimum bends, because six stacked rows is 264px
+   before anything else on the screen exists, and the alternative is a table
+   that scrolls mid-match. */
 .card--full .stat-button {
   min-height: var(--stat-row-min, var(--touch-min));
 }

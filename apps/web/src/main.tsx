@@ -7,6 +7,7 @@ import { App } from "./App.js";
 import { initSocket } from "./store/store.js";
 import { ensureSession } from "./lib/auth.js";
 import { initTheme } from "./lib/theme.js";
+import { applyVisualFixture } from "./dev/visualFixtures.js";
 import "@deckxi/ui/styles.css";
 import "./styles.css";
 
@@ -14,9 +15,16 @@ import "./styles.css";
 // what the token CSS already painted.
 initTheme();
 
-// Identity first (guest session cookie), then connect — the socket handshake
-// reads the cookie to know who's behind the connection.
-void ensureSession().finally(initSocket);
+// Visual-regression builds (VITE_VISUAL=1) can seed a deterministic screen
+// from the URL and skip the network entirely, so no screenshot catches a
+// connection banner. Normal builds never include the fixtures module.
+const seeded = import.meta.env.VITE_VISUAL === "1" && applyVisualFixture();
+
+if (!seeded) {
+  // Identity first (guest session cookie), then connect — the socket
+  // handshake reads the cookie to know who's behind the connection.
+  void ensureSession().finally(initSocket);
+}
 
 const root = document.getElementById("root");
 if (root === null) throw new Error("missing #root element");
