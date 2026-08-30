@@ -10,7 +10,12 @@
 import { useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AdminFeed } from "../components/AdminFeed.js";
-import { fetchAdminRoom, type AdminRoomDetail } from "../lib/admin.js";
+import {
+  closeAdminRoom,
+  fetchAdminRoom,
+  kickAdminSession,
+  type AdminRoomDetail,
+} from "../lib/admin.js";
 import { AdminNotFound, usePolled } from "./Admin.js";
 
 function Field({ label, value }: { label: string; value: string | number | null }) {
@@ -25,7 +30,7 @@ function Field({ label, value }: { label: string; value: string | number | null 
 export function AdminRoomScreen() {
   const { roomId = "" } = useParams();
   const load = useCallback(() => fetchAdminRoom(roomId), [roomId]);
-  const { data, denied } = usePolled<{ room: AdminRoomDetail | null }>(load, 3000);
+  const { data, denied, refresh } = usePolled<{ room: AdminRoomDetail | null }>(load, 3000);
 
   if (denied) return <AdminNotFound />;
 
@@ -86,6 +91,15 @@ export function AdminRoomScreen() {
                 {hand !== undefined && hand.hand.length > 0 && (
                   <code className="admin-hand">{hand.hand.join(", ")}</code>
                 )}
+                <button
+                  type="button"
+                  className="button button--danger button--sm"
+                  onClick={() => {
+                    void kickAdminSession(roomId, session.id).then(refresh);
+                  }}
+                >
+                  Kick
+                </button>
               </li>
             );
           })}
@@ -93,6 +107,24 @@ export function AdminRoomScreen() {
         {room?.game !== null && room?.game !== undefined && room.game.pot.length > 0 && (
           <p className="hint">Pot: {room.game.pot.join(", ")}</p>
         )}
+      </section>
+
+      <section className="panel">
+        <h3 className="admin-feed-title">Moderation</h3>
+        <p className="hint">
+          Closing ends the game for everyone in it, immediately. Mid-game, kicking one player is a
+          forfeit — the same path as walking out, because a second way to lose a player is a second
+          way for the state machine to go wrong.
+        </p>
+        <button
+          type="button"
+          className="button button--danger button--sm"
+          onClick={() => {
+            void closeAdminRoom(roomId).then(refresh);
+          }}
+        >
+          Close this room
+        </button>
       </section>
 
       <AdminFeed roomId={roomId} />

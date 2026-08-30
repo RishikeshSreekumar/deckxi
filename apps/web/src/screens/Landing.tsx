@@ -4,7 +4,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { JOIN_CODE_LENGTH, MAX_NAME_LENGTH } from "@deckxi/shared";
+import { JOIN_CODE_LENGTH, MAX_NAME_LENGTH, type RoomClosedReason } from "@deckxi/shared";
 import { useStore } from "../store/store.js";
 import { AckError } from "../lib/socket.js";
 import { loadPlayerName } from "../lib/session.js";
@@ -13,11 +13,15 @@ import { ensureSession } from "../lib/auth.js";
 import { Avatar } from "@deckxi/ui";
 import { ThemeToggle } from "../components/Chrome.js";
 
-const CLOSED_COPY = {
+const CLOSED_COPY: Record<RoomClosedReason, string> = {
   "host-left": "The host left, so the room closed.",
   idle: "The room closed after sitting idle.",
   "server-shutdown": "The server restarted and closed the room.",
-} as const;
+  // Operator actions (#70). Said plainly: a player who was removed deserves
+  // to know it happened rather than to wonder what broke.
+  "closed-by-admin": "That room was closed by a moderator.",
+  kicked: "You were removed from that room by a moderator.",
+};
 
 export function Landing() {
   const { code: linkCode } = useParams();

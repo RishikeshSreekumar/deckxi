@@ -18,6 +18,7 @@ import { registerErrorTracking } from "./errors.js";
 import { createMetrics, type Metrics } from "./metrics.js";
 import { registerAdminRoutes } from "./admin.js";
 import { EventFeed, teeLogger } from "./feed.js";
+import { InMemoryConfigStore, OpsConfig, type ConfigStore } from "./ops.js";
 import { registerSockets, type SocketOptions } from "./sockets.js";
 import type { RoomManager, RoomManagerOptions } from "./rooms.js";
 import { InMemoryMatchStore, type MatchStore } from "./store.js";
@@ -64,8 +65,10 @@ export interface AppOptions {
   /** Match persistence; defaults to in-memory (no DATABASE_URL needed). */
   store?: MatchStore;
   auth?: AuthOptions;
-  /** Operator access to /metrics and (later) the admin API. */
+  /** Operator access to /metrics and the admin API. */
   admin?: AdminOptions;
+  /** Where live ops flags persist; defaults to memory (#70). */
+  config?: ConfigStore;
 }
 
 export interface AdminOptions {
@@ -85,6 +88,7 @@ export interface App {
   rooms: RoomManager;
   auth: Auth;
   metrics: Metrics;
+  ops: OpsConfig;
   /** Bind and return the actual port (pass 0 for an ephemeral test port). */
   listen(port: number, host?: string): Promise<number>;
   close(): Promise<void>;
@@ -106,6 +110,7 @@ export function buildApp(options: AppOptions = {}): App {
   const log = teeLogger(fastify.log as unknown as Logger, feed);
   const metrics = createMetrics();
   const store = options.store ?? new InMemoryMatchStore();
+  const ops = new OpsConfig(options.config ?? new InMemoryConfigStore(), log);
   const corsOrigins = options.corsOrigins ?? ["http://localhost:5173"];
   const allowOrigin = originMatcher(corsOrigins);
 
@@ -255,10 +260,17 @@ export function buildApp(options: AppOptions = {}): App {
   });
 
   const rooms = registerSockets(io, {
-    rooms: { store, logger: log, metrics, ...options.rooms },
+    rooms: {
+      store,
+      logger: log,
+      metrics,
+      isModeEnabled: (mode) => ops.isModeEnabled(mode),
+      ...options.rooms,
+    },
     limits: options.limits,
     logger: log,
     metrics,
+    ops,
   });
 
   registerAdminRoutes(fastify, {
@@ -268,6 +280,7 @@ export function buildApp(options: AppOptions = {}): App {
     log,
     feed,
     store,
+    ops,
   });
 
   // Gauges read live state, so they are registered once the owners exist.
@@ -299,7 +312,11 @@ export function buildApp(options: AppOptions = {}): App {
     rooms,
     auth,
     metrics,
+    ops,
     async listen(port, host = "127.0.0.1") {
+      // Flags first: a server that boots into an incident should come up
+      // already showing the banner, not show it a second later.
+      await ops.load();
       await fastify.listen({ port, host });
       const address = fastify.server.address();
       if (address === null || typeof address === "string") {

@@ -14,6 +14,7 @@ import {
   ConnectionBanner,
   FloatingReactions,
   InstallPrompt,
+  MaintenanceBanner,
   Toasts,
   UpdatePrompt,
 } from "./components/Chrome.js";
@@ -85,6 +86,7 @@ function Screen() {
 export function App() {
   return (
     <BrowserRouter>
+      <MaintenanceBanner />
       <ConnectionBanner />
       <UpdatePrompt />
       <Screen />

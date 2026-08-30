@@ -80,7 +80,7 @@ export interface Room {
   lastActivityAt: number;
 }
 
-export type RoomCloseReason = "host-left" | "idle" | "server-shutdown";
+export type RoomCloseReason = "host-left" | "idle" | "server-shutdown" | "closed-by-admin";
 
 /** How the manager talks back to the transport layer. */
 export interface RoomsObserver {
@@ -91,6 +91,8 @@ export interface RoomsObserver {
   gameEvents(room: Room, events: SeqEvent[]): void;
   /** Turn timer armed (or cleared, when the game ends). */
   timer(room: Room, timer: TurnTimerView | null): void;
+  /** One session removed by an operator; the rest of the room plays on (#70). */
+  sessionKicked(room: Room, session: Session): void;
 }
 
 export interface RoomManagerOptions {
@@ -108,6 +110,8 @@ export interface RoomManagerOptions {
   logger?: Logger;
   /** Counters; defaults to a private set nobody scrapes. */
   metrics?: Metrics;
+  /** Game-mode kill switch (#70); everything is enabled by default. */
+  isModeEnabled?: (mode: string) => boolean;
 }
 
 export const DEFAULT_SETTINGS: RoomSettings = {
@@ -136,6 +140,7 @@ export class RoomManager {
   private readonly store: MatchStore;
   protected readonly log: Logger;
   protected readonly metrics: Metrics;
+  private readonly isModeEnabled: (mode: string) => boolean;
 
   constructor(
     private readonly observer: RoomsObserver,
@@ -149,6 +154,7 @@ export class RoomManager {
     this.store = options.store ?? new InMemoryMatchStore();
     this.log = options.logger ?? nullLogger;
     this.metrics = options.metrics ?? createMetrics();
+    this.isModeEnabled = options.isModeEnabled ?? (() => true);
   }
 
   get roomCount(): number {
@@ -182,6 +188,10 @@ export class RoomManager {
   ): { room: Room; session: Session } {
     if (this.rooms.size >= this.maxRooms) {
       throw new RoomError("server-full", "no capacity for new rooms");
+    }
+    const mode = settings?.gameMode ?? DEFAULT_SETTINGS.gameMode;
+    if (!this.isModeEnabled(mode)) {
+      throw new RoomError("mode-disabled", `${mode} is switched off right now`);
     }
     const room: Room = {
       id: randomUUID(),
@@ -350,6 +360,10 @@ export class RoomManager {
     const { room, session } = this.requirePlayer(sessionId);
     if (room.hostId !== session.id) throw new RoomError("not-host");
     if (room.phase !== "lobby") throw new RoomError("not-in-lobby");
+    if (!this.isModeEnabled(room.settings.gameMode)) {
+      // Killed after the lobby formed: the room stays, the game cannot start.
+      throw new RoomError("mode-disabled", `${room.settings.gameMode} is switched off right now`);
+    }
     if (room.players.length < MIN_PLAYERS) {
       throw new RoomError("not-enough-players", `need at least ${MIN_PLAYERS} players`);
     }
@@ -560,6 +574,33 @@ export class RoomManager {
       }
     }
     return reaped;
+  }
+
+  /** Operator action: end this room now, telling everyone why (#70). */
+  closeRoomById(roomId: string): boolean {
+    const room = this.rooms.get(roomId);
+    if (room === undefined) return false;
+    this.closeRoom(room, "closed-by-admin");
+    return true;
+  }
+
+  /**
+   * Operator action: remove one person from a room. Mid-game this is a
+   * forfeit, exactly as if they had left — the engine already knows how to
+   * finish a game a player walked out of, and inventing a second way to lose
+   * a player is how state machines grow holes.
+   */
+  kick(sessionId: string): boolean {
+    const session = this.sessions.get(sessionId);
+    if (session === undefined) return false;
+    const room = this.rooms.get(session.roomId);
+    if (room !== undefined) this.observer.sessionKicked(room, session);
+    this.log.warn(
+      { event: "room.kicked", roomId: session.roomId, sessionId, userId: session.userId },
+      "player kicked by an operator",
+    );
+    this.leave(sessionId);
+    return true;
   }
 
   closeAll(): void {

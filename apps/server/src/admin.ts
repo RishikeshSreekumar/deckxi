@@ -16,7 +16,9 @@
  * admin" from "route missing" — which is fine, because for a non-admin those
  * are the same fact.
  *
- * Admin routes are read-only here; moderation actions arrive in #70.
+ * Most routes here only read. The four that write — the ops flags, closing a
+ * room, kicking a player — are logged with the operator behind them (#70):
+ * an action that ends someone's game should never be anonymous.
  */
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { userFromHeaders, type Auth } from "./auth.js";
@@ -24,6 +26,7 @@ import type { RoomManager, Room } from "./rooms.js";
 import type { Logger } from "./logging.js";
 import type { EventFeed } from "./feed.js";
 import type { MatchStore } from "./store.js";
+import { opsFlagsSchema, type OpsConfig } from "./ops.js";
 
 export interface AdminAccess {
   /** How this caller proved it: a signed-in admin, or the shared token. */
@@ -204,6 +207,8 @@ export interface AdminRoutesOptions {
   feed: EventFeed;
   /** Persisted matches, for the replay debugger (#69). */
   store: MatchStore;
+  /** Maintenance notice and mode kill switches (#70). */
+  ops: OpsConfig;
 }
 
 export function registerAdminRoutes(fastify: FastifyInstance, options: AdminRoutesOptions): void {
@@ -297,6 +302,60 @@ export function registerAdminRoutes(fastify: FastifyInstance, options: AdminRout
       const query = request.query as { since?: string; roomId?: string };
       const since = Number(query.since ?? 0);
       return options.feed.since(Number.isFinite(since) && since > 0 ? since : 0, 200, query.roomId);
+    }),
+  );
+
+  // -------------------------------------------------------------------------
+  // Moderation and live ops (#70). These are the only admin routes that write,
+  // and each one is logged with the operator behind it — an action that ends
+  // someone's game should never be anonymous.
+  // -------------------------------------------------------------------------
+
+  fastify.get(
+    "/api/admin/flags",
+    admin(() => ({ flags: options.ops.current })),
+  );
+
+  fastify.put(
+    "/api/admin/flags",
+    admin(async (request, access) => {
+      const parsed = opsFlagsSchema.partial().safeParse(request.body);
+      if (!parsed.success)
+        return { ok: false, error: parsed.error.issues[0]?.message ?? "invalid" };
+      log.warn(
+        { event: "admin.flags_set", by: access.email ?? access.via, reqId: request.id },
+        "ops flags changed by an operator",
+      );
+      return { ok: true, flags: await options.ops.update(parsed.data) };
+    }),
+  );
+
+  fastify.post(
+    "/api/admin/rooms/:roomId/close",
+    admin((request, access) => {
+      const { roomId } = request.params as { roomId: string };
+      const closed = rooms.closeRoomById(roomId);
+      log.warn(
+        { event: "admin.room_closed", roomId, by: access.email ?? access.via, closed },
+        "room closed by an operator",
+      );
+      return { ok: closed };
+    }),
+  );
+
+  fastify.post(
+    "/api/admin/rooms/:roomId/kick",
+    admin((request, access) => {
+      const { sessionId } = (request.body ?? {}) as { sessionId?: unknown };
+      if (typeof sessionId !== "string" || sessionId.length === 0) {
+        return { ok: false, error: "sessionId required" };
+      }
+      const kicked = rooms.kick(sessionId);
+      log.warn(
+        { event: "admin.kicked", sessionId, by: access.email ?? access.via, kicked },
+        "player kicked by an operator",
+      );
+      return { ok: kicked };
     }),
   );
 }

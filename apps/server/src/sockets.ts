@@ -27,6 +27,7 @@ import { redactEvent, redactLog, type SeqEvent } from "./redact.js";
 import { DEFAULT_LIMITS, TokenBucket, type RateLimits } from "./rateLimit.js";
 import { nullLogger, type Logger } from "./logging.js";
 import { createMetrics, type Metrics } from "./metrics.js";
+import type { OpsConfig } from "./ops.js";
 
 const roomKey = (roomId: string): string => `room:${roomId}`;
 
@@ -40,6 +41,8 @@ export interface SocketOptions {
   limits?: Partial<RateLimits> | undefined;
   logger?: Logger | undefined;
   metrics?: Metrics | undefined;
+  /** Live ops flags: maintenance notice and mode kill switches (#70). */
+  ops?: OpsConfig | undefined;
 }
 
 export function registerSockets(io: GameServer, options: SocketOptions = {}): RoomManager {
@@ -98,9 +101,27 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
     timer(room, timer) {
       io.to(roomKey(room.id)).emit("game:timer", timer);
     },
+    sessionKicked(room, session) {
+      // Told before they are removed, so the client can say why rather than
+      // silently finding itself back on the landing page (#70).
+      const socket = socketBySession.get(session.id);
+      if (socket === undefined) return;
+      socket.emit("room:closed", { reason: "kicked" });
+      socket.data.sessionId = null;
+      socket.data.roomId = null;
+      void socket.leave(roomKey(room.id));
+      socketBySession.delete(session.id);
+    },
   };
 
   const manager = new RoomManager(observer, options.rooms);
+
+  // Maintenance notice: pushed to everyone the moment it changes, and to each
+  // new connection below, so a player who arrives mid-incident is told the
+  // same thing as one who was already here (#70).
+  options.ops?.subscribe((flags) => {
+    io.emit("ops:notice", flags.notice);
+  });
 
   io.on("connection", (socket) => {
     // Every line from this connection carries who and where, so one player's
@@ -108,6 +129,8 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
     let socketLog = log.child({ socketId: socket.id, userId: socket.data.userId });
     socketLog.debug({ event: "socket.connected" }, "socket connected");
     metrics.increment("deckxi_socket_connections_total");
+    const notice = options.ops?.current.notice ?? null;
+    if (notice !== null) socket.emit("ops:notice", notice);
 
     const globalBucket = new TokenBucket(limits.global.capacity, limits.global.refillPerSec);
     const chatBucket = new TokenBucket(limits.chat.capacity, limits.chat.refillPerSec);

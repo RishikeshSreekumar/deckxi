@@ -416,6 +416,38 @@ bought deliberately, since an endpoint that answers 401 has confirmed it exists.
 The dashboard polls every 5 seconds and stops polling while its tab is hidden,
 so a forgotten tab cannot hold a scale-to-zero instance warm.
 
+### Moderation, the maintenance banner and kill switches
+
+Three live controls on `/admin`, all of which take effect on the running
+server. That is the point: the alternative — a redeploy — ends every game in
+progress, which is the last thing you want during an incident.
+
+| Control                | What it does                                                                                                                                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Maintenance notice** | A banner above every screen for every connected client, and for anyone who connects while it stands. Two levels, `info` and `warning`. Clearing it is one button.                                                         |
+| **Mode kill switch**   | Stops new rooms in that mode and stops formed lobbies starting it. **Games already running are left alone** — pulling the rug mid-match is worse than the bug you are switching off for.                                  |
+| **Close / kick**       | Close ends a room for everyone in it now (`room:closed` with `closed-by-admin`). Kick removes one player, which mid-game is a forfeit — the same path as walking out, so the engine needs no second way to lose a player. |
+
+Both flags live in one `app_config` row, cached in memory and written through,
+so reads cost nothing and a restart comes back up already showing the banner.
+Without `DATABASE_URL` they still work but do not survive a restart.
+
+From a script:
+
+```sh
+curl -X PUT -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' \
+  -d '{"notice":{"text":"Back in ten minutes.","level":"warning"}}' \
+  https://api-staging.deckxi.rishikeshs.dev/api/admin/flags
+
+# Clear it
+curl -X PUT … -d '{"notice":null}'
+# Stop new Classic Trumps games
+curl -X PUT … -d '{"modes":{"classic-trumps":false}}'
+```
+
+Every write is logged as `admin.flags_set`, `admin.room_closed` or
+`admin.kicked`, with `by` naming the operator's email (or `token`).
+
 ## Incidents
 
 1. **Is it up?** `curl https://api-staging.deckxi.rishikeshs.dev/health`. A

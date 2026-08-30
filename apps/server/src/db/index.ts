@@ -17,11 +17,17 @@ import {
   type UserMatchSummary,
   type UserStats,
 } from "../store.js";
-import { matchEvents, matchPlayers, matches } from "./schema.js";
+import { appConfig, matchEvents, matchPlayers, matches } from "./schema.js";
+import { InMemoryConfigStore, type ConfigStore } from "../ops.js";
 
 export class PostgresMatchStore implements MatchStore {
   private readonly pool: pg.Pool;
   private readonly db: NodePgDatabase;
+
+  /** Exposed so the config store can share this pool. */
+  get database(): NodePgDatabase {
+    return this.db;
+  }
 
   constructor(databaseUrl: string) {
     this.pool = new pg.Pool({ connectionString: databaseUrl, max: 10 });
@@ -258,7 +264,45 @@ export class PostgresMatchStore implements MatchStore {
   }
 }
 
+/**
+ * Live ops flags (#70). One row, read at boot and written on change — small
+ * enough that a table of its own beats any cleverer scheme.
+ */
+export class PostgresConfigStore implements ConfigStore {
+  constructor(private readonly db: NodePgDatabase) {}
+
+  async read(key: string): Promise<unknown> {
+    const [row] = await this.db
+      .select({ value: appConfig.value })
+      .from(appConfig)
+      .where(eq(appConfig.key, key))
+      .limit(1);
+    return row?.value ?? null;
+  }
+
+  async write(key: string, value: unknown): Promise<void> {
+    await this.db
+      .insert(appConfig)
+      .values({ key, value })
+      .onConflictDoUpdate({
+        target: appConfig.key,
+        set: { value, updatedAt: new Date() },
+      });
+  }
+}
+
 /** Pick the store for this environment: Postgres when configured, else RAM. */
 export function createStore(databaseUrl: string | undefined): MatchStore {
   return databaseUrl === undefined ? new InMemoryMatchStore() : new PostgresMatchStore(databaseUrl);
+}
+
+/**
+ * Config store for this environment. Shares the match store's pool when there
+ * is one — two settings do not deserve a second set of connections against a
+ * free-tier database.
+ */
+export function createConfigStore(store: MatchStore): ConfigStore {
+  return store instanceof PostgresMatchStore
+    ? new PostgresConfigStore(store.database)
+    : new InMemoryConfigStore();
 }

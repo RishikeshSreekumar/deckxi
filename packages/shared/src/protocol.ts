@@ -131,6 +131,8 @@ export const ERROR_CODES = [
   "spectators-cannot",
   "resume-failed",
   "server-full",
+  /** The requested game mode is switched off by an operator (#70). */
+  "mode-disabled",
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
@@ -141,6 +143,13 @@ export type Ack<T> = { ok: true; data: T } | { ok: false; code: ErrorCode; messa
 // ---------------------------------------------------------------------------
 
 export type RoomPhase = "lobby" | "playing" | "results";
+
+/**
+ * Why a client is no longer in its room. The last two are operator actions
+ * (#70): "kicked" reaches one player, the rest reach everyone in the room.
+ */
+export type RoomClosedReason =
+  "host-left" | "idle" | "server-shutdown" | "closed-by-admin" | "kicked";
 
 export interface RoomPlayerView {
   id: string;
@@ -253,6 +262,16 @@ export interface ChatMessageView {
   at: number;
 }
 
+/**
+ * Operator broadcast (#70): a maintenance notice shown above every screen, or
+ * null to clear it. Sent on connect and whenever it changes, so a client that
+ * joined mid-incident is told the same thing as one that was already here.
+ */
+export interface OpsNoticeView {
+  text: string;
+  level: "info" | "warning";
+}
+
 export interface ChatReactionView {
   from: { id: string; name: string };
   emote: (typeof EMOTES)[number];
@@ -265,11 +284,12 @@ export interface ChatReactionView {
 
 export interface ServerToClientEvents {
   "room:state": (room: RoomView) => void;
-  "room:closed": (info: { reason: "host-left" | "idle" | "server-shutdown" }) => void;
+  "room:closed": (info: { reason: RoomClosedReason }) => void;
   "game:events": (events: RedactedGameEvent[]) => void;
   "game:timer": (timer: TurnTimerView | null) => void;
   "chat:message": (message: ChatMessageView) => void;
   "chat:reaction": (reaction: ChatReactionView) => void;
+  "ops:notice": (notice: OpsNoticeView | null) => void;
 }
 
 export interface ClientToServerEvents {

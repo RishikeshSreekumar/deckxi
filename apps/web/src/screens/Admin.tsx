@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ThemeToggle } from "../components/Chrome.js";
 import { AdminFeed } from "../components/AdminFeed.js";
+import { AdminOps } from "../components/AdminOps.js";
 import {
   fetchAdminRooms,
   fetchAdminSession,
@@ -102,6 +103,8 @@ export function AdminScreen() {
           <span>In game</span>
         </div>
       </div>
+
+      <AdminOps />
 
       {rooms.error !== null && (
         <p className="hint" role="status">

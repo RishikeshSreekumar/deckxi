@@ -3,6 +3,10 @@
  *  - matches: one row per game (result columns filled on finish)
  *  - match_players: who sat where (room session ids, plus the user behind them)
  *  - match_events: the full engine event log, one row per event
+ *
+ * Plus app_config: the handful of settings an operator changes on a running
+ * server (#70), where a redeploy would be the wrong tool because a redeploy
+ * ends every live game.
  */
 import { integer, jsonb, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { user } from "./auth-schema.js";
@@ -50,3 +54,9 @@ export const matchEvents = pgTable(
   },
   (table) => [primaryKey({ columns: [table.matchId, table.seq] })],
 );
+
+export const appConfig = pgTable("app_config", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

@@ -155,6 +155,34 @@ export function InstallPrompt() {
   );
 }
 
+/**
+ * Operator broadcast (#70): "back in ten minutes", "we know about the
+ * disconnects". Above everything, dismissible, and it comes back on the next
+ * change — a notice the player can silence forever is a notice that failed.
+ */
+export function MaintenanceBanner() {
+  const notice = useStore((s) => s.notice);
+  const [dismissed, setDismissed] = useState<string | null>(null);
+  if (notice === null || notice.text === dismissed) return null;
+  return (
+    <div
+      className={`ops-banner ops-banner--${notice.level}`}
+      role="status"
+      data-testid="ops-banner"
+    >
+      <span>{notice.text}</span>
+      <button
+        type="button"
+        className="icon-button"
+        aria-label="Dismiss notice"
+        onClick={() => setDismissed(notice.text)}
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 export function Toasts() {
   const toasts = useStore((s) => s.toasts);
   const dismiss = useStore((s) => s.dismissToast);

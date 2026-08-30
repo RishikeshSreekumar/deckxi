@@ -8,6 +8,8 @@ import type {
   ChatMessageView,
   ChatReactionView,
   RedactedGameEvent,
+  OpsNoticeView,
+  RoomClosedReason,
   RoomJoined,
   RoomResumed,
   RoomSettings,
@@ -46,7 +48,9 @@ export interface FloatingReaction {
 interface AppState {
   connection: ConnectionStatus;
   /** Set when the room we were in closed under us; shown on the landing page. */
-  roomClosedReason: "host-left" | "idle" | "server-shutdown" | null;
+  roomClosedReason: RoomClosedReason | null;
+  /** Operator maintenance notice, shown above every screen (#70). */
+  notice: OpsNoticeView | null;
   selfId: string | null;
   spectator: boolean;
   room: RoomView | null;
@@ -113,6 +117,7 @@ export const useStore = create<AppState>((set, get) => {
   return {
     connection: "connecting",
     roomClosedReason: null,
+    notice: null,
     selfId: null,
     spectator: false,
     room: null,
@@ -320,6 +325,10 @@ export function initSocket(): void {
 
   socket.on("game:timer", (timer: TurnTimerView | null) => {
     set({ timer });
+  });
+
+  socket.on("ops:notice", (notice: OpsNoticeView | null) => {
+    set({ notice });
   });
 
   socket.on("chat:message", (message: ChatMessageView) => {

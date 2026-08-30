@@ -116,6 +116,37 @@ export interface StoredMatch {
   } | null;
 }
 
+export interface OpsFlags {
+  notice: { text: string; level: "info" | "warning" } | null;
+  modes: Record<string, boolean>;
+}
+
+async function adminSend<T>(path: string, method: "POST" | "PUT", body?: unknown): Promise<T> {
+  const response = await fetch(`${API_URL}/api/admin${path}`, {
+    method,
+    credentials: "include",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body ?? {}),
+  });
+  if (response.status === 404) throw new NotAdminError();
+  if (!response.ok) throw new Error(`${path} failed (${response.status})`);
+  return (await response.json()) as T;
+}
+
+export const fetchAdminFlags = (): Promise<{ flags: OpsFlags }> =>
+  adminGet<{ flags: OpsFlags }>("/flags");
+
+export const saveAdminFlags = (
+  patch: Partial<OpsFlags>,
+): Promise<{ ok: boolean; flags: OpsFlags }> =>
+  adminSend<{ ok: boolean; flags: OpsFlags }>("/flags", "PUT", patch);
+
+export const closeAdminRoom = (roomId: string): Promise<{ ok: boolean }> =>
+  adminSend<{ ok: boolean }>(`/rooms/${encodeURIComponent(roomId)}/close`, "POST");
+
+export const kickAdminSession = (roomId: string, sessionId: string): Promise<{ ok: boolean }> =>
+  adminSend<{ ok: boolean }>(`/rooms/${encodeURIComponent(roomId)}/kick`, "POST", { sessionId });
+
 export const fetchAdminSession = (): Promise<AdminSession> => adminGet<AdminSession>("/session");
 
 export const fetchAdminRooms = (): Promise<AdminRooms> => adminGet<AdminRooms>("/rooms");

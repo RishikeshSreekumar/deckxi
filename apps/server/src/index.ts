@@ -18,8 +18,9 @@ export { parseEnv } from "./env.js";
 const isMain = process.argv[1] !== undefined && import.meta.url.endsWith(process.argv[1]);
 
 if (isMain) {
-  const { createStore } = await import("./db/index.js");
+  const { createConfigStore, createStore } = await import("./db/index.js");
   const env = parseEnv();
+  const store = createStore(env.databaseUrl);
   const app = buildApp({
     corsOrigins: env.corsOrigins,
     logger: loggerOptions({
@@ -27,7 +28,8 @@ if (isMain) {
       appEnv: env.appEnv,
       release: env.release,
     }),
-    store: createStore(env.databaseUrl),
+    store,
+    config: createConfigStore(store),
     auth: {
       databaseUrl: env.databaseUrl,
       ...(env.authSecret !== undefined ? { secret: env.authSecret } : {}),
