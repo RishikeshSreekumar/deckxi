@@ -7,6 +7,8 @@ import { App } from "./App.js";
 import { initSocket } from "./store/store.js";
 import { ensureSession } from "./lib/auth.js";
 import { initTheme } from "./lib/theme.js";
+import { initErrorReporting } from "./lib/errors.js";
+import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import { applyVisualFixture } from "./dev/visualFixtures.js";
 import "@deckxi/ui/styles.css";
 import "./styles.css";
@@ -14,6 +16,10 @@ import "./styles.css";
 // Before the tree renders, so the toggle and the status-bar tint agree with
 // what the token CSS already painted.
 initTheme();
+
+// Before anything else can throw: async errors and rejected promises are
+// invisible to React's boundary, and those are most of them (#64).
+initErrorReporting();
 
 // Visual-regression builds (VITE_VISUAL=1) can seed a deterministic screen
 // from the URL and skip the network entirely, so no screenshot catches a
@@ -30,6 +36,8 @@ const root = document.getElementById("root");
 if (root === null) throw new Error("missing #root element");
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

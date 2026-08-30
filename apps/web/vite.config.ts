@@ -106,6 +106,13 @@ export default defineConfig({
   server: { port: 5173 },
   preview: { port: 4173 },
   build: {
+    // "hidden": maps are emitted but no `//# sourceMappingURL` comment points
+    // at them, so nothing fetches them in a browser. CI keeps them as a build
+    // artifact and deletes them before publishing (#64) — a minified stack in
+    // a client error report is only useful if the map for that exact release
+    // still exists somewhere, and "somewhere" is the workflow run, not a
+    // public URL.
+    sourcemap: "hidden",
     rollupOptions: {
       output: {
         // Routes that are not part of getting into a game are split out of the

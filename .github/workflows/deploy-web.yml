@@ -53,7 +53,24 @@ jobs:
       - name: Build
         env:
           VITE_API_URL: ${{ steps.target.outputs.api }}
+          # Stamped on every client error report, so a spike can be pinned to
+          # the deploy that caused it (#64).
+          VITE_RELEASE: ${{ github.sha }}
         run: pnpm --filter @deckxi/web build
+
+      # Source maps are built (`sourcemap: "hidden"`) but never published:
+      # they are how a minified stack in an error report gets read, and they
+      # are kept here, attached to the run that produced this exact release.
+      - name: Keep source maps out of the deploy
+        run: |
+          mkdir -p sourcemaps
+          find apps/web/dist -name '*.map' -exec mv {} sourcemaps/ \;
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sourcemaps-${{ github.sha }}
+          path: sourcemaps
+          retention-days: 30
+          if-no-files-found: warn
 
       # wrangler is fetched here at a pinned version rather than installed by
       # cloudflare/wrangler-action (which runs `pnpm add` at the workspace root

@@ -5,7 +5,8 @@
 import { APP_NAME, PROTOCOL_VERSION } from "@deckxi/shared";
 import { buildApp } from "./app.js";
 import { parseEnv } from "./env.js";
-import { loggerOptions } from "./logging.js";
+import { loggerOptions, type Logger } from "./logging.js";
+import { installProcessHandlers } from "./errors.js";
 
 export function serverInfo(): string {
   return `${APP_NAME} server (protocol v${PROTOCOL_VERSION})`;
@@ -34,8 +35,12 @@ if (isMain) {
       google: env.google,
     },
   });
+  installProcessHandlers(app.fastify.log as unknown as Logger);
   const port = await app.listen(env.port, env.host);
-  app.fastify.log.info(`${serverInfo()} listening on :${port}`);
+  app.fastify.log.info(
+    { event: "server.started", port, release: env.release ?? null },
+    `${serverInfo()} listening on :${port}`,
+  );
 
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.once(signal, () => {

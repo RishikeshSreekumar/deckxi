@@ -14,6 +14,7 @@ import {
 } from "@deckxi/shared";
 import { originMatcher } from "./origins.js";
 import { requestId, type Logger } from "./logging.js";
+import { registerErrorTracking } from "./errors.js";
 import { registerSockets, type SocketOptions } from "./sockets.js";
 import type { RoomManager, RoomManagerOptions } from "./rooms.js";
 import { InMemoryMatchStore, type MatchStore } from "./store.js";
@@ -109,6 +110,10 @@ export function buildApp(options: AppOptions = {}): App {
     credentials: true,
     methods: ["GET", "POST", "PATCH", "DELETE"],
   });
+
+  // Route errors, the browser's error intake, and a 500 shape that doesn't
+  // leak internals (#64).
+  registerErrorTracking(fastify, log);
 
   const health = async (_request: FastifyRequest, reply: FastifyReply) => {
     try {

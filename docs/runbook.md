@@ -303,6 +303,42 @@ Cookies and `Authorization` headers are redacted before anything is written.
 Locally, `LOG_LEVEL=debug` is the default and the lines are raw JSON; pipe
 through `pnpm dlx pino-pretty` when reading them by eye.
 
+### Errors
+
+**There is no Sentry**, deliberately. Its free tier costs no money but does
+cost ~30 KB gzipped of browser SDK against a payload budget CI enforces, an
+account and DSN to keep, and a CI token for source-map upload — to buy grouping
+and a UI over a stream of errors that is already structured and queryable here.
+Both sides funnel into log lines instead:
+
+| Event                       | Means                                                                  |
+| --------------------------- | ---------------------------------------------------------------------- |
+| `error.server`              | a route threw; 5xx only                                                |
+| `error.client`              | the browser reported one (`kind`: error, unhandledrejection, boundary) |
+| `error.uncaught_exception`  | the process is about to die                                            |
+| `error.unhandled_rejection` | a promise rejected with nobody watching                                |
+| `command.failed`            | a socket handler threw (a `RoomError` is not this)                     |
+
+```sh
+gcloud logging read \
+  'resource.labels.service_name="deckxi-api-staging" AND jsonPayload.event:"error."' \
+  --limit 50 --freshness=1d
+```
+
+Alerting on them is set up with everything else in "Metrics & alerts" below.
+
+The browser posts to `POST /api/telemetry/error`. That endpoint is public, so
+it is rate-limited to 10 reports per IP with a slow refill, caps every field,
+and answers 204 without a body; the client de-duplicates and stops at 10
+reports per session. Neither side ever retries — a broken build must not turn
+into a self-inflicted flood.
+
+**Reading a minified stack.** Reports carry `clientRelease` (the commit sha the
+browser was running). Source maps for that build are on the corresponding
+_Deploy web_ workflow run, as the `sourcemaps-<sha>` artifact — kept 30 days
+and never published, since a public map is a published source tree. Download
+it, then `pnpm dlx source-map-cli resolve <file>.map <line> <column>`.
+
 ## Incidents
 
 1. **Is it up?** `curl https://api-staging.deckxi.rishikeshs.dev/health`. A
