@@ -41,9 +41,11 @@ describe("@deckxi/server", () => {
     expect(env.corsOrigins).toEqual(["http://a.example", "http://b.example"]);
   });
 
-  it("serves /healthz", async () => {
+  // Both paths serve health: Cloud Run reserves the exact path `/healthz` and
+  // never forwards it, so `/health` is the one the deploy smoke test uses.
+  it.each(["/health", "/healthz"])("serves %s", async (path) => {
     const { url } = await startApp();
-    const res = await fetch(`${url}/healthz`);
+    const res = await fetch(`${url}${path}`);
     expect(res.status).toBe(200);
     const body = (await res.json()) as { ok: boolean; protocolVersion: number };
     expect(body.ok).toBe(true);

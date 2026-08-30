@@ -25,11 +25,11 @@ jobs:
           tags: deckxi-server:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Boot it and hit /healthz
+      - name: Boot it and hit /health
         run: |
           docker run -d --name api -p 3001:3001 deckxi-server:ci
           for attempt in $(seq 1 20); do
-            curl -fsS http://127.0.0.1:3001/healthz && ok=1 && break
+            curl -fsS http://127.0.0.1:3001/health && ok=1 && break
             sleep 2
           done
           docker logs api

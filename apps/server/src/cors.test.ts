@@ -23,10 +23,10 @@ async function start(): Promise<string> {
 describe("origin hardening", () => {
   it("returns CORS headers only for allowed origins", async () => {
     const url = await start();
-    const allowed = await fetch(`${url}/healthz`, { headers: { origin: ORIGINS[0]! } });
+    const allowed = await fetch(`${url}/health`, { headers: { origin: ORIGINS[0]! } });
     expect(allowed.headers.get("access-control-allow-origin")).toBe(ORIGINS[0]);
 
-    const preview = await fetch(`${url}/healthz`, {
+    const preview = await fetch(`${url}/health`, {
       headers: { origin: "https://pr-7.deckxi-web.pages.dev" },
     });
     expect(preview.headers.get("access-control-allow-origin")).toBe(
@@ -34,7 +34,7 @@ describe("origin hardening", () => {
     );
 
     // Denied: the response still succeeds, the browser is the one that blocks.
-    const denied = await fetch(`${url}/healthz`, { headers: { origin: "https://evil.example" } });
+    const denied = await fetch(`${url}/health`, { headers: { origin: "https://evil.example" } });
     expect(denied.status).toBe(200);
     expect(denied.headers.get("access-control-allow-origin")).toBeNull();
   });

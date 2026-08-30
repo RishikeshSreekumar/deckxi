@@ -2,7 +2,7 @@
 # Secrets (fly secrets set -a deckxi-api-staging): DATABASE_URL,
 # BETTER_AUTH_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET.
 app = "deckxi-api-staging"
-primary_region = "fra"
+primary_region = "bom"
 
 [build]
 dockerfile = "Dockerfile"
@@ -29,7 +29,7 @@ grace_period = "10s"
 interval = "30s"
 timeout = "5s"
 method = "GET"
-path = "/healthz"
+path = "/health"
 
 [[vm]]
 size = "shared-cpu-1x"

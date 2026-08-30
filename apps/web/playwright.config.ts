@@ -16,7 +16,7 @@ export default defineConfig({
     {
       command:
         "pnpm -w exec turbo run build --filter=@deckxi/server && node ../server/dist/index.js",
-      url: "http://localhost:3901/healthz",
+      url: "http://localhost:3901/health",
       reuseExistingServer: false,
       timeout: 120_000,
       env: {

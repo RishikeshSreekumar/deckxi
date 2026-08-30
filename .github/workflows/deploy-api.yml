@@ -60,10 +60,10 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: flyctl deploy --config ${{ inputs.fly_config }} --remote-only --wait-timeout 300
-      - name: Smoke test /healthz
+      - name: Smoke test /health
         run: |
           for attempt in 1 2 3 4 5 6; do
-            body=$(curl -fsS "${{ inputs.api_url }}/healthz") && break
+            body=$(curl -fsS "${{ inputs.api_url }}/health") && break
             echo "attempt $attempt failed; retrying in 10s"
             sleep 10
           done

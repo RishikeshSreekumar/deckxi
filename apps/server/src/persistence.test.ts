@@ -55,7 +55,7 @@ describe("match persistence", () => {
     expect(match.result?.endReason).toBeTruthy();
   }, 20_000);
 
-  it("keeps playing when the store fails, and healthz reports it", async () => {
+  it("keeps playing when the store fails, and /health reports it", async () => {
     const brokenStore: MatchStore = {
       createMatch: () => Promise.reject(new Error("db down")),
       appendEvents: () => Promise.reject(new Error("db down")),
@@ -66,7 +66,7 @@ describe("match persistence", () => {
     server = await startTestServer({ store: brokenStore });
     const s = server;
 
-    const health = await fetch(`${s.url}/healthz`);
+    const health = await fetch(`${s.url}/health`);
     expect(health.status).toBe(503);
 
     const host = s.client();
