@@ -23,6 +23,7 @@ import { CURRENT_EDITION_ID, loadEdition } from "@deckxi/data";
 import type { ErrorCode, RoomPhase, RoomSettings, RoomView, TurnTimerView } from "@deckxi/shared";
 import { generateJoinCode } from "./codes.js";
 import { nullLogger, type Logger } from "./logging.js";
+import { createMetrics, type Metrics } from "./metrics.js";
 import type { SeqEvent } from "./redact.js";
 import { InMemoryMatchStore, type MatchStore } from "./store.js";
 
@@ -105,6 +106,8 @@ export interface RoomManagerOptions {
   store?: MatchStore;
   /** Structured logger; defaults to silence (tests, library use). */
   logger?: Logger;
+  /** Counters; defaults to a private set nobody scrapes. */
+  metrics?: Metrics;
 }
 
 export const DEFAULT_SETTINGS: RoomSettings = {
@@ -132,6 +135,7 @@ export class RoomManager {
   private readonly graceTimers = new Map<string, NodeJS.Timeout>();
   private readonly store: MatchStore;
   protected readonly log: Logger;
+  protected readonly metrics: Metrics;
 
   constructor(
     private readonly observer: RoomsObserver,
@@ -144,10 +148,18 @@ export class RoomManager {
     this.disconnectGraceMs = options.disconnectGraceMs ?? DEFAULT_DISCONNECT_GRACE_MS;
     this.store = options.store ?? new InMemoryMatchStore();
     this.log = options.logger ?? nullLogger;
+    this.metrics = options.metrics ?? createMetrics();
   }
 
   get roomCount(): number {
     return this.rooms.size;
+  }
+
+  /** Rooms with a game actually in progress (not lobby, not results). */
+  get activeGames(): number {
+    let count = 0;
+    for (const room of this.rooms.values()) if (room.phase === "playing") count++;
+    return count;
   }
 
   getRoom(roomId: string): Room | undefined {
@@ -181,6 +193,7 @@ export class RoomManager {
     this.roomIdByCode.set(room.code, room.id);
     const session = this.addPlayer(room, name, userId);
     room.hostId = session.id;
+    this.metrics.increment("deckxi_rooms_created_total");
     this.log.info(
       { event: "room.created", roomId: room.id, code: room.code, userId, sessionId: session.id },
       "room created",
@@ -209,6 +222,7 @@ export class RoomManager {
     const session = spectator
       ? this.addSpectator(room, name, userId)
       : this.addPlayer(room, name, userId);
+    this.metrics.increment("deckxi_room_joins_total", { spectator: String(spectator) });
     this.log.info(
       { event: "room.joined", roomId: room.id, userId, sessionId: session.id, spectator },
       "player joined",
@@ -359,6 +373,7 @@ export class RoomManager {
     };
     room.phase = "playing";
     this.touch(room);
+    this.metrics.increment("deckxi_games_started_total");
     this.log.info(
       {
         event: "game.started",
@@ -444,12 +459,15 @@ export class RoomManager {
       this.clearTurn(game);
       room.phase = "results";
       const ended = appended.find((e) => e.event.type === "GAME_ENDED")?.event;
+      const reason = ended?.type === "GAME_ENDED" ? ended.reason : "unknown";
+      this.metrics.increment("deckxi_games_finished_total", { reason });
+      this.metrics.observeGameDuration(Math.round((Date.now() - game.startedAt) / 1000));
       this.log.info(
         {
           event: "game.finished",
           roomId: room.id,
           matchId: game.matchId,
-          reason: ended?.type === "GAME_ENDED" ? ended.reason : "unknown",
+          reason,
           rounds: game.state.round - 1,
           durationMs: Date.now() - game.startedAt,
         },
@@ -473,6 +491,7 @@ export class RoomManager {
   /** Persistence is fire-and-forget: a store outage must never stall play. */
   private persist(label: string, write: () => Promise<void>): void {
     write().catch((error: unknown) => {
+      this.metrics.increment("deckxi_store_write_failures_total");
       this.log.error({ event: "store.write_failed", op: label, err: error }, "store write failed");
     });
   }
@@ -564,6 +583,7 @@ export class RoomManager {
   }
 
   protected closeRoom(room: Room, reason: RoomCloseReason): void {
+    this.metrics.increment("deckxi_rooms_closed_total", { reason });
     this.log.info(
       {
         event: "room.closed",

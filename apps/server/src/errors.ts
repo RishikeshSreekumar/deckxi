@@ -23,6 +23,7 @@ import { z } from "zod";
 import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { TokenBucket } from "./rateLimit.js";
 import type { Logger } from "./logging.js";
+import type { Metrics } from "./metrics.js";
 
 /** Deliberately small: a stack, a message and where it happened. */
 export const clientErrorSchema = z.object({
@@ -62,7 +63,11 @@ export function clientErrorLimiter(): (ip: string) => boolean {
  *  - the browser's error intake
  *  - process-level crashes, which are the ones you most want a line for
  */
-export function registerErrorTracking(fastify: FastifyInstance, log: Logger): void {
+export function registerErrorTracking(
+  fastify: FastifyInstance,
+  log: Logger,
+  metrics: Metrics,
+): void {
   fastify.setErrorHandler((error: FastifyError, request: FastifyRequest, reply: FastifyReply) => {
     const status = error.statusCode ?? 500;
     // 4xx is the client being wrong; only 5xx is us being wrong.
@@ -82,6 +87,7 @@ export function registerErrorTracking(fastify: FastifyInstance, log: Logger): vo
     const parsed = clientErrorSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ ok: false });
     const report = parsed.data;
+    metrics.increment("deckxi_client_errors_total", { kind: report.kind });
     log.error(
       {
         event: "error.client",

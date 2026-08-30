@@ -30,6 +30,8 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).optional(),
   /** Build identifier (git sha) stamped on every log line and error report. */
   RELEASE: z.string().optional(),
+  /** Bearer token for /metrics and the admin API; unset means loopback only. */
+  ADMIN_TOKEN: z.string().min(16).optional(),
   /** Cloud Run sets this per revision; a usable release id when RELEASE isn't set. */
   K_REVISION: z.string().optional(),
 });
@@ -45,6 +47,7 @@ export interface Env {
   google: { clientId: string; clientSecret: string } | undefined;
   logLevel: string;
   release: string | undefined;
+  adminToken: string | undefined;
 }
 
 /**
@@ -82,5 +85,6 @@ export function parseEnv(source: NodeJS.ProcessEnv = process.env): Env {
         : undefined,
     logLevel: parsed.LOG_LEVEL ?? (parsed.APP_ENV === "development" ? "debug" : "info"),
     release: parsed.RELEASE ?? parsed.K_REVISION,
+    adminToken: parsed.ADMIN_TOKEN,
   };
 }

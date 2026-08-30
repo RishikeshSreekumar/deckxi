@@ -26,6 +26,7 @@ import {
 import { redactEvent, redactLog, type SeqEvent } from "./redact.js";
 import { DEFAULT_LIMITS, TokenBucket, type RateLimits } from "./rateLimit.js";
 import { nullLogger, type Logger } from "./logging.js";
+import { createMetrics, type Metrics } from "./metrics.js";
 
 const roomKey = (roomId: string): string => `room:${roomId}`;
 
@@ -38,11 +39,13 @@ export interface SocketOptions {
   rooms?: RoomManagerOptions | undefined;
   limits?: Partial<RateLimits> | undefined;
   logger?: Logger | undefined;
+  metrics?: Metrics | undefined;
 }
 
 export function registerSockets(io: GameServer, options: SocketOptions = {}): RoomManager {
   const limits: RateLimits = { ...DEFAULT_LIMITS, ...options.limits };
   const log = options.logger ?? nullLogger;
+  const metrics = options.metrics ?? createMetrics();
   const socketBySession = new Map<string, GameSocket>();
 
   const detachRoom = (room: Room): void => {
@@ -89,6 +92,7 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
     // whole session can be pulled out of the stream by socketId (#65).
     let socketLog = log.child({ socketId: socket.id, userId: socket.data.userId });
     socketLog.debug({ event: "socket.connected" }, "socket connected");
+    metrics.increment("deckxi_socket_connections_total");
 
     const globalBucket = new TokenBucket(limits.global.capacity, limits.global.refillPerSec);
     const chatBucket = new TokenBucket(limits.chat.capacity, limits.chat.refillPerSec);
@@ -122,14 +126,17 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
           }
           try {
             ack({ ok: true, data: handler(parsed.data as never) ?? null });
+            metrics.increment("deckxi_commands_total", { command: event });
           } catch (error) {
             if (error instanceof RoomError) {
+              metrics.increment("deckxi_command_rejections_total", { code: error.code });
               // Expected: the player asked for something the rules refuse.
               socketLog.debug(
                 { event: "command.rejected", command: event, code: error.code },
                 error.message,
               );
             } else {
+              metrics.increment("deckxi_command_failures_total");
               socketLog.error(
                 { event: "command.failed", command: event, err: error },
                 "handler threw",
@@ -268,6 +275,7 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
     on("chat:send", (payload: { text: string }) => {
       const { roomId, from } = chatContext();
       if (!chatBucket.tryTake()) throw new RoomError("rate-limited", "chat too fast");
+      metrics.increment("deckxi_chat_messages_total");
       io.to(roomKey(roomId)).emit("chat:message", { from, text: payload.text, at: Date.now() });
       return null;
     });

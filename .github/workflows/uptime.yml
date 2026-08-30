@@ -1,0 +1,85 @@
+name: Uptime
+
+# Is the API answering? (#66)
+#
+# GitHub Actions rather than a monitoring SaaS: on a public repo this is free
+# and unmetered, it lives in the repo next to everything else it checks, and
+# the alert channel — a GitHub issue — is one every watcher already gets email
+# for. The cost is granularity: cron is best-effort and never finer than five
+# minutes, so this catches "it's down", not "it was slow for 40 seconds".
+# Latency and error rates come from /metrics and the logs instead.
+#
+# Two caveats worth knowing: GitHub disables scheduled workflows on a repo with
+# no activity for 60 days, and a scale-to-zero Cloud Run instance answers this
+# with a cold start — which is exactly what a player would get, so it counts.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+env:
+  TARGET: https://api-staging.deckxi.rishikeshs.dev/health
+  ENVIRONMENT: staging
+
+jobs:
+  check:
+    name: Probe /health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe
+        id: probe
+        run: |
+          set +e
+          # Two attempts: a single failed request during a cold start or a
+          # revision swap is not an outage, and paging on one is how alerts
+          # get ignored.
+          for attempt in 1 2; do
+            body=$(curl -fsS --max-time 20 "$TARGET")
+            code=$?
+            [ "$code" = 0 ] && echo "$body" | grep -q '"ok":true' && break
+            sleep 15
+          done
+          if [ "$code" = 0 ] && echo "$body" | grep -q '"ok":true'; then
+            echo "up=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "up=false" >> "$GITHUB_OUTPUT"
+            # Flattened and clipped: a multi-line body would break the output
+            # file, and a 503 page is not worth quoting in full.
+            detail=$(printf 'curl exit %s; body: %s' "$code" "${body:-<empty>}" | tr '\n' ' ' | cut -c1-400)
+            echo "detail=$detail" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open or close the incident
+        uses: actions/github-script@v7
+        env:
+          UP: ${{ steps.probe.outputs.up }}
+          DETAIL: ${{ steps.probe.outputs.detail }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const up = process.env.UP === "true";
+            const title = `Uptime: ${process.env.ENVIRONMENT} API is not answering`;
+            const existing = (await github.rest.issues.listForRepo({
+              owner, repo, state: "open", labels: "incident",
+            })).data.find((i) => i.title === title);
+            const run = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            if (!up) {
+              const body = `${process.env.TARGET} failed its health check.\n\n\`\`\`\n${process.env.DETAIL}\n\`\`\`\n\n[Run](${run}) · runbook: docs/runbook.md → Incidents`;
+              if (existing) {
+                // One issue per outage; each failed probe adds a beat to it.
+                await github.rest.issues.createComment({ owner, repo, issue_number: existing.number, body });
+              } else {
+                await github.rest.issues.create({ owner, repo, title, body, labels: ["incident"] });
+              }
+              core.setFailed("health check failed");
+            } else if (existing) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: existing.number,
+                body: `Recovered — health check passing again. [Run](${run})`,
+              });
+              await github.rest.issues.update({ owner, repo, issue_number: existing.number, state: "closed" });
+            }

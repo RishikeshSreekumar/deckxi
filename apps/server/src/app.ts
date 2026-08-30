@@ -15,6 +15,7 @@ import {
 import { originMatcher } from "./origins.js";
 import { requestId, type Logger } from "./logging.js";
 import { registerErrorTracking } from "./errors.js";
+import { createMetrics, type Metrics } from "./metrics.js";
 import { registerSockets, type SocketOptions } from "./sockets.js";
 import type { RoomManager, RoomManagerOptions } from "./rooms.js";
 import { InMemoryMatchStore, type MatchStore } from "./store.js";
@@ -61,6 +62,17 @@ export interface AppOptions {
   /** Match persistence; defaults to in-memory (no DATABASE_URL needed). */
   store?: MatchStore;
   auth?: AuthOptions;
+  /** Operator access to /metrics and (later) the admin API. */
+  admin?: AdminOptions;
+}
+
+export interface AdminOptions {
+  /**
+   * Bearer token for machine access. Without it `/metrics` answers 404 to
+   * anything that isn't a loopback request, so a deployment that forgot to
+   * set one exposes nothing rather than exposing everything.
+   */
+  token?: string | undefined;
 }
 
 export interface App {
@@ -68,6 +80,7 @@ export interface App {
   io: GameServer;
   rooms: RoomManager;
   auth: Auth;
+  metrics: Metrics;
   /** Bind and return the actual port (pass 0 for an ephemeral test port). */
   listen(port: number, host?: string): Promise<number>;
   close(): Promise<void>;
@@ -84,6 +97,7 @@ export function buildApp(options: AppOptions = {}): App {
     genReqId: (request) => requestId(request.headers),
   });
   const log = fastify.log as unknown as Logger;
+  const metrics = createMetrics();
   const store = options.store ?? new InMemoryMatchStore();
   const corsOrigins = options.corsOrigins ?? ["http://localhost:5173"];
   const allowOrigin = originMatcher(corsOrigins);
@@ -113,7 +127,7 @@ export function buildApp(options: AppOptions = {}): App {
 
   // Route errors, the browser's error intake, and a 500 shape that doesn't
   // leak internals (#64).
-  registerErrorTracking(fastify, log);
+  registerErrorTracking(fastify, log, metrics);
 
   const health = async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -234,9 +248,31 @@ export function buildApp(options: AppOptions = {}): App {
   });
 
   const rooms = registerSockets(io, {
-    rooms: { store, logger: log, ...options.rooms },
+    rooms: { store, logger: log, metrics, ...options.rooms },
     limits: options.limits,
     logger: log,
+    metrics,
+  });
+
+  // Gauges read live state, so they are registered once the owners exist.
+  metrics.gauge("deckxi_active_rooms", "Rooms currently open", () => rooms.roomCount);
+  metrics.gauge("deckxi_active_sockets", "Connected sockets", () => io.engine.clientsCount);
+  metrics.gauge("deckxi_active_games", "Rooms with a game in progress", () => rooms.activeGames);
+
+  /**
+   * Scrape endpoint. Not secret data exactly, but room counts and error rates
+   * are nobody else's business, so: bearer token if one is configured,
+   * loopback only if not, and a 404 either way — an operator endpoint that
+   * answers 401 has already told an attacker it exists.
+   */
+  fastify.get("/metrics", (request, reply) => {
+    const token = options.admin?.token;
+    const authorized =
+      token !== undefined && token.length > 0
+        ? request.headers.authorization === `Bearer ${token}`
+        : ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(request.ip);
+    if (!authorized) return reply.status(404).send({ error: "not found" });
+    return reply.header("content-type", "text/plain; version=0.0.4").send(metrics.render());
   });
   const reaper = setInterval(() => rooms.reapIdle(), 60_000);
   reaper.unref();
@@ -246,6 +282,7 @@ export function buildApp(options: AppOptions = {}): App {
     io,
     rooms,
     auth,
+    metrics,
     async listen(port, host = "127.0.0.1") {
       await fastify.listen({ port, host });
       const address = fastify.server.address();

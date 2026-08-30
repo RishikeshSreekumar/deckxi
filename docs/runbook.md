@@ -339,6 +339,51 @@ _Deploy web_ workflow run, as the `sourcemaps-<sha>` artifact — kept 30 days
 and never published, since a public map is a published source tree. Download
 it, then `pnpm dlx source-map-cli resolve <file>.map <line> <column>`.
 
+### Metrics & alerts
+
+`GET /metrics` serves Prometheus text from in-process counters. There is no
+metrics vendor and no Prometheus server: for one instance, a curl is the
+scrape. The trade is stated where it lives (`apps/server/src/metrics.ts`) —
+counters reset on restart and there is no history. History of _availability_
+comes from the uptime check; history of _what happened_ comes from the logs,
+which are retained for 30 days.
+
+```sh
+# Locally: loopback is allowed without a token.
+curl -s localhost:3001/metrics
+
+# Deployed: a bearer token is required, and without ADMIN_TOKEN set the
+# endpoint answers 404 to everything remote — which is the default.
+curl -s -H "Authorization: Bearer $ADMIN_TOKEN" \
+  https://api-staging.deckxi.rishikeshs.dev/metrics
+```
+
+Series worth watching: `deckxi_active_rooms`, `deckxi_active_sockets`,
+`deckxi_active_games`, `deckxi_games_finished_total` by `reason` (a rising
+share of `opponents-forfeited` means people are dropping out),
+`deckxi_command_failures_total` (handler bugs — should be flat at zero),
+`deckxi_store_write_failures_total` (persistence degraded),
+`deckxi_client_errors_total`, and the `deckxi_game_duration_seconds` histogram.
+
+**Uptime** is `uptime.yml`: every 15 minutes it probes `/health`, and on two
+consecutive failures opens a GitHub issue labelled `incident` (and comments on
+it while the outage lasts, then closes it on recovery). GitHub emails issue
+notifications, so that is the alert channel — free, and one fewer account than
+a monitoring SaaS. Granularity is the price: cron is best-effort and never
+finer than five minutes.
+
+**Error alerting** is worth adding in the Cloud Console once real users exist,
+and is free at this volume: Logging → _Create log-based alert_ on
+
+```
+resource.labels.service_name="deckxi-api-staging"
+jsonPayload.event=~"^error\.|^command\.failed$"
+```
+
+with an email notification channel. Cloud Monitoring's alerting has no charge
+for log-based metrics at this scale; keep the notification channel to email
+(SMS is billable).
+
 ## Incidents
 
 1. **Is it up?** `curl https://api-staging.deckxi.rishikeshs.dev/health`. A
