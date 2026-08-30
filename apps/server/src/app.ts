@@ -58,7 +58,12 @@ export interface AuthOptions {
 
 export interface AppOptions {
   corsOrigins?: string[];
-  /** `false` (tests) silences logging; an object is passed to pino verbatim. */
+  /**
+   * `false` (tests) silences logging; otherwise pino options, or a pino
+   * instance (what index.ts passes, so the mailer and the app share one).
+   * Kept as one non-union type because Fastify's overloads resolve to its
+   * http2 signature otherwise.
+   */
   logger?: boolean | Record<string, unknown>;
   rooms?: RoomManagerOptions;
   limits?: SocketOptions["limits"];

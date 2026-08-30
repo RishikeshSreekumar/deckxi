@@ -93,7 +93,9 @@ GitHub. Not secret → the workflow, where it shows up in a diff.
 | `GOOGLE_CLIENT_ID`                           | Secret Manager `deckxi-<env>-google-client-id`                                                                             |
 | `GOOGLE_CLIENT_SECRET`                       | Secret Manager `deckxi-<env>-google-client-secret`                                                                         |
 | `DATABASE_URL`                               | Secret Manager `deckxi-<env>-database-url` **and** the GitHub environment (the migrate job runs in Actions, not Cloud Run) |
+| `MAIL_API_KEY`                               | Secret Manager `deckxi-<env>-mail-api-key` (only referenced when the `MAIL_ENABLED` variable is `true`)                    |
 | `APP_ENV`, `CORS_ORIGINS`, `BETTER_AUTH_URL` | `deploy.yml` inputs                                                                                                        |
+| `ADMIN_EMAILS`, `MAIL_FROM`, `MAIL_ENABLED`  | GitHub repository/environment **variables** — not secret, and each one is safe to read in a build log                      |
 
 `deploy-api-cloudrun.yml` references those secret names literally, so a typo
 surfaces as a container that won't boot rather than a warning.
@@ -123,6 +125,35 @@ Google OAuth credentials come from Console → APIs & Services. Configure the
 consent screen first (External; while it is in Testing mode only accounts listed
 under Test users can sign in), then create a Web application client with
 redirect URI `https://api-<env>.deckxi.rishikeshs.dev/api/auth/callback/google`.
+
+### Magic-link email (#93)
+
+Sign-in links are sent through **Resend** — free tier, 3,000 emails a month
+and 100 a day, which is far more than a pre-launch game sends. Two steps, in
+this order, because the workflow only wires mail up once you say it exists:
+
+```sh
+gcloud secrets create deckxi-staging-mail-api-key --replication-policy=automatic
+printf '%s' 're_YOUR_KEY' | \
+  gcloud secrets versions add deckxi-staging-mail-api-key --data-file=-
+```
+
+Then set two repository (or environment) **variables**:
+
+| Variable       | Value                                                                                   |
+| -------------- | --------------------------------------------------------------------------------------- |
+| `MAIL_ENABLED` | `true`                                                                                  |
+| `MAIL_FROM`    | `DeckXI <play@deckxi.rishikeshs.dev>` — must be a sender on a domain verified in Resend |
+
+Until `MAIL_ENABLED` is `true` the deploy simply doesn't reference the secret,
+so a missing secret can never break a deploy. What it does mean is that
+magic-link sign-in **fails visibly** in that environment — the request errors
+and the profile screen says so. That is deliberate: the alternative, which is
+what shipped before, was logging the link to Cloud Run and letting the player
+wait for an email that was never coming.
+
+Locally, with no key, the link is still printed to the server log. That is a
+working dev flow, and `grep 'magic link' ` finds it.
 
 ### Keyless deploys (Workload Identity Federation)
 

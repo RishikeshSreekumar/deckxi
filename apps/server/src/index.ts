@@ -7,6 +7,8 @@ import { buildApp } from "./app.js";
 import { parseEnv } from "./env.js";
 import { loggerOptions, type Logger } from "./logging.js";
 import { installProcessHandlers } from "./errors.js";
+import { createMagicLinkSender } from "./mail.js";
+import pino from "pino";
 
 export function serverInfo(): string {
   return `${APP_NAME} server (protocol v${PROTOCOL_VERSION})`;
@@ -21,13 +23,23 @@ if (isMain) {
   const { createConfigStore, createStore } = await import("./db/index.js");
   const env = parseEnv();
   const store = createStore(env.databaseUrl);
+  // One logger instance, shared: Fastify takes it as-is, and the mailer needs
+  // it before the app exists so its "no mail configured" complaint lands in
+  // the same stream as everything else.
+  const log = pino(
+    loggerOptions({ level: env.logLevel, appEnv: env.appEnv, release: env.release }),
+  );
+  const sendMagicLink = createMagicLinkSender({
+    apiKey: env.mail.apiKey,
+    from: env.mail.from,
+    isDeployment: env.appEnv !== "development",
+    log,
+  });
   const app = buildApp({
     corsOrigins: env.corsOrigins,
-    logger: loggerOptions({
-      level: env.logLevel,
-      appEnv: env.appEnv,
-      release: env.release,
-    }),
+    // A pino instance is a valid Fastify `logger`; the cast is only because
+    // AppOptions types it as options rather than a union (see app.ts).
+    logger: log as unknown as Record<string, unknown>,
     store,
     config: createConfigStore(store),
     auth: {
@@ -35,6 +47,7 @@ if (isMain) {
       ...(env.authSecret !== undefined ? { secret: env.authSecret } : {}),
       baseURL: env.authUrl ?? `http://localhost:${env.port}`,
       google: env.google,
+      ...(sendMagicLink !== undefined ? { sendMagicLink } : {}),
     },
     admin: { token: env.adminToken, emails: env.adminEmails },
   });

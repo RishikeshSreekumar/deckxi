@@ -94,7 +94,23 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Deploy
+        env:
+          # Magic-link email (#93). Opt-in: set the MAIL_ENABLED variable once
+          # the Secret Manager entry below exists, so a deploy never fails on
+          # a secret nobody has created yet. Without it, magic-link sign-in
+          # fails loudly rather than silently logging the link.
+          MAIL_ENABLED: ${{ vars.MAIL_ENABLED }}
+          MAIL_FROM: ${{ vars.MAIL_FROM }}
         run: |
+          secrets="DATABASE_URL=deckxi-${{ inputs.environment }}-database-url:latest"
+          secrets="$secrets,BETTER_AUTH_SECRET=deckxi-${{ inputs.environment }}-auth-secret:latest"
+          secrets="$secrets,GOOGLE_CLIENT_ID=deckxi-${{ inputs.environment }}-google-client-id:latest"
+          secrets="$secrets,GOOGLE_CLIENT_SECRET=deckxi-${{ inputs.environment }}-google-client-secret:latest"
+          env_vars="APP_ENV=${{ inputs.environment }}@HOST=0.0.0.0@BETTER_AUTH_URL=${{ inputs.api_url }}@CORS_ORIGINS=${{ inputs.cors_origins }}@RELEASE=${{ github.sha }}@ADMIN_EMAILS=${{ vars.ADMIN_EMAILS }}"
+          if [ "$MAIL_ENABLED" = "true" ]; then
+            secrets="$secrets,MAIL_API_KEY=deckxi-${{ inputs.environment }}-mail-api-key:latest"
+            env_vars="$env_vars@MAIL_FROM=$MAIL_FROM"
+          fi
           gcloud run deploy ${{ inputs.service }} \
             --image ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/server:${{ github.sha }} \
             --region ${{ env.REGION }} \
@@ -107,8 +123,8 @@ jobs:
             --concurrency 250 \
             --timeout 3600 \
             --no-cpu-throttling \
-            --set-env-vars "^@^APP_ENV=${{ inputs.environment }}@HOST=0.0.0.0@BETTER_AUTH_URL=${{ inputs.api_url }}@CORS_ORIGINS=${{ inputs.cors_origins }}@RELEASE=${{ github.sha }}@ADMIN_EMAILS=${{ vars.ADMIN_EMAILS }}" \
-            --set-secrets "DATABASE_URL=deckxi-${{ inputs.environment }}-database-url:latest,BETTER_AUTH_SECRET=deckxi-${{ inputs.environment }}-auth-secret:latest,GOOGLE_CLIENT_ID=deckxi-${{ inputs.environment }}-google-client-id:latest,GOOGLE_CLIENT_SECRET=deckxi-${{ inputs.environment }}-google-client-secret:latest" \
+            --set-env-vars "^@^$env_vars" \
+            --set-secrets "$secrets" \
             --quiet
 
       - name: Smoke test /health

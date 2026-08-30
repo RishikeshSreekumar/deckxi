@@ -34,6 +34,10 @@ const envSchema = z.object({
   ADMIN_TOKEN: z.string().min(16).optional(),
   /** Comma-separated account emails allowed into /admin. Unset means nobody. */
   ADMIN_EMAILS: z.string().optional(),
+  /** Resend API key for magic-link email (#93); unset logs the link in dev. */
+  MAIL_API_KEY: z.string().optional(),
+  /** Verified sender, e.g. "DeckXI <play@deckxi.rishikeshs.dev>". */
+  MAIL_FROM: z.string().optional(),
   /** Cloud Run sets this per revision; a usable release id when RELEASE isn't set. */
   K_REVISION: z.string().optional(),
 });
@@ -51,6 +55,7 @@ export interface Env {
   release: string | undefined;
   adminToken: string | undefined;
   adminEmails: string[];
+  mail: { apiKey: string | undefined; from: string | undefined };
 }
 
 /**
@@ -93,5 +98,6 @@ export function parseEnv(source: NodeJS.ProcessEnv = process.env): Env {
       .split(",")
       .map((email) => email.trim())
       .filter((email) => email.length > 0),
+    mail: { apiKey: parsed.MAIL_API_KEY, from: parsed.MAIL_FROM },
   };
 }

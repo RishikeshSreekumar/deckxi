@@ -21,6 +21,8 @@ export function ProfileScreen() {
   const [pickingAvatar, setPickingAvatar] = useState(false);
   const [email, setEmail] = useState("");
   const [linkSent, setLinkSent] = useState(false);
+  /** Separate from `error`, which replaces the whole screen (#93). */
+  const [linkError, setLinkError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -75,7 +77,12 @@ export function ProfileScreen() {
         email: email.trim(),
         callbackURL: "/profile",
       });
-      if (sendError == null) setLinkSent(true);
+      // Delivery can genuinely fail (#93). Saying so beats "check your inbox"
+      // for an email that is never coming.
+      setLinkSent(sendError == null);
+      setLinkError(
+        sendError == null ? null : "Couldn't send the link — try Google, or try again later.",
+      );
     } finally {
       setBusy(null);
     }
@@ -230,6 +237,11 @@ export function ProfileScreen() {
           <div className="divider">
             <span>or get a magic link</span>
           </div>
+          {linkError !== null && (
+            <p className="notice" role="alert">
+              {linkError}
+            </p>
+          )}
           {linkSent ? (
             <p className="notice" role="status">
               Check your email — the sign-in link is on its way.
