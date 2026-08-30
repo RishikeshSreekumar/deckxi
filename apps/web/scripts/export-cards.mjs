@@ -50,6 +50,10 @@ try {
   const page = await browser.newPage({
     viewport: { width: 1200, height: 630 },
     reducedMotion: "reduce", // freeze the legend sheen for deterministic pixels
+    // Pinned, not inherited: the app honours prefers-color-scheme now, and a
+    // share image must be the product's default look rather than whatever the
+    // machine that ran the export happened to be set to.
+    colorScheme: "dark",
   });
 
   for (const player of edition.players) {

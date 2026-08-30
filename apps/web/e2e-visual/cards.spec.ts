@@ -18,6 +18,16 @@ test.beforeEach(async ({ page }) => {
   await page.evaluate(() => document.fonts.ready);
 });
 
+test("component kit", async ({ page }) => {
+  await expect(page.getByTestId("gallery-kit")).toHaveScreenshot("kit-dark.png");
+});
+
+test("component kit — light", async ({ page }) => {
+  await page.getByTestId("theme-toggle").click();
+  await page.mouse.move(0, 0);
+  await expect(page.getByTestId("gallery-kit")).toHaveScreenshot("kit-light.png");
+});
+
 test("sizes and states", async ({ page }) => {
   await expect(page.getByTestId("gallery-states")).toHaveScreenshot("states.png");
 });
