@@ -26,3 +26,6 @@ dist/
 # playwright
 test-results/
 playwright-report/
+
+# card image exports (generated)
+apps/web/exports/

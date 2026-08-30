@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:visual": "playwright test -c playwright.visual.config.ts",
+    "export:cards": "node scripts/export-cards.mjs"
   },
   "dependencies": {
     "@deckxi/data": "workspace:*",

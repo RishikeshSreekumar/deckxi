@@ -12,6 +12,8 @@ import { Results } from "./screens/Results.js";
 import { ProfileScreen } from "./screens/Profile.js";
 import { HistoryScreen } from "./screens/History.js";
 import { PrivacyScreen } from "./screens/Privacy.js";
+import { CardsGalleryScreen } from "./screens/CardsGallery.js";
+import { ShareCardScreen } from "./screens/ShareCard.js";
 import { ConnectionBanner, FloatingReactions, Toasts } from "./components/Chrome.js";
 
 function Screen() {
@@ -26,6 +28,8 @@ function Screen() {
         <Route path="/profile" element={<ProfileScreen />} />
         <Route path="/history" element={<HistoryScreen />} />
         <Route path="/privacy" element={<PrivacyScreen />} />
+        <Route path="/cards" element={<CardsGalleryScreen />} />
+        <Route path="/cards/share/:cardId" element={<ShareCardScreen />} />
         <Route path="*" element={<Landing />} />
       </Routes>
     );
