@@ -52,7 +52,9 @@ export function TrumpCard({
 
   const { player, team } = getCardInfo(editionId, cardId);
   const edition = getEdition(editionId);
-  const color = team?.color ?? "#3b4a6b";
+  // Fallback matches the --team-color role's default (navy-700) for cards
+  // whose team is missing from the edition.
+  const color = team?.color ?? "#33405c";
   const rarity = player?.rarity ?? "regular";
   const stats = edition?.stats ?? [];
 

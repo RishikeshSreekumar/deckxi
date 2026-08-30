@@ -1,26 +1,14 @@
 /**
  * /cards — the design-system gallery: every card in every size, state and
- * rarity, with a theme toggle. Dev-facing (unlinked from the app flow) and
- * the surface the visual-regression screenshots run against.
+ * rarity, plus the shared theme toggle. Dev-facing (unlinked from the app
+ * flow) and one of the surfaces the visual-regression screenshots run
+ * against.
  */
-import { useEffect, useState } from "react";
 import { DEFAULT_EDITION_ID, TrumpCard, getEdition } from "@deckxi/ui";
 import type { Rarity } from "@deckxi/shared";
-
-function useTheme() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
-  useEffect(() => {
-    if (theme === "light") document.documentElement.dataset["theme"] = "light";
-    else delete document.documentElement.dataset["theme"];
-    return () => {
-      delete document.documentElement.dataset["theme"];
-    };
-  }, [theme]);
-  return { theme, setTheme };
-}
+import { ThemeToggle } from "../components/Chrome.js";
 
 export function CardsGalleryScreen() {
-  const { theme, setTheme } = useTheme();
   const edition = getEdition(DEFAULT_EDITION_ID);
   if (edition === null) return <main className="screen">Unknown edition.</main>;
 
@@ -35,14 +23,7 @@ export function CardsGalleryScreen() {
         <h1 className="brand brand--small">
           Deck<span className="brand-xi">XI</span> cards — {edition.name}
         </h1>
-        <button
-          type="button"
-          className="button button--ghost"
-          data-testid="theme-toggle"
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        >
-          {theme === "dark" ? "Light theme" : "Dark theme"}
-        </button>
+        <ThemeToggle />
       </header>
 
       <section className="panel gallery-section" data-testid="gallery-states">

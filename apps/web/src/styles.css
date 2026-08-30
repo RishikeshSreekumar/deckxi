@@ -1,26 +1,47 @@
-/* DeckXI web client — mobile-first, dark "night match" table.
-   Design tokens and kit component styles (buttons, toasts, cards, timer
-   ring, dialog, avatar, room code) come from @deckxi/ui/styles.css; this
-   file holds screen layout and app-specific styling only. */
+/**
+ * DeckXI web client — screen layout and app-specific styling.
+ *
+ * Tokens and kit components come from @deckxi/ui/styles.css. Rules for this
+ * file, from docs/design/direction.md:
+ *
+ *   - Semantic tokens only. No raw px for space or radius, no raw colour.
+ *   - Mobile-first: the base rules are the phone layout, and every media
+ *     query is min-width. Width queries use the breakpoint literal with the
+ *     token named alongside, because media queries cannot read custom
+ *     properties.
+ *   - Cards are the hero; chrome is furniture. One accent-filled element per
+ *     screen, at most one elevation step on any panel.
+ */
 
-* {
+/* -- reset & base ---------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+}
+
+html {
+  /* The app is a fixed shell with scrolling regions inside it, so a bounce at
+     the document level is never meaningful — and pull-to-refresh firing
+     mid-match is actively destructive. */
+  overscroll-behavior-y: none;
 }
 
 html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family:
-    ui-rounded,
-    "SF Pro Rounded",
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    sans-serif;
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
   min-height: 100dvh;
+  /* iOS paints a grey flash on every tap by default. Killed globally; every
+     interactive element supplies its own :active state instead. */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
 }
 
 #root {
@@ -34,140 +55,194 @@ button {
   color: inherit;
 }
 
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+}
+
+:focus-visible {
+  outline: 2px solid var(--interactive-focus);
+  outline-offset: 2px;
+}
+
+/* -- shell ----------------------------------------------------------------- */
+
+/* --gutter is the app's one horizontal rhythm. Screens use it for their own
+   padding so nothing has to re-derive the edge distance. */
+:root {
+  --gutter: var(--space-6);
+}
+
+/* --bp-sm: large phone */
+@media (min-width: 480px) {
+  :root {
+    --gutter: var(--space-7);
+  }
+}
+
+/* --bp-md: tablet */
+@media (min-width: 768px) {
+  :root {
+    --gutter: var(--space-8);
+  }
+}
+
+/* --bp-lg: desktop */
+@media (min-width: 1024px) {
+  :root {
+    --gutter: var(--space-9);
+  }
+}
+
+/* Safe areas on all four edges. viewport-fit=cover means a notch or a rounded
+   corner will clip content otherwise — and in landscape that is the side
+   edges, not the bottom, which is the case the old bottom-only handling
+   missed entirely. */
 .screen {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 16px;
-  padding-bottom: max(16px, env(safe-area-inset-bottom));
-  max-width: 900px;
-  margin: 0 auto;
+  gap: var(--space-6);
   width: 100%;
+  max-width: var(--container-lg);
+  margin: 0 auto;
+  padding: max(var(--gutter), env(safe-area-inset-top))
+    max(var(--gutter), env(safe-area-inset-right)) max(var(--gutter), env(safe-area-inset-bottom))
+    max(var(--gutter), env(safe-area-inset-left));
 }
 
 .screen-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  gap: var(--space-5);
 }
 
 .head-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-3);
   align-items: center;
 }
 
-/* -- brand ---------------------------------------------------------------- */
+/* -- brand ----------------------------------------------------------------- */
 
 .brand {
-  font-size: 2.6rem;
+  font-size: var(--text-2xl);
   margin: 0;
-  letter-spacing: -0.03em;
-  font-weight: 800;
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-black);
 }
 
 .brand--small {
-  font-size: 1.3rem;
+  font-size: var(--text-lg);
 }
 
 .brand-xi {
-  color: var(--accent);
+  color: var(--text-accent);
 }
 
 .tagline {
-  color: var(--text-dim);
-  margin: 4px 0 0;
+  color: var(--text-secondary);
+  margin: var(--space-2) 0 0;
 }
 
 /* -- panels & controls ----------------------------------------------------- */
 
 .panel {
-  background: var(--bg-panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 16px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
 }
 
 .panel h2 {
-  margin: 0 0 12px;
-  font-size: 1rem;
-  color: var(--text-dim);
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-wide);
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-3);
 }
 
 .field span {
-  color: var(--text-dim);
-  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 input,
 select {
-  font: inherit;
-  color: var(--text);
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 12px;
+  font-family: var(--font-sans);
+  /* Never below 16px: iOS zooms the viewport on focus otherwise, and the
+     zoom does not come back on blur. */
+  font-size: var(--text-md);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--space-5);
+  min-height: var(--touch-min);
 }
 
 input:focus,
 select:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--interactive-focus);
   outline-offset: 1px;
 }
 
 .hint {
-  color: var(--text-dim);
-  font-size: 0.85rem;
-  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin: var(--space-4) 0 0;
 }
 
 .notice {
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--gold);
-  border-radius: 10px;
-  padding: 10px 14px;
-  margin: 0 0 14px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--status-warning);
+  border-radius: var(--radius-sm);
+  padding: var(--space-5) var(--space-6);
+  margin: 0;
 }
 
 .tag {
-  font-size: 0.65rem;
+  font-size: var(--text-xs);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 1px 6px;
-  margin-left: 6px;
-  color: var(--text-dim);
+  letter-spacing: var(--tracking-wide);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xs);
+  padding: 0 var(--space-3);
+  margin-left: var(--space-3);
+  color: var(--text-secondary);
   vertical-align: middle;
 }
 
 .tag--you {
-  color: var(--accent);
-  border-color: var(--accent);
+  color: var(--text-accent);
+  border-color: var(--interactive-accent);
 }
 
 .tag--away {
-  color: var(--gold);
-  border-color: var(--gold);
+  color: var(--status-warning);
+  border-color: var(--status-warning);
 }
 
 /* -- landing --------------------------------------------------------------- */
 
 .landing {
+  position: relative;
   justify-content: center;
-  gap: 24px;
-  max-width: 460px;
+  gap: var(--space-8);
+  max-width: var(--container-sm);
 }
 
 .landing-hero {
@@ -177,15 +252,15 @@ select:focus {
 .landing-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-6);
 }
 
 .divider {
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: var(--text-dim);
-  font-size: 0.8rem;
+  gap: var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
 }
 
 .divider::before,
@@ -193,20 +268,22 @@ select:focus {
   content: "";
   flex: 1;
   height: 1px;
-  background: var(--line);
+  background: var(--border-default);
 }
 
 .join-row {
   display: flex;
-  gap: 10px;
+  gap: var(--space-5);
 }
 
 .code-input {
   flex: 1;
+  min-width: 0;
   text-transform: uppercase;
-  letter-spacing: 0.35em;
-  font-weight: 700;
-  font-size: 1.1rem;
+  letter-spacing: var(--tracking-wider);
+  font-family: var(--font-mono);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-lg);
   text-align: center;
 }
 
@@ -214,32 +291,36 @@ select:focus {
 
 .lobby-grid {
   display: grid;
-  gap: 14px;
+  gap: var(--space-6);
   grid-template-columns: 1fr;
 }
 
-@media (min-width: 720px) {
+/* --bp-md: tablet up — the lobby's second column. Below this the panels
+   stack in priority order: players, invite, settings, chat. */
+@media (min-width: 768px) {
   .lobby-grid {
     grid-template-columns: 1fr 1fr;
+    align-items: start;
   }
 }
 
 .player-list {
   list-style: none;
-  margin: 0 0 14px;
+  margin: 0 0 var(--space-5);
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-4);
 }
 
 .player {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: var(--bg-raised);
-  border-radius: 10px;
-  padding: 8px 12px;
+  gap: var(--space-5);
+  background: var(--surface-raised);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-5);
+  min-height: var(--touch-min);
 }
 
 .player--away {
@@ -247,15 +328,15 @@ select:focus {
 }
 
 .player-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--accent-strong);
-  color: var(--on-accent);
+  width: var(--space-10);
+  height: var(--space-10);
+  border-radius: var(--radius-pill);
+  background: var(--interactive-accent);
+  color: var(--interactive-on-accent);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
+  font-weight: var(--weight-black);
   flex-shrink: 0;
 }
 
@@ -268,45 +349,48 @@ select:focus {
 }
 
 .ready {
-  color: var(--text-dim);
-  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 .ready--yes {
-  color: var(--win);
-  font-weight: 700;
+  color: var(--status-win);
+  font-weight: var(--weight-bold);
 }
 
 .players-panel .button {
   width: 100%;
-  margin-top: 8px;
+  margin-top: var(--space-4);
 }
 
 .invite-panel .room-code {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-5);
 }
 
 .invite-actions {
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: var(--space-5);
   justify-content: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-5);
 }
 
 .invite-qr {
   display: block;
   margin: 0 auto;
-  border-radius: 10px;
-  width: 132px;
-  height: 132px;
+  border-radius: var(--radius-sm);
+  width: clamp(120px, 40vw, 168px);
+  height: clamp(120px, 40vw, 168px);
 }
 
 .setting-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--line);
+  gap: var(--space-5);
+  padding: var(--space-4) 0;
+  min-height: var(--touch-min);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .setting-row:last-of-type {
@@ -320,19 +404,22 @@ select:focus {
 
 .chat-log {
   list-style: none;
-  margin: 0 0 10px;
+  margin: 0 0 var(--space-5);
   padding: 0;
   overflow-y: auto;
-  max-height: 160px;
+  overscroll-behavior: contain;
+  /* Grows with the viewport instead of sitting at a fixed height that wastes
+     a tablet and swamps a small phone. */
+  max-height: clamp(120px, 22dvh, 240px);
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 0.9rem;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
 }
 
 .chat-row {
   display: flex;
-  gap: 8px;
+  gap: var(--space-4);
 }
 
 .chat-row input {
@@ -342,48 +429,70 @@ select:focus {
 
 /* -- game table ------------------------------------------------------------ */
 
+/* The tightest screen in the app: hand, opponents and the reveal area all
+   compete for vertical space on a short phone. It gets a denser rhythm
+   (--space-5 rather than --space-6) and earns it by having fewer elements.
+   Toasts are lifted clear of the hand. */
 .table-screen {
-  gap: 10px;
+  gap: var(--space-5);
+  --toast-lift: 120px;
+  /* Pull-to-refresh mid-match loses the round. */
+  overscroll-behavior: none;
 }
 
 .table-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-4);
 }
 
 .round-chip {
-  background: var(--bg-panel);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 4px 14px;
-  font-weight: 700;
-  font-size: 0.9rem;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-6);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-sm);
+  white-space: nowrap;
 }
 
+/* Horizontally scrolling opponent rail. touch-action pins it to one axis so a
+   sloppy thumb cannot drag the page sideways, and the fade tells you there is
+   more to see — an overflow with no affordance is an overflow nobody finds. */
 .opponents {
   display: flex;
-  gap: 10px;
+  gap: var(--space-5);
   overflow-x: auto;
-  padding-bottom: 4px;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  scroll-snap-type: x proximity;
+  padding-bottom: var(--space-2);
+  scrollbar-width: none;
+  mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 24px), transparent 100%);
+}
+
+.opponents::-webkit-scrollbar {
+  display: none;
 }
 
 .opponent {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  background: var(--bg-panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 10px 14px;
+  gap: var(--space-2);
+  background: var(--surface-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--space-5);
   min-width: 92px;
+  scroll-snap-align: start;
   position: relative;
 }
 
 .opponent--leader {
-  border-color: var(--accent);
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 10px var(--interactive-accent-subtle);
 }
 
 .opponent--out {
@@ -391,7 +500,7 @@ select:focus {
 }
 
 .opponent-name {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   max-width: 110px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -399,47 +508,49 @@ select:focus {
 }
 
 .opponent-cards {
-  font-size: 0.85rem;
-  color: var(--text-dim);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
+/* Takes the space that is left rather than claiming a fixed minimum — on a
+   short phone a hard min-height here is what squeezes the hand off screen. */
 .table-center {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 200px;
+  min-height: 0;
 }
 
 .table-status {
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-5);
   align-items: center;
 }
 
 .turn-line {
-  color: var(--text-dim);
+  color: var(--text-secondary);
   margin: 0;
 }
 
 .turn-line strong {
-  color: var(--accent);
+  color: var(--text-accent);
 }
 
 .pot {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  color: var(--gold);
-  font-size: 0.85rem;
+  gap: var(--space-1);
+  color: var(--status-warning);
+  font-size: var(--text-sm);
 }
 
 .pot-stack {
-  font-size: 1.6rem;
+  font-size: var(--text-xl);
   letter-spacing: -0.4em;
   padding-right: 0.4em;
 }
@@ -447,28 +558,28 @@ select:focus {
 .your-area {
   display: flex;
   justify-content: center;
-  border-radius: var(--radius);
-  padding: 10px;
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
   transition: box-shadow var(--dur-med) var(--ease-out);
 }
 
 .your-area--turn {
   box-shadow:
-    0 0 0 2px var(--accent),
-    0 0 24px rgba(56, 189, 248, 0.25);
+    0 0 0 2px var(--interactive-accent),
+    0 0 24px var(--interactive-accent-subtle);
 }
 
 .hand {
   display: flex;
   align-items: flex-end;
-  gap: 14px;
+  gap: var(--space-6);
 }
 
 .hand-top {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-4);
 }
 
 .hand-rest {
@@ -481,9 +592,13 @@ select:focus {
 .hand-card-back {
   width: 34px;
   height: 48px;
-  border-radius: 5px;
-  background: repeating-linear-gradient(45deg, #182543 0 6px, #131c30 6px 12px);
-  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: repeating-linear-gradient(
+    45deg,
+    var(--surface-panel) 0 6px,
+    var(--surface-raised) 6px 12px
+  );
+  border: 1px solid var(--border-default);
   margin-left: -22px;
 }
 
@@ -492,34 +607,37 @@ select:focus {
 }
 
 .hand-count {
-  margin-left: 10px;
-  font-weight: 800;
-  color: var(--text-dim);
+  margin-left: var(--space-5);
+  font-weight: var(--weight-black);
+  color: var(--text-secondary);
 }
 
 /* -- reveal ---------------------------------------------------------------- */
 
+/* --reveal-stagger is tokenised here so retuning the reveal cadence is one
+   value, not an edit inside the screen component. */
 .reveal {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-5);
   width: 100%;
+  --reveal-stagger: 130ms;
 }
 
 .reveal-stat {
   margin: 0;
-  color: var(--text-dim);
+  color: var(--text-secondary);
 }
 
 .reveal-stat strong {
-  color: var(--accent);
+  color: var(--text-accent);
   font-size: 1.1em;
 }
 
 .reveal-cards {
   display: flex;
-  gap: 12px;
+  gap: var(--space-5);
   justify-content: center;
   flex-wrap: wrap;
   /* Without a perspective the reveal's rotateY reads as a flat horizontal
@@ -531,17 +649,17 @@ select:focus {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-3);
 }
 
 .reveal-owner {
-  font-size: 0.8rem;
-  color: var(--text-dim);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
 }
 
 .reveal-flipper {
   animation: flip-in var(--dur-slow) var(--ease-spring) both;
-  animation-delay: calc(var(--slot-index, 0) * var(--dur-fast));
+  animation-delay: calc(var(--slot-index, 0) * var(--reveal-stagger));
   transform-style: preserve-3d;
   backface-visibility: hidden;
   /* Promote the flip and the sweep that follows onto their own layer — this
@@ -550,20 +668,20 @@ select:focus {
 }
 
 .reveal-value {
-  font-size: 1.3rem;
-  font-weight: 900;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-black);
   font-variant-numeric: tabular-nums;
 }
 
 .reveal-value--win {
-  color: var(--win);
+  color: var(--status-win);
   animation: pop var(--dur-med) var(--ease-out);
 }
 
 .reveal-verdict {
   margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
   animation: rise var(--dur-med) var(--ease-out);
 }
 
@@ -573,7 +691,7 @@ select:focus {
 .table-social {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-4);
 }
 
 .table-social .emote-bar {
@@ -583,17 +701,24 @@ select:focus {
 .emote-bar {
   display: flex;
   justify-content: center;
-  gap: 8px;
-  padding-top: 4px;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding-top: var(--space-2);
 }
 
 .emote-button {
-  background: var(--bg-panel);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  font-size: 1.1rem;
-  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  background: var(--surface-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-lg);
+  padding: var(--space-3) var(--space-5);
   cursor: pointer;
+  touch-action: manipulation;
   transition: transform var(--dur-fast) var(--ease-out);
 }
 
@@ -614,52 +739,63 @@ select:focus {
 .game-chat-toggle {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  background: var(--bg-panel);
-  border: 1px solid var(--line);
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--touch-min);
+  padding: var(--space-2) var(--space-5);
+  background: var(--surface-panel);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-pill);
-  color: var(--text);
+  color: var(--text-primary);
   font-size: var(--text-sm);
-  font-weight: 600;
-  padding: var(--space-1) var(--space-3);
+  font-weight: var(--weight-semibold);
   cursor: pointer;
-  transition: filter var(--dur-fast) var(--ease-out);
+  touch-action: manipulation;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
 }
 
 .game-chat-toggle:hover {
-  filter: brightness(1.2);
+  background: var(--interactive-accent-subtle);
+}
+
+.game-chat-toggle:focus-visible {
+  outline: 2px solid var(--interactive-focus);
+  outline-offset: 2px;
 }
 
 .game-chat--open .game-chat-toggle {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--interactive-accent);
+  color: var(--text-accent);
 }
 
 .game-chat-badge {
   min-width: 18px;
-  padding: 0 var(--space-1);
+  padding: 0 var(--space-2);
   border-radius: var(--radius-pill);
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--interactive-accent);
+  color: var(--interactive-on-accent);
   font-size: var(--text-xs);
-  font-weight: 800;
+  font-weight: var(--weight-black);
   line-height: 18px;
   text-align: center;
 }
 
 .game-chat-panel {
   position: absolute;
-  bottom: calc(100% + var(--space-2));
+  bottom: calc(100% + var(--space-4));
   right: 0;
   z-index: 5;
-  width: min(340px, calc(100vw - var(--space-5)));
+  width: min(340px, calc(100vw - var(--space-8)));
   display: flex;
   flex-direction: column;
-  padding: var(--space-3);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--bg-panel);
-  box-shadow: var(--shadow-3);
+  padding: var(--space-5);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-overlay);
+  box-shadow: var(--elevation-overlay);
   animation: rise var(--dur-fast) var(--ease-out);
 }
 
@@ -685,12 +821,12 @@ select:focus {
 }
 
 .reaction-emote {
-  font-size: 2rem;
+  font-size: var(--text-xl);
 }
 
 .reaction-from {
-  font-size: 0.7rem;
-  color: var(--text-dim);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
 }
 
 @keyframes float-up {
@@ -707,60 +843,61 @@ select:focus {
 /* -- results --------------------------------------------------------------- */
 
 .results {
-  max-width: 460px;
+  max-width: var(--container-sm);
 }
 
 .results-panel {
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-5);
 }
 
 .results-panel--won {
-  border-color: var(--gold);
-  box-shadow: 0 0 30px rgba(251, 191, 36, 0.2);
+  border-color: var(--status-warning);
+  box-shadow: 0 0 30px var(--rarity-star-glow);
 }
 
 .results-trophy {
-  font-size: 3rem;
+  font-size: var(--text-3xl);
   margin: 0;
   animation: pop var(--dur-slow) var(--ease-out);
 }
 
 .results-title {
   margin: 0;
-  font-size: 1.6rem;
-  color: var(--text);
+  font-size: var(--text-xl);
+  color: var(--text-primary);
   text-transform: none;
-  letter-spacing: normal;
+  letter-spacing: var(--tracking-tight);
 }
 
 .results-reason {
   margin: 0;
-  color: var(--text-dim);
+  color: var(--text-secondary);
 }
 
 .standings {
   list-style: none;
-  margin: 8px 0;
+  margin: var(--space-4) 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-3);
 }
 
 .standing {
   display: flex;
-  gap: 10px;
-  background: var(--bg-raised);
-  border-radius: 10px;
-  padding: 8px 12px;
+  gap: var(--space-5);
+  background: var(--surface-raised);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-5);
+  min-height: var(--touch-min);
   align-items: center;
 }
 
 .standing--winner {
-  border: 1px solid var(--gold);
+  border: 1px solid var(--status-warning);
 }
 
 .standing-name {
@@ -774,140 +911,60 @@ select:focus {
 .results-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 8px;
+  gap: var(--space-5);
+  margin-top: var(--space-4);
 }
 
 /* -- chrome ---------------------------------------------------------------- */
 
 .conn-banner {
-  background: var(--gold);
-  color: #241a02;
+  background: var(--status-warning-surface);
+  color: var(--status-warning-on);
   text-align: center;
-  font-weight: 700;
-  padding: 8px;
-  font-size: 0.9rem;
+  font-weight: var(--weight-bold);
+  font-size: var(--text-sm);
+  padding: var(--space-4) var(--gutter);
+  padding-top: max(var(--space-4), env(safe-area-inset-top));
 }
 
-/* -- landscape phones ------------------------------------------------------ */
-
-@media (orientation: landscape) and (max-height: 480px) {
-  .table-screen {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto 1fr auto;
-    gap: 8px;
-  }
-
-  .table-head {
-    grid-column: 1 / -1;
-  }
-
-  .opponents {
-    grid-row: 2;
-    flex-direction: column;
-    overflow-y: auto;
-  }
-
-  .table-center {
-    grid-row: 2;
-    grid-column: 2;
-    min-height: 0;
-  }
-
-  .your-area {
-    grid-column: 1 / -1;
-    padding: 4px;
-  }
-
-  .card--full {
-    max-width: 220px;
-    font-size: 0.8rem;
-  }
+.conn-banner--offline {
+  background: var(--surface-inverse);
+  color: var(--text-inverse);
 }
 
-/* -- reduced motion --------------------------------------------------------- */
-
-@media (prefers-reduced-motion: reduce) {
-  .reveal-flipper,
-  .reveal-value--win,
-  .reveal-verdict,
-  .results-trophy,
-  .reaction-float,
-  .game-chat-panel {
-    animation: none;
-  }
-
-  /* Drop the layer promotion too — with no animation left to run it only
-     costs memory. */
-  .reveal-flipper,
-  .reaction-float {
-    will-change: auto;
-  }
-
-  .emote-button,
-  .your-area {
-    transition: none;
-  }
-
-  .emote-button:active {
-    transform: none;
-  }
-}
-
-/* -- profile / history / privacy (Phase 6) -------------------------------- */
-
-.profile,
-.history,
-.privacy {
-  gap: 12px;
-}
+/* -- profile / history / privacy ------------------------------------------- */
 
 .profile-chip {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: max(var(--space-5), env(safe-area-inset-top));
+  right: max(var(--space-5), env(safe-area-inset-right));
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px 6px 6px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--bg-raised);
-  color: var(--text);
+  gap: var(--space-4);
+  min-height: var(--touch-min);
+  padding: var(--space-3) var(--space-5) var(--space-3) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--text-primary);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 
 .profile-chip:hover {
-  border-color: var(--accent);
-}
-
-.landing {
-  position: relative;
-}
-
-.avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--team-color);
-  object-fit: cover;
-  flex-shrink: 0;
-  user-select: none;
+  border-color: var(--interactive-accent);
 }
 
 .profile-card {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-6);
 }
 
 .profile-identity {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: var(--space-6);
 }
 
 .profile-name {
@@ -920,80 +977,92 @@ select:focus {
   background: none;
   padding: 0;
   cursor: pointer;
+  touch-action: manipulation;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2);
 }
 
 .avatar-edit {
-  font-size: 0.75rem;
-  color: var(--accent);
+  font-size: var(--text-xs);
+  color: var(--text-accent);
 }
 
 .avatar-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  gap: var(--space-4);
 }
 
 .avatar-choice {
   border: 2px solid transparent;
-  border-radius: 12px;
-  background: var(--bg-raised);
-  padding: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  padding: var(--space-3);
+  min-height: var(--touch-min);
   cursor: pointer;
+  touch-action: manipulation;
   display: flex;
   justify-content: center;
 }
 
 .avatar-choice:hover {
-  border-color: var(--line);
+  border-color: var(--border-strong);
 }
 
 .avatar-choice--current {
-  border-color: var(--accent);
+  border-color: var(--interactive-accent);
 }
 
+/* Two-up on a small phone rather than four cramped columns; four only once
+   there is width for them. */
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+}
+
+/* --bp-sm: large phone up */
+@media (min-width: 480px) {
+  .stats-row {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 .stat-tile {
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 10px 6px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--space-5) var(--space-3);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-1);
   text-align: center;
 }
 
 .stat-tile strong {
-  font-size: 1.05rem;
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-tile span {
-  color: var(--text-dim);
-  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--tracking-wide);
 }
 
 .profile-actions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-4);
 }
 
 .panel .button {
   text-align: center;
   text-decoration: none;
-  display: block;
 }
 
 .match-list {
@@ -1002,40 +1071,42 @@ select:focus {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-4);
 }
 
+/* Matches panel padding, which is the rhythm that "did not quite line up"
+   between screens in playtesting (#90). */
 .match-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-6);
 }
 
 .match-outcome {
-  font-weight: 700;
-  font-size: 0.8rem;
+  font-weight: var(--weight-bold);
+  font-size: var(--text-xs);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--bg-raised);
-  color: var(--text-dim);
+  letter-spacing: var(--tracking-wide);
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
 .match-outcome--won {
-  color: var(--win);
+  color: var(--status-win);
 }
 
 .match-outcome--lost {
-  color: var(--danger);
+  color: var(--status-danger);
 }
 
 .match-detail {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
   min-width: 0;
 }
 
@@ -1047,10 +1118,10 @@ select:focus {
 
 .privacy-copy h2 {
   text-transform: none;
-  letter-spacing: 0;
-  color: var(--text);
-  font-size: 1.05rem;
-  margin-top: 18px;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+  font-size: var(--text-lg);
+  margin-top: var(--space-8);
 }
 
 .privacy-copy h2:first-child {
@@ -1058,60 +1129,62 @@ select:focus {
 }
 
 .privacy-copy p {
-  color: var(--text-dim);
-  line-height: 1.55;
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
 }
 
 .privacy-copy a,
 .hint a,
 .notice a {
-  color: var(--accent);
+  color: var(--text-accent);
 }
 
-/* -- /cards gallery + share view (Phase 3) --------------------------------- */
+/* -- /cards gallery + share view ------------------------------------------- */
 
 .gallery {
-  max-width: 1100px;
-  gap: 14px;
+  max-width: var(--container-xl);
+  gap: var(--space-6);
 }
 
 .gallery-section h2 {
-  margin-bottom: 14px;
+  margin-bottom: var(--space-6);
 }
 
 .gallery-row {
   display: flex;
-  gap: 16px;
+  gap: var(--space-6);
   flex-wrap: wrap;
   align-items: flex-end;
-  margin-bottom: 10px;
+  margin-bottom: var(--space-5);
 }
 
 .gallery-item {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-3);
   align-items: center;
 }
 
 .gallery-item figcaption {
-  color: var(--text-dim);
-  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--tracking-wide);
 }
 
 .gallery-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px;
+  gap: var(--space-5);
 }
 
+/* The OG composition is a fixed 1200x630 artboard, not a responsive layout —
+   its dimensions are the spec, so they stay literal. */
 .share-frame {
   width: 1200px;
   height: 630px;
-  background: var(--bg);
+  background: var(--surface-base);
   display: flex;
   align-items: center;
   gap: 70px;
@@ -1145,7 +1218,7 @@ select:focus {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-5);
 }
 
 .share-copy .brand {
@@ -1155,18 +1228,101 @@ select:focus {
 .share-player {
   margin: 0;
   font-size: 2.2rem;
-  font-weight: 800;
+  font-weight: var(--weight-black);
 }
 
 .share-team {
   margin: 0;
   font-size: 1.3rem;
-  color: var(--text-dim);
+  color: var(--text-secondary);
 }
 
 .share-cta {
-  margin: 12px 0 0;
+  margin: var(--space-5) 0 0;
   font-size: 1.1rem;
-  color: var(--accent);
-  font-weight: 700;
+  color: var(--text-accent);
+  font-weight: var(--weight-bold);
+}
+
+/* -- landscape phones ------------------------------------------------------ */
+
+/* Players turn the phone for the table, so this is a real layout, not a
+   stopgap: opponents become a left rail, the reveal takes the remaining
+   width, and the hand spans the full width beneath. Keyed to viewport height
+   because that — not width — is what is scarce here. */
+@media (orientation: landscape) and (max-height: 560px) {
+  .screen {
+    gap: var(--space-4);
+    padding-block: max(var(--space-4), env(safe-area-inset-top))
+      max(var(--space-4), env(safe-area-inset-bottom));
+  }
+
+  .table-screen {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto 1fr auto;
+    gap: var(--space-4);
+    --toast-lift: 88px;
+  }
+
+  .table-head {
+    grid-column: 1 / -1;
+  }
+
+  .opponents {
+    grid-row: 2;
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    touch-action: pan-y;
+    mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 24px), transparent 100%);
+  }
+
+  .table-center {
+    grid-row: 2;
+    grid-column: 2;
+  }
+
+  .your-area {
+    grid-column: 1 / -1;
+    padding: var(--space-2);
+  }
+
+  .card--full {
+    max-width: 220px;
+    font-size: var(--text-sm);
+  }
+
+  .emote-bar {
+    padding-top: 0;
+  }
+}
+
+/* -- reduced motion -------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-flipper,
+  .reveal-value--win,
+  .reveal-verdict,
+  .results-trophy,
+  .reaction-float,
+  .game-chat-panel {
+    animation: none;
+  }
+
+  /* Drop the layer promotion too — with no animation left to run it only
+     costs memory. */
+  .reveal-flipper,
+  .reaction-float {
+    will-change: auto;
+  }
+
+  .emote-button,
+  .your-area {
+    transition: none;
+  }
+
+  .emote-button:active {
+    transform: none;
+  }
 }

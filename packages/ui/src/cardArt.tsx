@@ -30,7 +30,7 @@ export function RoleIcon({ role }: { role: PlayerRole }) {
           <path
             d="M6 6c4 3.5 8 8.5 10 13"
             fill="none"
-            stroke="var(--team-color, #3b4a6b)"
+            stroke="var(--team-color, #33405c)"
             strokeWidth="1.6"
             strokeDasharray="2.4 2"
           />
@@ -124,12 +124,18 @@ export function RatingShield() {
  * ring around the XI monogram, on a subtle radiating field.
  */
 export function CardBackArt() {
+  // Every colour is a semantic token so the back follows the theme; the
+  // fallbacks only matter in the export pipeline's bare-SVG context.
+  const field = "var(--surface-panel, #1a2338)";
+  const ground = "var(--card-back, #0b1220)";
+  const rule = "var(--border-default, #33405c)";
+  const accent = "var(--interactive-accent-hover, #38bdf8)";
   return (
     <svg className="card-back-art" viewBox="0 0 100 140" aria-label="Face-down card" role="img">
       <defs>
         <radialGradient id="dxi-back-field" cx="50%" cy="42%" r="75%">
-          <stop offset="0%" stopColor="#1a2745" />
-          <stop offset="100%" stopColor="#0d1526" />
+          <stop offset="0%" stopColor={field} />
+          <stop offset="100%" stopColor={ground} />
         </radialGradient>
       </defs>
       <rect width="100" height="140" fill="url(#dxi-back-field)" />
@@ -143,20 +149,20 @@ export function CardBackArt() {
             y1="70"
             x2={50 + 90 * Math.cos((angle * Math.PI) / 180)}
             y2={70 + 90 * Math.sin((angle * Math.PI) / 180)}
-            stroke="#223050"
+            stroke={rule}
             strokeWidth="0.6"
             opacity="0.35"
           />
         );
       })}
       {/* Crest ring */}
-      <circle cx="50" cy="70" r="27" fill="#0d1526" stroke="#38bdf8" strokeWidth="1.8" />
-      <circle cx="50" cy="70" r="22.5" fill="none" stroke="#24304d" strokeWidth="1" />
+      <circle cx="50" cy="70" r="27" fill={ground} stroke={accent} strokeWidth="1.8" />
+      <circle cx="50" cy="70" r="22.5" fill="none" stroke={rule} strokeWidth="1" />
       {/* Seam arcs — the cricket ball motif */}
       <path
         d="M31 55 Q50 66 69 55"
         fill="none"
-        stroke="#38bdf8"
+        stroke={accent}
         strokeWidth="1.4"
         strokeDasharray="2.6 2.2"
         opacity="0.8"
@@ -164,7 +170,7 @@ export function CardBackArt() {
       <path
         d="M31 85 Q50 74 69 85"
         fill="none"
-        stroke="#38bdf8"
+        stroke={accent}
         strokeWidth="1.4"
         strokeDasharray="2.6 2.2"
         opacity="0.8"
@@ -176,17 +182,17 @@ export function CardBackArt() {
         textAnchor="middle"
         fontSize="20"
         fontWeight="900"
-        fill="#e8edf7"
-        fontFamily="ui-rounded, system-ui, sans-serif"
+        fill="var(--text-primary, #e8edf7)"
+        fontFamily="var(--font-display, ui-rounded, system-ui, sans-serif)"
         letterSpacing="1"
       >
         XI
       </text>
       {/* Corner pips */}
-      <circle cx="12" cy="14" r="2.2" fill="#24304d" />
-      <circle cx="88" cy="14" r="2.2" fill="#24304d" />
-      <circle cx="12" cy="126" r="2.2" fill="#24304d" />
-      <circle cx="88" cy="126" r="2.2" fill="#24304d" />
+      <circle cx="12" cy="14" r="2.2" fill={rule} />
+      <circle cx="88" cy="14" r="2.2" fill={rule} />
+      <circle cx="12" cy="126" r="2.2" fill={rule} />
+      <circle cx="88" cy="126" r="2.2" fill={rule} />
     </svg>
   );
 }

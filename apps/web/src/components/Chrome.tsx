@@ -1,10 +1,11 @@
 /**
  * App chrome shared by every screen: connection banner, toasts, floating
- * emote reactions and the mute toggle.
+ * emote reactions, and the mute and theme toggles.
  */
 import { useState } from "react";
 import { useStore } from "../store/store.js";
 import { isMuted, setMuted } from "../lib/sounds.js";
+import { useTheme } from "../lib/theme.js";
 
 export function ConnectionBanner() {
   const connection = useStore((s) => s.connection);
@@ -46,6 +47,26 @@ export function FloatingReactions() {
         </span>
       ))}
     </div>
+  );
+}
+
+/**
+ * Theme toggle. Lives in real app chrome rather than the dev-facing /cards
+ * gallery it used to hide in. Keeps the `theme-toggle` test id the visual
+ * specs drive.
+ */
+export function ThemeToggle() {
+  const { theme, toggle } = useTheme();
+  return (
+    <button
+      type="button"
+      className="icon-button"
+      data-testid="theme-toggle"
+      aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+      onClick={toggle}
+    >
+      {theme === "dark" ? "☀️" : "🌙"}
+    </button>
   );
 }
 

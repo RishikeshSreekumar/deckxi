@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b1220" />
+    <!-- Status-bar tint for the pre-JS paint; src/lib/theme.ts replaces both
+         with a single tag once it knows the user's explicit preference. -->
+    <meta name="theme-color" content="#eef2f9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)" />
     <title>DeckXI — cricket trump cards, live with friends</title>
   </head>
   <body>
