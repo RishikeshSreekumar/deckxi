@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import pino from "pino";
+import { buildApp } from "./app.js";
 import { loggerOptions, nullLogger, requestId, type Logger } from "./logging.js";
 import { RoomManager, type RoomsObserver } from "./rooms.js";
 
@@ -127,5 +129,20 @@ describe("room lifecycle logging", () => {
     const { room } = manager.createRoom("Host");
     expect(room.code).toHaveLength(6);
     expect(nullLogger.child({ a: 1 })).toBe(nullLogger);
+  });
+});
+
+describe("buildApp logger wiring", () => {
+  it("accepts a pre-built pino instance and logs through it", async () => {
+    // Regression: Fastify 5 rejects an instance passed as `logger`
+    // (FST_ERR_LOG_INVALID_LOGGER_CONFIG), which crashed the container on boot.
+    const written: string[] = [];
+    const log = pino({ level: "info" }, { write: (line: string) => written.push(line) });
+    const app = buildApp({ loggerInstance: log });
+    await app.fastify.ready();
+    const res = await app.fastify.inject({ method: "GET", url: "/health" });
+    expect(res.statusCode).toBe(200);
+    expect(written.some((line) => line.includes("incoming request"))).toBe(true);
+    await app.close();
   });
 });

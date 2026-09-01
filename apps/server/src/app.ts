@@ -4,7 +4,13 @@
  * version and resolves the better-auth session cookie into a user identity;
  * connections without a session still work as anonymous one-offs.
  */
-import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
+import Fastify, {
+  type FastifyBaseLogger,
+  type FastifyInstance,
+  type FastifyReply,
+  type FastifyRequest,
+  type FastifyServerOptions,
+} from "fastify";
 import cors from "@fastify/cors";
 import { Server, type Socket } from "socket.io";
 import {
@@ -59,12 +65,18 @@ export interface AuthOptions {
 export interface AppOptions {
   corsOrigins?: string[];
   /**
-   * `false` (tests) silences logging; otherwise pino options, or a pino
-   * instance (what index.ts passes, so the mailer and the app share one).
-   * Kept as one non-union type because Fastify's overloads resolve to its
-   * http2 signature otherwise.
+   * `false` (tests) silences logging; otherwise pino options. Kept as one
+   * non-union type because Fastify's overloads resolve to its http2
+   * signature otherwise.
    */
   logger?: boolean | Record<string, unknown>;
+  /**
+   * An already-built pino instance (what index.ts passes, so the mailer and
+   * the app share one). Fastify 5 takes an instance only under
+   * `loggerInstance`; passing it as `logger` throws
+   * FST_ERR_LOG_INVALID_LOGGER_CONFIG.
+   */
+  loggerInstance?: FastifyBaseLogger;
   rooms?: RoomManagerOptions;
   limits?: SocketOptions["limits"];
   /** Match persistence; defaults to in-memory (no DATABASE_URL needed). */
@@ -103,8 +115,12 @@ export interface App {
 const DEV_SECRET = "deckxi-dev-secret-not-for-production";
 
 export function buildApp(options: AppOptions = {}): App {
+  const logging: FastifyServerOptions =
+    options.loggerInstance !== undefined
+      ? { loggerInstance: options.loggerInstance }
+      : { logger: options.logger ?? false };
   const fastify = Fastify({
-    logger: options.logger ?? false,
+    ...logging,
     // Correlation starts here: one id per request, reused from upstream when
     // the caller already has one (#65).
     genReqId: (request) => requestId(request.headers),

@@ -37,9 +37,8 @@ if (isMain) {
   });
   const app = buildApp({
     corsOrigins: env.corsOrigins,
-    // A pino instance is a valid Fastify `logger`; the cast is only because
-    // AppOptions types it as options rather than a union (see app.ts).
-    logger: log as unknown as Record<string, unknown>,
+    // Fastify 5 accepts a pre-built pino instance only as `loggerInstance`.
+    loggerInstance: log,
     store,
     config: createConfigStore(store),
     auth: {
