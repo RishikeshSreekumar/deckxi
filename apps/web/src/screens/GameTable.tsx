@@ -1,13 +1,17 @@
 /**
- * The game table (mobile-first): opponents across the top, the action in the
- * middle, your hand at the bottom. The reveal presenter drains resolved
- * rounds one at a time and gives each its animation beat — this is *the*
- * moment of the game.
+ * The game table (mobile-first), in the arcade look from the "DeckXI Mobile"
+ * design: a yellow head strip, a green field where the opponents sit with
+ * their cards face down, and your own card broken out into tappable stat rows
+ * along the bottom.
+ *
+ * The reveal happens in place — each opponent's card flips where they sit and
+ * the verdict rises from the bottom edge — rather than in a separate overlay,
+ * so the table never disappears at the one moment the player is watching it.
  */
 import { useEffect, useRef, useState } from "react";
-import type { RoomView } from "@deckxi/shared";
+import type { RoomView, TurnTimerView } from "@deckxi/shared";
 import type { ResolvedRound } from "../game/clientGame.js";
-import { Dialog, TimerRing, TrumpCard, statName } from "@deckxi/ui";
+import { Dialog, formatStatValue, getCardInfo, statName } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
 import { EmoteBar } from "../components/EmoteBar.js";
 import { GameChat } from "../components/GameChat.js";
@@ -15,6 +19,13 @@ import { MuteButton, ThemeToggle } from "../components/Chrome.js";
 import { sounds } from "../lib/sounds.js";
 
 type Stage = "flip" | "verdict";
+
+const ROLE_LABELS: Record<string, string> = {
+  batter: "batter",
+  bowler: "bowler",
+  "all-rounder": "all-rounder",
+  keeper: "keeper",
+};
 
 /**
  * How long each beat of the reveal holds. Mutable so the visual-regression
@@ -64,77 +75,70 @@ function useRevealPresenter(selfId: string | null) {
   return { current, stage };
 }
 
-function RevealOverlay({
+/**
+ * Whole seconds left on the server deadline. The design shows the countdown as
+ * a number and a draining bar rather than a ring, so the ring's own clock is
+ * not reusable here — but the deadline is still the server's, so drift only
+ * ever affects the picture.
+ */
+function useCountdown(deadline: number | null): number | null {
+  const [left, setLeft] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (deadline === null) {
+      setLeft(null);
+      return;
+    }
+    const read = () => setLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+    read();
+    const id = setInterval(read, 200);
+    return () => clearInterval(id);
+  }, [deadline]);
+
+  return left;
+}
+
+/** Tick on each of the last five seconds — the old TimerRing's onTick beat. */
+function useTickSound(seconds: number | null, active: boolean): void {
+  const last = useRef<number | null>(null);
+  useEffect(() => {
+    if (!active || seconds === null) {
+      last.current = null;
+      return;
+    }
+    if (seconds !== last.current && seconds <= 5 && seconds > 0) sounds.tick();
+    last.current = seconds;
+  }, [seconds, active]);
+}
+
+function TableHead({
   round,
-  stage,
-  editionId,
-  names,
-  selfId,
+  maxRounds,
+  seconds,
+  urgent,
+  label,
 }: {
-  round: ResolvedRound;
-  stage: Stage;
-  editionId: string;
-  names: Record<string, string>;
-  selfId: string | null;
+  round: number;
+  maxRounds: number;
+  seconds: number | null;
+  urgent: boolean;
+  label: string;
 }) {
-  const winnerId = round.result.kind === "won" ? round.result.winner : null;
-  const winnerIndex = round.revealed.findIndex((r) => r.playerId === winnerId);
   return (
-    <div className={`reveal reveal--${stage}`} data-testid="reveal">
-      <p className="reveal-stat">
-        Round {round.round} · <strong>{statName(editionId, round.stat)}</strong>
-      </p>
-      <div className="reveal-cards">
-        {round.revealed.map((r, i) => (
-          <div
-            key={r.playerId}
-            className="reveal-slot"
-            style={{ "--slot-index": i } as React.CSSProperties}
-          >
-            <span className="reveal-owner">
-              {r.playerId === selfId ? "You" : (names[r.playerId] ?? r.playerId)}
-            </span>
-            <div
-              className={[
-                "reveal-flipper",
-                stage === "verdict" && r.playerId !== winnerId
-                  ? winnerId === null
-                    ? "sweep-to-pot"
-                    : "sweep-to-winner"
-                  : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              style={{ "--sweep-x": `${(winnerIndex - i) * 110}%` } as React.CSSProperties}
-            >
-              <TrumpCard
-                editionId={editionId}
-                cardId={r.cardId}
-                size="reveal"
-                highlightStat={round.stat}
-                outcome={
-                  stage === "verdict" ? (r.playerId === winnerId ? "winner" : "loser") : undefined
-                }
-              />
-            </div>
-            <span
-              className={`reveal-value ${stage === "verdict" && r.playerId === winnerId ? "reveal-value--win" : ""}`}
-            >
-              {r.value}
-            </span>
-          </div>
-        ))}
-      </div>
-      {stage === "verdict" && (
-        <p className="reveal-verdict" data-testid="verdict">
-          {round.result.kind === "tie"
-            ? "Tie! Cards go to the pot."
-            : winnerId === selfId
-              ? `You take the round${round.potTaken > 0 ? ` + ${round.potTaken} from the pot` : ""}!`
-              : `${names[winnerId ?? ""] ?? "Someone"} takes the round.`}
-        </p>
-      )}
-    </div>
+    <header className="table-head">
+      <span className="table-wordmark">
+        Deck<span>XI</span>
+      </span>
+      <span className="round-chip" data-testid="round-chip">
+        Round {round}/{maxRounds}
+      </span>
+      <span
+        className={`turn-timer ${urgent ? "turn-timer--urgent" : ""}`}
+        {...(seconds !== null ? { role: "timer" } : {})}
+      >
+        {seconds !== null ? `${seconds}s` : label}
+      </span>
+    </header>
   );
 }
 
@@ -148,6 +152,7 @@ export function GameTable({ room }: { room: RoomView }) {
   const forfeit = useStore((s) => s.forfeit);
   const leaveRoom = useStore((s) => s.leaveRoom);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [emotesOpen, setEmotesOpen] = useState(false);
   const { current, stage } = useRevealPresenter(spectator ? null : selfId);
 
   const names: Record<string, string> = {};
@@ -155,6 +160,10 @@ export function GameTable({ room }: { room: RoomView }) {
 
   const yourTurn =
     !spectator && game !== null && !game.finished && game.leader === selfId && current === null;
+
+  const activeTimer: TurnTimerView | null = current === null ? timer : null;
+  const seconds = useCountdown(activeTimer?.deadline ?? null);
+  useTickSound(seconds, activeTimer !== null && activeTimer.playerId === selfId);
 
   // Nudge when it becomes your pick.
   const nudged = useRef(false);
@@ -178,97 +187,157 @@ export function GameTable({ room }: { room: RoomView }) {
   const opponents = game.config.players.filter((id) => id !== selfId);
   const topCard = game.yourHand?.[0] ?? null;
   const leaderName = game.leader === selfId ? "you" : (names[game.leader] ?? "…");
+  const { player, team } =
+    topCard === null ? { player: null, team: null } : getCardInfo(editionId, topCard);
+
+  // The engine's own numbers, not the edition's — the config is what resolved
+  // the round, so the bars and the result can never disagree.
+  const myStats = game.config.cards.find((c) => c.id === topCard)?.stats ?? null;
+
+  const winnerId = current !== null && current.result.kind === "won" ? current.result.winner : null;
+  const revealedBy: Record<string, { cardId: string; value: number }> = {};
+  if (current !== null) {
+    for (const r of current.revealed) revealedBy[r.playerId] = { cardId: r.cardId, value: r.value };
+  }
+
+  // The stat under the spotlight: the round being revealed, else your own
+  // optimistic pick, else whatever the leader has locked in.
+  const hotStat = current?.stat ?? pendingStat ?? game.selected?.stat ?? null;
+
+  // The bar drains with the turn timer, then fills as the round resolves.
+  const totalSeconds = room.settings.turnTimerSeconds;
+  const meter =
+    current !== null
+      ? stage === "verdict"
+        ? "100%"
+        : "50%"
+      : seconds !== null && totalSeconds > 0
+        ? `${Math.round(Math.min(1, seconds / totalSeconds) * 100)}%`
+        : "100%";
 
   return (
     <main className="screen table-screen" data-testid="game-table">
-      <header className="table-head">
-        <span className="round-chip" data-testid="round-chip">
-          Round {game.round}
-        </span>
-        <div className="head-actions">
-          <ThemeToggle />
-          <MuteButton />
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Menu"
-            onClick={() => setMenuOpen(true)}
-          >
-            ⋯
-          </button>
-        </div>
-      </header>
+      <TableHead
+        round={game.round}
+        maxRounds={game.config.maxRounds}
+        seconds={current === null && !game.finished ? seconds : null}
+        urgent={seconds !== null && seconds <= 5}
+        label={current === null ? "your call" : stage === "flip" ? "revealing" : "round over"}
+      />
 
-      <section className="opponents" aria-label="Opponents">
-        {opponents.map((id) => {
-          const isLeader = game.leader === id && !game.finished;
-          const away = room.players.find((p) => p.id === id)?.connected === false;
-          return (
-            <div
-              key={id}
-              className={[
-                "opponent",
-                game.active[id] ? "" : "opponent--out",
-                isLeader ? "opponent--leader" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              <span className="player-avatar" aria-hidden="true">
-                {(names[id] ?? "?").slice(0, 1).toUpperCase()}
-              </span>
-              <span className="opponent-name">
-                {names[id] ?? id}
-                {away && <span className="tag tag--away">away</span>}
-              </span>
-              <span className="opponent-cards" data-testid={`cards-${id}`}>
-                🂠 {game.handCounts[id] ?? 0}
-              </span>
-              {isLeader && timer !== null && timer.playerId === id && (
-                <TimerRing
-                  deadline={timer.deadline}
-                  seconds={room.settings.turnTimerSeconds}
-                  onTick={() => sounds.tick()}
-                />
-              )}
-            </div>
-          );
-        })}
-      </section>
-
-      <section className="table-center">
-        {current !== null ? (
-          <RevealOverlay
-            round={current}
-            stage={stage}
-            editionId={editionId}
-            names={names}
-            selfId={spectator ? null : selfId}
-          />
-        ) : (
-          <div className="table-status">
-            {game.pot.length > 0 && (
-              <div className="pot" aria-label={`${game.pot.length} cards in the pot`}>
-                <span className="pot-stack" aria-hidden="true">
-                  {"🂠".repeat(Math.min(game.pot.length, 5))}
-                </span>
-                <span>{game.pot.length} in the pot</span>
-              </div>
-            )}
-            {!game.finished && (
-              <p className="turn-line" data-testid="turn-line">
-                {yourTurn ? (
-                  <strong>Your pick — choose a stat on your card</strong>
-                ) : (
-                  <>Waiting for {leaderName} to pick a stat…</>
-                )}
-              </p>
-            )}
-          </div>
+      <div className="score-strip" aria-label="Cards in hand">
+        {!spectator && (
+          <span className="score-chip score-chip--mine">
+            You {game.handCounts[selfId ?? ""] ?? 0}
+          </span>
         )}
+        {opponents.map((id) => (
+          <span
+            key={id}
+            className={`score-chip ${game.active[id] ? "" : "score-chip--out"}`}
+            data-testid={`cards-${id}`}
+          >
+            {names[id] ?? id} {game.handCounts[id] ?? 0}
+          </span>
+        ))}
+      </div>
+
+      <section
+        className="table-field"
+        aria-label="Table"
+        data-testid={current !== null ? "reveal" : undefined}
+      >
+        <div className="field-seats">
+          {opponents.map((id, index) => {
+            const isLeader = game.leader === id && !game.finished && current === null;
+            const away = room.players.find((p) => p.id === id)?.connected === false;
+            const out = !game.active[id];
+            const reveal = revealedBy[id];
+            const status = out
+              ? "out"
+              : away
+                ? "away"
+                : current !== null
+                  ? stage === "flip"
+                    ? "flipping…"
+                    : current.result.kind === "tie"
+                      ? "tie"
+                      : id === winnerId
+                        ? "takes it"
+                        : "short"
+                  : isLeader
+                    ? "picking…"
+                    : "waiting";
+            return (
+              <div
+                key={id}
+                className={[
+                  "seat",
+                  out ? "seat--out" : "",
+                  isLeader ? "seat--leader" : "",
+                  stage === "verdict" && id === winnerId ? "seat--winner" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                style={{ "--seat-index": index } as React.CSSProperties}
+              >
+                <span className="seat-avatar" aria-hidden="true">
+                  {(names[id] ?? "?").slice(0, 1).toUpperCase()}
+                </span>
+                <div className="seat-plate">
+                  <span className="seat-name">{names[id] ?? id}</span>
+                  <span className="seat-status">{status}</span>
+                </div>
+                {reveal !== undefined && current !== null ? (
+                  <div className="seat-card seat-card--up">
+                    <span className="seat-card-name">
+                      {getCardInfo(editionId, reveal.cardId).player?.name ?? reveal.cardId}
+                    </span>
+                    <span
+                      className={`seat-card-value ${id === winnerId ? "seat-card-value--win" : ""}`}
+                    >
+                      {formatStatValue(editionId, current.stat, reveal.value)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="seat-card seat-card--down" aria-hidden="true">
+                    XI
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="called-panel">
+          <span className="called-label" data-testid="turn-line">
+            {current !== null
+              ? "cards on the table"
+              : game.finished
+                ? "game over"
+                : yourTurn
+                  ? "Your call — tap a stat"
+                  : `Waiting on ${leaderName}…`}
+          </span>
+          <span className="called-stat">
+            {hotStat !== null ? statName(editionId, hotStat) : "PICK ONE"}
+          </span>
+          <span className="called-meter" aria-hidden="true">
+            <span style={{ width: meter }} />
+          </span>
+          {game.pot.length > 0 && <span className="called-pot">{game.pot.length} in the pot</span>}
+        </div>
       </section>
 
-      <section className={`your-area ${yourTurn ? "your-area--turn" : ""}`}>
+      <section
+        className={[
+          "your-area",
+          yourTurn ? "your-area--turn" : "",
+          current !== null ? "your-area--waiting" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         {spectator || game.yourHand === null ? (
           <p className="hint">Spectating — {game.config.players.length} players in the match.</p>
         ) : game.yourHand.length === 0 ? (
@@ -276,43 +345,126 @@ export function GameTable({ room }: { room: RoomView }) {
             You're out of cards{game.active[selfId ?? ""] ? "" : " — eliminated"}.
           </p>
         ) : (
-          <div className="hand">
-            <div className="hand-top">
-              {yourTurn && timer !== null && timer.playerId === selfId && (
-                <TimerRing
-                  deadline={timer.deadline}
-                  seconds={room.settings.turnTimerSeconds}
-                  onTick={() => sounds.tick()}
-                />
-              )}
-              <div className="deal-in" key={`${game.round}-${topCard ?? "none"}`}>
-                <TrumpCard
-                  editionId={editionId}
-                  cardId={topCard}
-                  size="full"
-                  {...(yourTurn ? { onSelectStat: (stat: string) => void selectStat(stat) } : {})}
-                  {...(pendingStat !== null ? { pendingStat } : {})}
-                />
+          <>
+            <div className="hand-head" key={`${game.round}-${topCard ?? "none"}`}>
+              <span className="hand-thumb" aria-hidden="true" />
+              <div className="hand-id">
+                <span className="hand-name">{player?.name ?? topCard}</span>
+                {player !== null && (
+                  <span className={`hand-rarity hand-rarity--${player.rarity}`}>
+                    {player.rarity}
+                  </span>
+                )}
+                <span className="hand-meta">
+                  {team?.shortName ?? "?"}
+                  {player !== null && ` · ${ROLE_LABELS[player.role] ?? player.role}`}
+                </span>
               </div>
-            </div>
-            <div className="hand-rest" aria-label={`${game.yourHand.length} cards in hand`}>
-              {game.yourHand.slice(1, 8).map((_, i) => (
-                <span
-                  key={i}
-                  className="hand-card-back"
-                  style={{ "--i": i } as React.CSSProperties}
-                />
-              ))}
               <span className="hand-count" data-testid="hand-count">
                 {game.yourHand.length}
+                <small>in hand</small>
               </span>
             </div>
-          </div>
+
+            <ul className="stat-rows">
+              {game.config.stats.map((def) => {
+                const value = myStats?.[def.key];
+                const fraction =
+                  value === undefined
+                    ? 0
+                    : Math.min(1, Math.max(0, (value - def.min) / (def.max - def.min)));
+                const strength = def.direction === "lower" ? 1 - fraction : fraction;
+                const hot = hotStat === def.key;
+                const hint =
+                  value === undefined
+                    ? "—"
+                    : def.direction === "lower"
+                      ? "lower wins"
+                      : strength > 0.7
+                        ? "strong"
+                        : strength > 0.4
+                          ? "decent"
+                          : "risky";
+                return (
+                  <li key={def.key} className={hot ? "stat-row stat-row--hot" : "stat-row"}>
+                    <button
+                      type="button"
+                      className="stat-button"
+                      data-stat={def.key}
+                      disabled={!yourTurn}
+                      onClick={() => void selectStat(def.key)}
+                    >
+                      <span className="stat-name">{statName(editionId, def.key)}</span>
+                      <span className="stat-meter" aria-hidden="true">
+                        <span style={{ width: `${Math.round(Math.max(0.04, strength) * 100)}%` }} />
+                      </span>
+                      <span className="stat-value">
+                        {value === undefined ? "—" : formatStatValue(editionId, def.key, value)}
+                      </span>
+                      <span className="stat-hint">{hint}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
       </section>
 
+      {emotesOpen && !spectator && (
+        <div className="emote-tray">
+          <EmoteBar />
+        </div>
+      )}
+
       <div className="table-social">
-        {!spectator && <EmoteBar />}
+        {current !== null && stage === "verdict" && (
+          <div
+            className={`verdict-sheet ${winnerId === selfId && !spectator ? "verdict-sheet--won" : ""}`}
+            data-testid="verdict"
+            role="status"
+          >
+            <p className="verdict-title">
+              {current.result.kind === "tie"
+                ? "Tie — cards go to the pot"
+                : winnerId === selfId && !spectator
+                  ? "You take the round"
+                  : `${names[winnerId ?? ""] ?? "Someone"} takes it`}
+            </p>
+            <p className="verdict-sub">
+              {statName(editionId, current.stat)}
+              {" · "}
+              {current.result.kind === "tie"
+                ? `${current.revealed.length} cards to the pot`
+                : `${formatStatValue(editionId, current.stat, current.revealed.find((r) => r.playerId === winnerId)?.value ?? 0)} was the number`}
+              {current.potTaken > 0 && winnerId === selfId && !spectator
+                ? ` · +${current.potTaken} from the pot`
+                : ""}
+            </p>
+          </div>
+        )}
+
+        <ThemeToggle />
+        <MuteButton />
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="Menu"
+          onClick={() => setMenuOpen(true)}
+        >
+          ⋯
+        </button>
+        {!spectator && (
+          <button
+            type="button"
+            className="icon-button icon-button--accent"
+            aria-label={emotesOpen ? "Hide reactions" : "Reactions"}
+            aria-expanded={emotesOpen}
+            onClick={() => setEmotesOpen(!emotesOpen)}
+          >
+            ☺
+          </button>
+        )}
         <GameChat />
       </div>
 
