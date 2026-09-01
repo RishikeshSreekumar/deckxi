@@ -11,6 +11,8 @@
  *     properties.
  *   - Cards are the hero; chrome is furniture. One accent-filled element per
  *     screen, at most one elevation step on any panel.
+ *   - Every piece is drawn: --edge of --ink-line around it, and --elevation-*
+ *     as the hard offset drop. Elevation is not blur in this system.
  */
 
 /* -- reset & base ---------------------------------------------------------- */
@@ -53,6 +55,13 @@ body {
 button {
   font: inherit;
   color: inherit;
+}
+
+/* Bare links (the back links, the admin cross-references) were rendering in
+   the UA's blue and purple — the one place raw colour was still reaching the
+   screen. Links are the accent; anything that must not be is explicit. */
+a {
+  color: var(--text-accent);
 }
 
 h1,
@@ -131,6 +140,9 @@ h3 {
 
 .brand {
   font-size: var(--text-2xl);
+  /* The wordmark is a link on several screens (it is the way home), so it has
+     to say what colour it is or the UA paints it link-blue. */
+  color: var(--text-primary);
   margin: 0;
   letter-spacing: var(--tracking-tight);
   font-weight: var(--weight-black);
@@ -153,8 +165,9 @@ h3 {
 
 .panel {
   background: var(--surface-panel);
-  border: 1px solid var(--border-default);
+  border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-md);
+  box-shadow: var(--elevation-raised);
   padding: var(--space-6);
 }
 
@@ -186,7 +199,9 @@ select {
   font-size: var(--text-md);
   color: var(--text-primary);
   background: var(--surface-raised);
-  border: 1px solid var(--border-strong);
+  /* Fields are pressed into the page rather than sitting on it: the same ink
+     outline, but no drop — only things you can move have a shadow. */
+  border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-sm);
   padding: var(--space-5);
   min-height: var(--touch-min);
@@ -206,9 +221,10 @@ select:focus {
 
 .notice {
   background: var(--surface-raised);
-  border: 1px solid var(--border-default);
-  border-left: 3px solid var(--status-warning);
+  border: var(--edge) solid var(--ink-line);
+  border-left: var(--space-3) solid var(--status-warning);
   border-radius: var(--radius-sm);
+  box-shadow: var(--elevation-raised);
   padding: var(--space-5) var(--space-6);
   margin: 0;
 }
@@ -218,9 +234,9 @@ select:focus {
   text-transform: uppercase;
   letter-spacing: var(--tracking-wide);
   background: var(--surface-raised);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-xs);
-  padding: 0 var(--space-3);
+  border: var(--edge) solid var(--ink-line);
+  border-radius: var(--radius-pill);
+  padding: 0 var(--space-4);
   margin-left: var(--space-3);
   color: var(--text-secondary);
   vertical-align: middle;
@@ -249,6 +265,27 @@ select:focus {
   text-align: center;
 }
 
+.landing-hero .brand {
+  font-size: var(--text-3xl);
+}
+
+/* Box-art, not a subtitle: the tagline is a printed ribbon, off-square by a
+   degree so the first thing on the screen looks placed by hand. It is the one
+   band on the landing screen, which keeps the primary button the only fill
+   competing for the eye. */
+.landing-hero .tagline {
+  display: inline-block;
+  margin-top: var(--space-5);
+  padding: var(--space-3) var(--space-6);
+  border: var(--edge) solid var(--ink-line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-band);
+  color: var(--text-on-band);
+  box-shadow: var(--elevation-raised);
+  font-weight: var(--weight-bold);
+  transform: rotate(-1.2deg);
+}
+
 .landing-form {
   display: flex;
   flex-direction: column;
@@ -267,8 +304,9 @@ select:focus {
 .divider::after {
   content: "";
   flex: 1;
-  height: 1px;
-  background: var(--border-default);
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--ink-line);
 }
 
 .join-row {
@@ -318,7 +356,9 @@ select:focus {
   align-items: center;
   gap: var(--space-5);
   background: var(--surface-raised);
+  border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-sm);
+  box-shadow: var(--elevation-raised);
   padding: var(--space-4) var(--space-5);
   min-height: var(--touch-min);
 }
@@ -330,9 +370,10 @@ select:focus {
 .player-avatar {
   width: var(--space-10);
   height: var(--space-10);
+  border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-pill);
-  background: var(--interactive-accent);
-  color: var(--interactive-on-accent);
+  background: var(--surface-band);
+  color: var(--text-on-band);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -377,7 +418,9 @@ select:focus {
 .invite-qr {
   display: block;
   margin: 0 auto;
+  border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-sm);
+  box-shadow: var(--elevation-raised);
   width: clamp(120px, 40vw, 168px);
   height: clamp(120px, 40vw, 168px);
 }
@@ -389,7 +432,7 @@ select:focus {
   gap: var(--space-5);
   padding: var(--space-4) 0;
   min-height: var(--touch-min);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 2px dashed var(--border-subtle);
 }
 
 .setting-row:last-of-type {
@@ -432,43 +475,43 @@ select:focus {
    version is the filled one below. */
 .round-chip {
   background: var(--surface-panel);
-  border: 1px solid var(--border-default);
+  border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-pill);
+  box-shadow: var(--elevation-raised);
   padding: var(--space-2) var(--space-6);
   font-weight: var(--weight-bold);
   font-size: var(--text-sm);
   white-space: nowrap;
 }
 
-/* The table is the one screen with a palette of its own. The "DeckXI Mobile"
-   design draws it as a cartoon board game — thick ink outlines, hard offset
-   shadows, a green field — and that language belongs to the match, not to the
-   lobby or the results panel. So the raw values live here, in this one block,
-   and every rule below reads them through a role. Both themes are defined:
-   the table still follows the app's theme like every other screen.
+/* The table was where the board-game language was invented, and it is now the
+   app's language: thick ink outlines, one hard offset shadow, a yellow band, a
+   green field. The --tbl-* names stay as the table's own vocabulary, but they
+   are aliases onto the global roles rather than a private palette — themes are
+   handled once, in tokens.json, for every screen at the same time.
 
    Type is --font-display (rounded) rather than the design's Baloo 2: a webfont
    is a network dependency on the screen that can least afford one, and the
    rounded system stack carries the same voice. */
 .table-screen {
-  --tbl-line: #1b1410;
-  --tbl-ink: #1b1410;
-  --tbl-paper: #fff3dc;
-  --tbl-sand: #f6ecd6;
-  --tbl-sun: #ffc93c;
-  --tbl-ball: #e2542c;
-  --tbl-pitch: #3fae72;
-  --tbl-muted: #7a5a22;
-  --tbl-on-fill: #ffffff;
-  /* Yellow is the same surface in both themes, so what sits on it is its own
-     pair of roles rather than the theme's ink. */
-  --tbl-on-sun: #1b1410;
-  --tbl-on-sun-muted: #7a5a22;
+  --tbl-line: var(--ink-line);
+  --tbl-ink: var(--text-primary);
+  --tbl-paper: var(--surface-base);
+  --tbl-sand: var(--surface-sunken);
+  --tbl-sun: var(--surface-band);
+  --tbl-ball: var(--interactive-accent);
+  --tbl-pitch: var(--surface-field);
+  --tbl-muted: var(--text-muted);
+  /* What sits on a filled piece belongs to that fill, not to the theme's ink:
+     the green field and the yellow band each carry their own text role. */
+  --tbl-on-fill: var(--text-on-field);
+  --tbl-on-sun: var(--text-on-band);
+  --tbl-on-sun-muted: color-mix(in srgb, var(--text-on-band) 68%, transparent);
 
   /* One shadow step, one border width — the whole look is these two. */
-  --tbl-edge: 2.5px;
-  --tbl-drop: 3px 3px 0 var(--tbl-line);
-  --tbl-drop-lg: 5px 5px 0 var(--tbl-line);
+  --tbl-edge: var(--edge);
+  --tbl-drop: var(--elevation-raised);
+  --tbl-drop-lg: var(--elevation-card);
   --tbl-inline: max(var(--space-6), env(safe-area-inset-left));
 
   position: relative;
@@ -486,41 +529,6 @@ select:focus {
   /* Pull-to-refresh mid-match loses the round. */
   overscroll-behavior: none;
   --toast-lift: 120px;
-}
-
-/* Dark keeps the outline language but inverts it: a black outline on a dark
-   panel is no outline at all, so the ink becomes warm cream and the paper
-   becomes the dark. */
-:root:not([data-theme="light"]) .table-screen {
-  --tbl-line: #e8d5a8;
-  --tbl-ink: #fff3dc;
-  --tbl-paper: #241b16;
-  --tbl-sand: #1a1310;
-  --tbl-sun: #d99a17;
-  --tbl-on-sun-muted: #4a3508;
-  --tbl-pitch: #2f8a59;
-  --tbl-muted: #c2a878;
-}
-
-[data-theme="light"] .table-screen {
-  --tbl-line: #1b1410;
-  --tbl-ink: #1b1410;
-  --tbl-paper: #fff3dc;
-  --tbl-sand: #f6ecd6;
-  --tbl-sun: #ffc93c;
-  --tbl-pitch: #3fae72;
-  --tbl-muted: #7a5a22;
-}
-
-[data-theme="dark"] .table-screen {
-  --tbl-line: #e8d5a8;
-  --tbl-ink: #fff3dc;
-  --tbl-paper: #241b16;
-  --tbl-sand: #1a1310;
-  --tbl-sun: #d99a17;
-  --tbl-on-sun-muted: #4a3508;
-  --tbl-pitch: #2f8a59;
-  --tbl-muted: #c2a878;
 }
 
 .table-screen .hint {
@@ -549,15 +557,16 @@ select:focus {
 }
 
 .table-wordmark span {
-  color: var(--tbl-ball);
+  color: var(--tbl-on-sun);
+  opacity: 0.72;
 }
 
 .table-screen .round-chip {
-  background: var(--tbl-on-sun);
-  border: none;
+  background: transparent;
+  border: var(--tbl-edge) solid var(--tbl-on-sun);
   border-radius: var(--radius-pill);
   padding: var(--space-2) var(--space-5);
-  color: #fff3dc;
+  color: var(--tbl-on-sun);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
   white-space: nowrap;
@@ -582,7 +591,7 @@ select:focus {
 
 .turn-timer--urgent {
   background: var(--tbl-ball);
-  color: #ffffff;
+  color: var(--interactive-on-accent);
 }
 
 /* -- score strip ----------------------------------------------------------- */
@@ -652,7 +661,7 @@ select:focus {
   width: 520px;
   height: 400px;
   transform: translateX(-50%);
-  border: 4px dashed rgb(255 255 255 / 0.35);
+  border: 4px dashed color-mix(in srgb, var(--text-on-field) 35%, transparent);
   border-radius: 50%;
   pointer-events: none;
 }
@@ -745,8 +754,8 @@ select:focus {
 }
 
 .seat-card--down {
-  background: #3b82c4;
-  color: #fff3dc;
+  background: var(--surface-inverse);
+  color: var(--text-inverse);
   font-size: var(--text-md);
   font-weight: var(--weight-black);
 }
@@ -820,7 +829,7 @@ select:focus {
   height: 9px;
   border: var(--tbl-edge) solid var(--tbl-on-sun);
   border-radius: var(--radius-pill);
-  background: #fff3dc;
+  background: var(--surface-base);
   overflow: hidden;
 }
 
@@ -901,12 +910,12 @@ select:focus {
 
 .hand-rarity--star {
   background: var(--tbl-pitch);
-  color: #ffffff;
+  color: var(--tbl-on-fill);
 }
 
 .hand-rarity--legend {
   background: var(--tbl-ball);
-  color: #ffffff;
+  color: var(--interactive-on-accent);
 }
 
 .hand-meta {
@@ -985,7 +994,11 @@ select:focus {
 
 .table-screen .stat-row--hot .stat-name,
 .table-screen .stat-row--hot .stat-hint {
-  color: rgb(255 255 255 / 0.85);
+  color: color-mix(in srgb, var(--tbl-on-fill) 85%, transparent);
+}
+
+.table-screen .stat-row--hot .stat-value {
+  color: var(--tbl-on-fill);
 }
 
 .table-screen .stat-name {
@@ -1162,7 +1175,7 @@ select:focus {
   border: var(--tbl-edge) solid var(--tbl-line);
   border-radius: var(--radius-pill);
   background: var(--tbl-ball);
-  color: #ffffff;
+  color: var(--interactive-on-accent);
   font-size: var(--text-xs);
   font-weight: var(--weight-black);
   line-height: 16px;
@@ -1246,7 +1259,7 @@ select:focus {
 }
 
 .chat-msg--mine strong {
-  color: rgb(255 255 255 / 0.8);
+  color: color-mix(in srgb, var(--tbl-on-fill) 80%, transparent);
 }
 
 .chat-quick {
@@ -1299,7 +1312,7 @@ select:focus {
   border: var(--tbl-edge) solid var(--tbl-line);
   border-radius: var(--radius-xs);
   background: var(--tbl-ball);
-  color: #ffffff;
+  color: var(--interactive-on-accent);
   font-weight: var(--weight-black);
   box-shadow: var(--tbl-drop);
 }
@@ -1321,12 +1334,13 @@ select:focus {
   border-bottom: var(--tbl-edge) solid var(--tbl-line);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   background: var(--tbl-ball);
-  color: #ffffff;
+  color: var(--interactive-on-accent);
   animation: rise var(--dur-med) var(--ease-out);
 }
 
 .verdict-sheet--won {
   background: var(--tbl-pitch);
+  color: var(--tbl-on-fill);
 }
 
 .verdict-title {
@@ -1340,7 +1354,7 @@ select:focus {
   margin: var(--space-3) 0 0;
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
-  color: rgb(255 255 255 / 0.85);
+  opacity: 0.85;
 }
 
 /* Short viewports: the field gives up its breathing room first, because the
@@ -1415,8 +1429,7 @@ select:focus {
 }
 
 .results-panel--won {
-  border-color: var(--status-warning);
-  box-shadow: 0 0 30px var(--rarity-star-glow);
+  box-shadow: var(--elevation-card);
 }
 
 .results-trophy {
@@ -1425,9 +1438,10 @@ select:focus {
   animation: pop var(--dur-slow) var(--ease-out);
 }
 
-.results-title {
+.results-panel .results-title {
   margin: 0;
   font-size: var(--text-xl);
+  font-weight: var(--weight-black);
   color: var(--text-primary);
   text-transform: none;
   letter-spacing: var(--tracking-tight);
@@ -1451,14 +1465,20 @@ select:focus {
   display: flex;
   gap: var(--space-5);
   background: var(--surface-raised);
+  border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-sm);
+  box-shadow: var(--elevation-raised);
   padding: var(--space-4) var(--space-5);
   min-height: var(--touch-min);
   align-items: center;
 }
 
+/* The winner's row is the one place a standing is filled: the outcome is the
+   content here, so it takes the band. */
 .standing--winner {
-  border: 1px solid var(--status-warning);
+  background: var(--surface-band);
+  color: var(--text-on-band);
+  box-shadow: var(--elevation-card);
 }
 
 .standing-name {
@@ -1481,6 +1501,7 @@ select:focus {
 .conn-banner {
   background: var(--status-warning-surface);
   color: var(--status-warning-on);
+  border-bottom: var(--edge) solid var(--ink-line);
   text-align: center;
   font-weight: var(--weight-bold);
   font-size: var(--text-sm);
@@ -1510,7 +1531,7 @@ select:focus {
   justify-content: space-between;
   gap: var(--space-5);
   padding: var(--space-5) var(--space-6);
-  border: 1px solid var(--border-strong);
+  border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-sm);
   background: var(--surface-overlay);
   color: var(--text-primary);
@@ -1552,8 +1573,9 @@ select:focus {
   gap: var(--space-4);
   min-height: var(--touch-min);
   padding: var(--space-3) var(--space-5) var(--space-3) var(--space-3);
-  border: 1px solid var(--border-strong);
+  border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-pill);
+  box-shadow: var(--elevation-raised);
   background: var(--surface-raised);
   color: var(--text-primary);
   text-decoration: none;
@@ -1605,7 +1627,7 @@ select:focus {
 }
 
 .avatar-choice {
-  border: 2px solid transparent;
+  border: var(--edge) solid transparent;
   border-radius: var(--radius-sm);
   background: var(--surface-raised);
   padding: var(--space-3);
@@ -1621,7 +1643,8 @@ select:focus {
 }
 
 .avatar-choice--current {
-  border-color: var(--interactive-accent);
+  border-color: var(--ink-line);
+  box-shadow: var(--elevation-raised);
 }
 
 /* Two-up on a small phone rather than four cramped columns; four only once
@@ -1641,8 +1664,9 @@ select:focus {
 
 .stat-tile {
   background: var(--surface-raised);
-  border: 1px solid var(--border-default);
+  border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-sm);
+  box-shadow: var(--elevation-raised);
   padding: var(--space-5) var(--space-3);
   display: flex;
   flex-direction: column;
@@ -1699,6 +1723,10 @@ select:focus {
   align-items: center;
   gap: var(--space-5);
   padding: var(--space-5) var(--space-6);
+  border: var(--edge) solid var(--ink-line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--elevation-raised);
+  background: var(--surface-raised);
 }
 
 .match-outcome {
@@ -1707,8 +1735,9 @@ select:focus {
   text-transform: uppercase;
   letter-spacing: var(--tracking-wide);
   padding: var(--space-2) var(--space-5);
+  border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-pill);
-  background: var(--surface-raised);
+  background: var(--surface-panel);
   color: var(--text-secondary);
   flex-shrink: 0;
 }
@@ -2107,12 +2136,15 @@ select:focus {
   font-size: var(--text-sm);
   background: var(--surface-raised);
   color: var(--text-primary);
-  border-bottom: 1px solid var(--border-subtle, transparent);
+  border-bottom: var(--edge) solid var(--ink-line);
 }
 
+/* Was painted on --status-danger with a hardcoded white: in dark theme that
+   is pale-on-pale. The warning surface is the role that owns its own ink. */
 .ops-banner--warning {
-  background: var(--status-danger);
-  color: var(--text-on-accent, #fff);
+  background: var(--status-warning-surface);
+  color: var(--status-warning-on);
+  font-weight: var(--weight-bold);
 }
 
 .admin-ops {

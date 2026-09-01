@@ -6,15 +6,31 @@ This document exists so the token rewrite is the execution of a decision rather 
 argument about hex codes. Everything below is a commitment; if a later issue wants to
 depart from it, change this file first.
 
+> **Amended 2026-09-01 — the board-game turn.** The game table was rebuilt in a
+> printed-board-game language (thick ink outlines, hard offset drop shadows, a warm
+> paper ramp, a yellow band and a green field) and it beat Floodlit on its own screen.
+> That language is now the whole app's, not the table's: the palette moved into the
+> semantic tokens and the table's `--tbl-*` names are aliases onto them. §2, §3 and §6
+> below are amended in place; the exploration record in "Explorations considered" is
+> kept as written, since C **was** the right call at the time and the ramp swap is a
+> re-skin of the structure C established, not a rejection of it. In the vocabulary of
+> that section this is exploration **B — Paper**, taken seriously the second time:
+> texture is still refused, and the warmth is carried by flat colour and outlines,
+> which cost nothing on a mid-tier Android.
+
 ---
 
 ## 1. What DeckXI feels like
 
-> A floodlit night match. The stadium is dark, the pitch is lit, and the cards are the
-> only thing glowing.
+> A cricket board game out of its box on a table. Everything is printed and cut out —
+> outlined, dropped on its own shadow — and the cards are the pieces you hold.
 
 Confident and sporty, with a physical, collectible quality to the cards themselves.
 Quick to read at arm's length on a phone held in one hand.
+
+(The original metaphor was "a floodlit night match … the cards are the only thing
+glowing". It is kept here because it still describes the dark theme's job: the paper
+ramp in dark is a lit table in a dark room, not a grey app.)
 
 **What we are explicitly not:**
 
@@ -32,13 +48,30 @@ Concretely, this is a saturation and elevation budget:
 
 - The card face may use full team colour, foils, glow and gradient. It is the only
   element allowed a coloured glow.
-- App chrome — panels, buttons, banners, lists — uses the neutral ramp plus **one**
+- App chrome — panels, buttons, banners, lists — uses the paper ramp plus **one**
   accent. No panel gets a gradient. No panel gets a shadow larger than
   `--elevation-raised`.
 - Only one accent-filled element should be on screen at a time: the primary action.
   Everything else is outline or ghost.
 - Status colour (win / danger / warning) is used for text and borders, not fills, except
   in the results panel where the outcome _is_ the content.
+
+**How a piece is drawn (2026-09-01).** Every chrome element that a player can press,
+read as an object, or pick out of a list is a printed piece: `--edge` of `--ink-line`
+around it, one hard offset drop from `--elevation-*`, and a flat fill. Three
+consequences that are rules, not taste:
+
+- **Elevation is offset, not blur.** `--elevation-raised` is `3px 3px 0` in the outline
+  colour; card and overlay steps are the same shadow, further out. There is no soft
+  shadow anywhere in chrome.
+- **Pressing moves the piece into its shadow** (`translate(3px, 3px)`, drop removed).
+  Nothing in chrome scales on press any more — a scaling outline reads as a wobble.
+- **Fills carry their own ink.** The yellow band (`--surface-band`) and the green field
+  (`--surface-field`) are surfaces with `--text-on-band` / `--text-on-field` beside
+  them. Text on a fill never uses the theme's `--text-primary`, and never a raw white.
+
+Two fills exist so the accent stays scarce: the band is decoration (heads, ribbons, the
+called stat), the accent is action. A screen may show both, but only one _accent_.
 
 Practical test: squint at the game table. The card in your hand should be the brightest
 thing on screen, then the primary button, then everything else.

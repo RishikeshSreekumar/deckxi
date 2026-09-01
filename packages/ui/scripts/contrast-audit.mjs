@@ -75,6 +75,10 @@ const PAIRS = [
   ["status-warning", "surface-base"],
   ["status-warning-on", "status-warning-surface"],
   ["rarity-star", "surface-panel"],
+  // The two filled surfaces the board-game language puts type on directly:
+  // the yellow head band and the green field.
+  ["text-on-band", "surface-band"],
+  ["text-on-field", "surface-field"],
   // Controls carry --border-strong precisely because it has to clear 3:1 on
   // every surface a control can sit on. --border-default is the decorative
   // hairline between panels and is not load-bearing for identifying a control.

@@ -20,7 +20,9 @@ export function Avatar({
     return (
       <span
         className="avatar"
-        style={{ ...style, background: `hsl(${preset.hue} 45% 24%)` }}
+        // Light and saturated, because the tile now carries ink type and an
+        // ink outline: the old 24%-lightness fill was built for white-on-dark.
+        style={{ ...style, background: `hsl(${preset.hue} 68% 62%)` }}
         role="img"
         aria-label={preset.label}
       >

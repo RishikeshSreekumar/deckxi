@@ -28,16 +28,18 @@
   gap: var(--space-4);
   min-height: var(--touch-min);
   padding: var(--space-5) var(--space-7);
-  /* Controls carry --border-strong, which is the role guaranteed to clear the
-     3:1 non-text contrast threshold on every surface. --border-default is the
-     decorative panel hairline and must never identify a control. */
-  border: 1px solid var(--border-strong);
+  /* The board-game outline: every control is a printed piece, drawn in
+     --ink-line at --edge and dropped on a hard shadow. --border-strong stays
+     the contrast guarantee behind --ink-line; --border-default is the
+     decorative hairline and must never identify a control. */
+  border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-sm);
+  box-shadow: var(--elevation-raised);
   background: var(--surface-raised);
   color: var(--text-primary);
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-bold);
   line-height: var(--leading-snug);
   cursor: pointer;
   /* Kills the 300ms double-tap delay and iOS's grey tap flash; the :active
@@ -49,16 +51,19 @@
     background var(--dur-fast) var(--ease-out),
     border-color var(--dur-fast) var(--ease-out),
     color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
     transform var(--dur-fast) var(--ease-out);
 }
 
 .button:hover:not(:disabled) {
-  border-color: var(--border-strong);
   background: var(--surface-panel);
 }
 
+/* Pressing moves the piece into its own shadow — the whole feedback of a
+   printed board game, and the reason nothing here scales. */
 .button:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: translate(3px, 3px);
+  box-shadow: var(--elevation-flat);
 }
 
 .button:focus-visible {
@@ -69,41 +74,42 @@
 .button:disabled,
 .button[aria-disabled="true"] {
   background: var(--interactive-disabled);
-  border-color: transparent;
+  border-color: var(--border-subtle);
+  box-shadow: var(--elevation-flat);
   color: var(--text-disabled);
   cursor: default;
 }
 
+/* The one accent-filled element per screen. Its outline stays ink: the fill
+   changes, the drawn edge never does. */
 .button--primary {
   background: var(--interactive-accent);
-  border-color: var(--interactive-accent);
   color: var(--interactive-on-accent);
 }
 
 .button--primary:hover:not(:disabled) {
   background: var(--interactive-accent-hover);
-  border-color: var(--interactive-accent-hover);
 }
 
 .button--primary:active:not(:disabled) {
   background: var(--interactive-accent-active);
-  border-color: var(--interactive-accent-active);
 }
 
 .button--secondary {
-  background: transparent;
-  border-color: var(--interactive-accent);
+  background: var(--surface-panel);
   color: var(--text-accent);
 }
 
 .button--secondary:hover:not(:disabled) {
   background: var(--interactive-accent-subtle);
-  border-color: var(--interactive-accent);
 }
 
+/* The one control without an outline: ghost is for chrome that must recede,
+   so it also forgoes the drop. */
 .button--ghost {
   background: transparent;
   border-color: transparent;
+  box-shadow: var(--elevation-flat);
   color: var(--text-secondary);
 }
 
@@ -113,9 +119,12 @@
   color: var(--text-primary);
 }
 
+.button--ghost:active:not(:disabled) {
+  transform: translate(1px, 1px);
+}
+
 .button--danger {
-  background: transparent;
-  border-color: var(--status-danger);
+  background: var(--surface-panel);
   color: var(--status-danger);
 }
 
@@ -166,6 +175,8 @@
   color: var(--interactive-on-accent);
 }
 
+/* Chrome furniture: outlined like everything else, but on the panel surface
+   rather than an accent, so a row of them never competes with the primary. */
 .icon-button {
   display: inline-flex;
   align-items: center;
@@ -173,15 +184,19 @@
   min-width: var(--touch-min);
   min-height: var(--touch-min);
   padding: var(--space-4);
-  border: none;
+  border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
+  box-shadow: var(--elevation-raised);
+  background: var(--surface-panel);
+  color: var(--text-primary);
   font-size: var(--text-lg);
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  transition: background var(--dur-fast) var(--ease-out);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
 
 .icon-button:hover {
@@ -190,7 +205,8 @@
 }
 
 .icon-button:active {
-  transform: scale(0.94);
+  transform: translate(3px, 3px);
+  box-shadow: var(--elevation-flat);
 }
 
 .icon-button:focus-visible {
@@ -219,7 +235,7 @@
 .toast {
   pointer-events: auto;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-strong);
+  border: var(--edge) solid var(--ink-line);
   background: var(--surface-overlay);
   color: var(--text-primary);
   padding: var(--space-5) var(--space-6);
@@ -243,9 +259,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-pill);
-  background: var(--team-color);
-  color: var(--card-ink);
+  background: var(--surface-band);
+  color: var(--text-on-band);
   font-weight: var(--weight-bold);
   object-fit: cover;
   flex-shrink: 0;
@@ -313,7 +330,7 @@
 
 .code-char {
   background: var(--surface-raised);
-  border: 1px solid var(--border-default);
+  border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-xs);
   box-shadow: var(--elevation-raised);
   padding: var(--space-5) 0;
@@ -343,7 +360,8 @@
 
 .dialog {
   background: var(--surface-overlay);
-  border: 1px solid var(--border-subtle);
+  border: var(--edge) solid var(--ink-line);
+  border-bottom: none;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   padding: var(--space-6);
   padding-bottom: max(var(--space-6), env(safe-area-inset-bottom));
@@ -367,10 +385,10 @@
   content: "";
   align-self: center;
   width: 36px;
-  height: 4px;
+  height: 5px;
   margin-bottom: var(--space-2);
   border-radius: var(--radius-pill);
-  background: var(--border-strong);
+  background: var(--ink-line);
 }
 
 .dialog-title {
@@ -389,6 +407,7 @@
   }
 
   .dialog {
+    border: var(--edge) solid var(--ink-line);
     border-radius: var(--radius-lg);
     padding: var(--space-8);
   }
@@ -402,7 +421,7 @@
 
 .card {
   background: var(--card-face);
-  border: 2px solid var(--team-color);
+  border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-card);
   overflow: hidden;
   width: 100%;
