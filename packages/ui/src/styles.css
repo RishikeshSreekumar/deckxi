@@ -6,12 +6,23 @@
  * direction they encode. Two rules govern this file:
  *
  *   1. Consume SEMANTIC tokens only (--surface-panel, --text-secondary,
- *      --interactive-accent). Never a primitive ramp (--navy-700), never a
+ *      --interactive-accent). Never a primitive ramp (--ember-500), never a
  *      raw value. Primitives exist so themes can remap roles; a component
  *      reaching past the role breaks theming.
  *   2. Component styles here cover only what the kit owns: buttons, toasts,
  *      avatars, timer ring, room code, dialog/sheet and the TrumpCard.
  *      App layout and screens stay in the app's own stylesheet.
+ *
+ * The cardboard language (v4, mockup turn 7), in three rules:
+ *
+ *   - One ink. Every piece is outlined in --ink-line at --edge width, on the
+ *     cream stock. There is no hairline and no soft edge anywhere.
+ *   - Pieces are cut out and laid down. Elevation is a hard offset drop of
+ *     the same ink (--elevation-*), and a piece that is pressed sinks into
+ *     it: translate by the drop, drop the shadow. That is the only motion
+ *     chrome is allowed.
+ *   - One accent. Ember is the only fill; a screen has one ember element,
+ *     the primary action. Green is a state (on, ready, won), never chrome.
  *
  * Media queries cannot read custom properties, so width queries use the
  * literal with the breakpoint token named alongside it.
@@ -19,28 +30,42 @@
 
 @import "./generated/tokens.css";
 
+/* -- labels ----------------------------------------------------------------- */
+
+/* The eyebrow that names every region: small, uppercase, tracked, in the
+   muted tan. It is a kit primitive because the app, the table and the card
+   all set the same one. */
+.label {
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
 /* -- buttons ---------------------------------------------------------------- */
 
+/* A cut-out piece: cream face, ink outline, ink drop. Pressing it pushes the
+   piece down into its own shadow. */
 .button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-4);
   min-height: var(--touch-min);
-  padding: var(--space-5) var(--space-7);
-  /* The board-game outline: every control is a printed piece, drawn in
-     --ink-line at --edge and dropped on a hard shadow. --border-strong stays
-     the contrast guarantee behind --ink-line; --border-default is the
-     decorative hairline and must never identify a control. */
+  padding: 0 var(--space-7);
   border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-sm);
-  box-shadow: var(--elevation-raised);
-  background: var(--surface-raised);
+  background: var(--surface-base);
   color: var(--text-primary);
   font-family: var(--font-display);
   font-size: var(--text-md);
   font-weight: var(--weight-bold);
-  line-height: var(--leading-snug);
+  line-height: 1;
+  letter-spacing: var(--tracking-display);
+  box-shadow: var(--elevation-card);
   cursor: pointer;
   /* Kills the 300ms double-tap delay and iOS's grey tap flash; the :active
      state below is the deliberate replacement for that feedback. */
@@ -49,39 +74,35 @@
   user-select: none;
   transition:
     background var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out),
     box-shadow var(--dur-fast) var(--ease-out),
-    transform var(--dur-fast) var(--ease-out);
+    opacity var(--dur-fast) var(--ease-out);
 }
 
 .button:hover:not(:disabled) {
-  background: var(--surface-panel);
+  background: var(--surface-raised);
 }
 
-/* Pressing moves the piece into its own shadow — the whole feedback of a
-   printed board game, and the reason nothing here scales. */
+/* Press sinks the piece into its drop. */
 .button:active:not(:disabled) {
-  transform: translate(3px, 3px);
+  transform: translate(4px, 4px);
   box-shadow: var(--elevation-flat);
 }
 
 .button:focus-visible {
-  outline: 2px solid var(--interactive-focus);
+  outline: var(--edge) solid var(--interactive-focus);
   outline-offset: 2px;
 }
 
+/* Disabled is a piece with no drop: flat, faded, still readable. */
 .button:disabled,
 .button[aria-disabled="true"] {
-  background: var(--interactive-disabled);
-  border-color: var(--border-subtle);
   box-shadow: var(--elevation-flat);
-  color: var(--text-disabled);
+  opacity: 0.45;
   cursor: default;
 }
 
-/* The one accent-filled element per screen. Its outline stays ink: the fill
-   changes, the drawn edge never does. */
+/* The one accent-filled element per screen. */
 .button--primary {
   background: var(--interactive-accent);
   color: var(--interactive-on-accent);
@@ -96,55 +117,57 @@
 }
 
 .button--secondary {
-  background: var(--surface-panel);
   color: var(--text-accent);
 }
 
-.button--secondary:hover:not(:disabled) {
-  background: var(--interactive-accent-subtle);
-}
-
-/* The one control without an outline: ghost is for chrome that must recede,
-   so it also forgoes the drop. */
+/* The one control without an edge or a drop: ghost is for chrome that must
+   recede — "Leave", "Later", "No thanks". */
 .button--ghost {
-  background: transparent;
   border-color: transparent;
+  background: transparent;
   box-shadow: var(--elevation-flat);
   color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-sm);
 }
 
 .button--ghost:hover:not(:disabled) {
   background: var(--interactive-accent-subtle);
-  border-color: transparent;
   color: var(--text-primary);
 }
 
 .button--ghost:active:not(:disabled) {
-  transform: translate(1px, 1px);
+  transform: none;
+  opacity: 0.72;
 }
 
 .button--danger {
-  background: var(--surface-panel);
   color: var(--status-danger);
 }
 
 .button--danger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--status-danger) 14%, transparent);
+  background: color-mix(in srgb, var(--status-danger) 10%, var(--surface-base));
 }
 
 /* Compact button. Keeps a 44px *target* via an invisible expansion, so density
    never costs reachability. */
 .button--sm {
   position: relative;
-  min-height: 36px;
-  padding: var(--space-3) var(--space-5);
+  min-height: 34px;
+  padding: 0 var(--space-5);
   font-size: var(--text-sm);
+  box-shadow: var(--elevation-raised);
+}
+
+.button--sm:active:not(:disabled) {
+  transform: translate(3px, 3px);
 }
 
 .button--sm::after {
   content: "";
   position: absolute;
-  inset: calc((36px - var(--touch-min)) / 2) 0;
+  inset: calc((34px - var(--touch-min)) / 2) 0;
 }
 
 .button--block {
@@ -175,8 +198,8 @@
   color: var(--interactive-on-accent);
 }
 
-/* Chrome furniture: outlined like everything else, but on the panel surface
-   rather than an accent, so a row of them never competes with the primary. */
+/* Chrome furniture: a small round piece with the same outline, no drop, so a
+   row of them cannot compete with the primary. */
 .icon-button {
   display: inline-flex;
   align-items: center;
@@ -185,33 +208,76 @@
   min-height: var(--touch-min);
   padding: var(--space-4);
   border: var(--edge) solid var(--ink-line);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--elevation-raised);
-  background: var(--surface-panel);
+  border-radius: var(--radius-pill);
+  background: var(--surface-base);
   color: var(--text-primary);
-  font-size: var(--text-lg);
+  font-size: var(--text-md);
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   transition:
     background var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out),
-    transform var(--dur-fast) var(--ease-out);
+    opacity var(--dur-fast) var(--ease-out);
 }
 
 .icon-button:hover {
-  background: var(--interactive-accent-subtle);
-  color: var(--text-primary);
+  background: var(--surface-raised);
 }
 
 .icon-button:active {
-  transform: translate(3px, 3px);
-  box-shadow: var(--elevation-flat);
+  opacity: 0.72;
 }
 
 .icon-button:focus-visible {
-  outline: 2px solid var(--interactive-focus);
+  outline: var(--edge) solid var(--interactive-focus);
   outline-offset: 2px;
+}
+
+/* -- chip ------------------------------------------------------------------- */
+
+/* The small pill the mock uses for "Join", "Copy", "15s": outlined, no drop,
+   sans type. A chip is a quiet action or a value, never the primary. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  min-height: 32px;
+  padding: 0 var(--space-5);
+  border: 2px solid var(--ink-line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
+}
+
+.chip:hover:not(:disabled) {
+  background: var(--surface-raised);
+}
+
+.chip:active:not(:disabled) {
+  opacity: 0.72;
+}
+
+.chip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* The chip as a state: green when on. */
+.chip--on {
+  background: var(--surface-field);
+  color: var(--text-on-field);
 }
 
 /* -- toasts ----------------------------------------------------------------- */
@@ -234,35 +300,40 @@
 
 .toast {
   pointer-events: auto;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   border: var(--edge) solid var(--ink-line);
   background: var(--surface-overlay);
   color: var(--text-primary);
   padding: var(--space-5) var(--space-6);
   min-height: var(--touch-min);
   font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
   text-align: left;
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  box-shadow: var(--elevation-overlay);
+  box-shadow: var(--elevation-card);
   animation: rise var(--dur-fast) var(--ease-out);
 }
 
 .toast--error {
-  border-color: var(--status-danger);
+  color: var(--status-danger);
 }
 
 /* -- avatar ----------------------------------------------------------------- */
 
+/* A seat marker: a cream disc with the ink outline. The outline is inset so an
+   avatar that is an <img> keeps the same edge as one that is a span. */
 .avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: var(--edge) solid var(--ink-line);
+  border: none;
   border-radius: var(--radius-pill);
-  background: var(--surface-band);
-  color: var(--text-on-band);
+  box-shadow: inset 0 0 0 var(--edge) var(--ink-line);
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-family: var(--font-display);
   font-weight: var(--weight-bold);
   object-fit: cover;
   flex-shrink: 0;
@@ -273,7 +344,7 @@
 /* -- timer ring ------------------------------------------------------------- */
 
 /* High-stakes component: it has to read at a glance on a phone, so it is
-   sized above the icon scale and the label uses tabular figures. */
+   sized above the icon scale and the label is set in the display face. */
 .timer-ring {
   position: relative;
   width: 44px;
@@ -305,10 +376,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-black);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
   font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
+  color: var(--text-accent);
 }
 
 .timer-ring--urgent .timer-label {
@@ -317,29 +389,31 @@
 
 /* -- room code -------------------------------------------------------------- */
 
-/* The most-shared element in the product. Monospaced so O/0 and I/1 cannot be
-   misheard down a phone line, and deliberately selectable — people copy this
-   by hand as often as they tap the share button. */
+/* The most-shared element in the product, and the one the join screen turns
+   into six slots. Each character is its own outlined slot, set in the display
+   face, and deliberately selectable — people copy this by hand as often as
+   they tap share. */
 .room-code {
   display: flex;
-  gap: var(--space-3);
+  gap: var(--space-4);
   justify-content: center;
-  font-family: var(--font-mono);
   user-select: text;
 }
 
 .code-char {
+  flex: 1 1 0;
+  max-width: 66px;
+  aspect-ratio: 4 / 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--surface-raised);
   border: var(--edge) solid var(--ink-line);
-  border-radius: var(--radius-xs);
-  box-shadow: var(--elevation-raised);
-  padding: var(--space-5) 0;
-  min-width: 2.2ch;
-  flex: 0 1 2.6ch;
-  text-align: center;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
   font-size: var(--text-xl);
   font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-normal);
+  text-transform: uppercase;
   color: var(--text-primary);
 }
 
@@ -374,7 +448,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-  box-shadow: var(--elevation-modal);
   animation: rise var(--dur-med) var(--ease-out);
 }
 
@@ -385,7 +458,7 @@
   content: "";
   align-self: center;
   width: 36px;
-  height: 5px;
+  height: 4px;
   margin-bottom: var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--ink-line);
@@ -393,14 +466,14 @@
 
 .dialog-title {
   margin: 0;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-display);
 }
 
-/* --bp-md: tablet up — the sheet becomes a centred card. */
+/* --bp-md: tablet up — the sheet becomes a centred piece with its drop. */
 @media (min-width: 768px) {
   .dialog-backdrop {
     align-items: center;
@@ -408,8 +481,9 @@
 
   .dialog {
     border: var(--edge) solid var(--ink-line);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     padding: var(--space-8);
+    box-shadow: var(--elevation-modal);
   }
 
   .dialog::before {
@@ -419,6 +493,9 @@
 
 /* -- trump card ------------------------------------------------------------- */
 
+/* The card is a printed piece and it is identical in both themes: cream face,
+   ink outline, ink drop. Everything inside it uses the --card-body-* ink
+   roles rather than --text-*, which belong to the app's surfaces. */
 .card {
   background: var(--card-face);
   border: var(--edge) solid var(--ink-line);
@@ -428,7 +505,7 @@
   box-shadow: var(--elevation-card);
   position: relative;
   font-family: var(--font-sans);
-  color: var(--text-primary);
+  color: var(--card-body-ink);
   /* Cards get dragged past, tapped and swiped. None of that should select
      text or start a native image drag. */
   user-select: none;
@@ -452,29 +529,28 @@
   font-size: var(--text-xs);
 }
 
-/* Inner frame layer — the physical-object bevel; rarity foils live here. */
+/* Inner frame layer — rarity foils live here. On stock it is a printed inner
+   rule rather than a bevel. */
 .card-frame {
   position: absolute;
-  inset: 2px;
-  border-radius: calc(var(--radius-card) - 3px);
+  inset: 3px;
+  border-radius: calc(var(--radius-card) - 4px);
   border: 1px solid var(--card-hairline);
   pointer-events: none;
   z-index: 3;
 }
 
+/* The head is the same stock as the rest of the face. A colour bar across the
+   top is the only place the team is a fill; everywhere else it is the tint in
+   the stat meters and the portrait behind the name. */
 .card-head {
-  background: linear-gradient(
-    150deg,
-    color-mix(in srgb, var(--team-color) 78%, #ffffff) 0%,
-    var(--team-color) 42%,
-    color-mix(in srgb, var(--team-color) 62%, #000000) 100%
-  );
-  color: var(--card-ink);
-  padding: var(--space-4) var(--space-5);
+  background: transparent;
+  border-top: 4px solid var(--team-color);
+  color: var(--card-body-ink);
+  padding: var(--space-5) var(--space-5) var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  gap: var(--space-2);
   position: relative;
   overflow: hidden;
   min-height: 3.2em;
@@ -486,20 +562,21 @@
   right: -4px;
   bottom: -6px;
   height: 130%;
-  opacity: 0.28;
+  color: var(--team-color);
+  opacity: 0.16;
   pointer-events: none;
 }
 
 /* Long names wrap to a second line rather than truncating on the first — a
    cricket card with a clipped surname is worse than one with a tighter head.
    Card type is sized in em off the card's own font-size, so this behaves
-   identically at hand, reveal and full. Two lines is the cap; the longest
-   name in the current edition fits inside it at every size. */
+   identically at hand, reveal and full. Two lines is the cap. */
 .card-name {
-  font-weight: var(--weight-black);
-  font-size: 1.05em;
+  font-family: var(--font-display);
+  font-weight: var(--weight-bold);
+  font-size: 1.35em;
   line-height: var(--leading-tight);
-  letter-spacing: var(--tracking-tight);
+  letter-spacing: var(--tracking-display);
   position: relative;
   padding-right: 34px;
   display: -webkit-box;
@@ -510,8 +587,12 @@
 }
 
 .card-meta {
-  font-size: 0.8em;
-  opacity: 0.92;
+  font-family: var(--font-label);
+  font-size: 0.9em;
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--card-body-muted);
   position: relative;
   display: flex;
   align-items: center;
@@ -528,14 +609,14 @@
   font-size: 0.9em;
 }
 
+/* The marks sit on the cream face, so they take the card's own ink rather
+   than the theme's rarity role. */
 .card--star .rarity-mark {
-  color: var(--rarity-star);
-  text-shadow: 0 0 6px var(--rarity-star-glow);
+  color: var(--card-body-accent);
 }
 
 .card--legend .rarity-mark {
-  color: var(--rarity-legend-ink);
-  text-shadow: 0 0 8px var(--rarity-legend-glow);
+  color: var(--surface-field);
 }
 
 /* Rating badge — a shield overlapping the header edge. */
@@ -548,7 +629,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: var(--weight-black);
+  font-family: var(--font-display);
+  font-weight: var(--weight-bold);
   font-size: 1.05em;
   color: var(--card-ink);
   z-index: 2;
@@ -563,27 +645,26 @@
 
 .card-rating span {
   position: relative;
-  font-size: 0.95em;
+  font-size: 1em;
   font-variant-numeric: tabular-nums;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 /* -- stat table (stats are gameplay, not decoration) -- */
 
+/* On the phone this table *is* the picker: the face of the card is the only
+   thing you touch during a round, so the rows are full-bleed rules rather
+   than an inset list. */
 .card-stats {
   list-style: none;
   margin: 0;
-  padding: var(--space-2) 0;
+  padding: 0;
   position: relative;
 }
 
 .stat-row {
-  border-bottom: 1px solid var(--card-rule);
+  border-top: 2px solid var(--card-rule);
   position: relative;
-}
-
-.stat-row:last-child {
-  border-bottom: none;
 }
 
 /* Value meter — normalized against the stat's min/max from the edition. */
@@ -592,7 +673,7 @@
   position: absolute;
   inset: 2px auto 2px 0;
   width: var(--meter, 0%);
-  background: color-mix(in srgb, var(--team-color) 22%, transparent);
+  background: color-mix(in srgb, var(--team-color) 16%, transparent);
   border-radius: 0 var(--space-2) var(--space-2) 0;
   pointer-events: none;
 }
@@ -644,45 +725,64 @@
 }
 
 .stat-button:active {
-  background: color-mix(in srgb, var(--interactive-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--interactive-accent) 24%, transparent);
 }
 
 .stat-name {
-  color: var(--text-secondary);
+  font-family: var(--font-label);
+  font-size: 0.95em;
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--card-body-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.stat-button .stat-name {
-  color: var(--text-primary);
-}
-
 .stat-dir {
-  color: var(--text-muted);
+  color: var(--card-body-accent);
   font-size: 0.7em;
 }
 
 .stat-value {
-  font-weight: var(--weight-black);
+  font-family: var(--font-display);
+  font-weight: var(--weight-bold);
+  font-size: 1.4em;
   font-variant-numeric: tabular-nums;
+  color: var(--card-body-ink);
 }
 
+/* The called stat is the one row that inverts: the green of the table,
+   pulled onto the stock. */
 .stat-row--hot {
-  background: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
+  background: var(--surface-field);
 }
 
 .stat-row--hot .stat-name,
+.stat-row--hot .stat-dir {
+  color: var(--text-on-field);
+}
+
 .stat-row--hot .stat-value {
-  color: var(--text-accent);
+  color: var(--text-on-field);
+}
+
+.stat-row--hot::before {
+  display: none;
 }
 
 /* -- card back (the brand mark) -- */
 
+/* The back is the deck: the blue stock, the ink outline, and the dotted grid
+   that makes a fanned stack read as a stack. */
 .card--back {
   aspect-ratio: 5 / 7;
-  border-color: var(--border-default);
   background: var(--card-back);
+  background-image: var(--card-back-grid);
+  background-size: 9px 9px;
+  border: var(--edge) solid var(--ink-line);
+  box-shadow: var(--elevation-raised);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -755,18 +855,21 @@
 
 .card--winner {
   border-color: var(--status-win);
-  box-shadow: 0 0 22px color-mix(in srgb, var(--status-win) 50%, transparent);
+  box-shadow:
+    var(--elevation-card),
+    0 0 0 3px color-mix(in srgb, var(--status-win) 45%, transparent);
 }
 
 .card--loser {
-  filter: saturate(0.5) brightness(0.75);
+  filter: saturate(0.5) brightness(0.82);
 }
 
 /* -- motion vocabulary ------------------------------------------------------ */
 
 /* Cards may perform; chrome may not. Card set-pieces (deal, flip, sweep) are
    allowed overshoot and --dur-slow; chrome (toasts, dialogs, hover) runs at
-   --dur-fast with no bounce. Transform and opacity only — nothing here may
+   --dur-fast with no bounce — the press-into-shadow translate is the one
+   exception, and it is 4px. Transform and opacity only — nothing here may
    trigger layout. See docs/design/direction.md §6. */
 
 @keyframes sheen {
@@ -880,17 +983,15 @@
     will-change: auto;
   }
 
-  .button:active:not(:disabled),
-  .icon-button:active {
-    transform: none;
-  }
-
   .card--legend::after {
     animation: none;
     display: none;
   }
 
-  .stat-button {
+  .stat-button,
+  .button,
+  .icon-button,
+  .chip {
     transition: none;
   }
 }

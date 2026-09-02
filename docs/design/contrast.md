@@ -13,79 +13,79 @@ tokens — regenerate it whenever `packages/ui/tokens/tokens.json` changes.
 
 | Foreground                | Background                    | Ratio   | Needs | Result            |
 | ------------------------- | ----------------------------- | ------- | ----- | ----------------- |
-| `--text-primary`          | `--surface-base`              | 15.37:1 | 4.5:1 | pass              |
-| `--text-primary`          | `--surface-raised`            | 12.21:1 | 4.5:1 | pass              |
-| `--text-primary`          | `--surface-panel`             | 13.91:1 | 4.5:1 | pass              |
-| `--text-primary`          | `--surface-overlay`           | 13.91:1 | 4.5:1 | pass              |
-| `--text-secondary`        | `--surface-base`              | 7.37:1  | 4.5:1 | pass              |
-| `--text-secondary`        | `--surface-raised`            | 5.86:1  | 4.5:1 | pass              |
-| `--text-secondary`        | `--surface-panel`             | 6.67:1  | 4.5:1 | pass              |
-| `--text-secondary`        | `--surface-overlay`           | 6.67:1  | 4.5:1 | pass              |
-| `--text-muted`            | `--surface-base`              | 5.31:1  | 4.5:1 | pass              |
-| `--text-muted`            | `--surface-panel`             | 4.80:1  | 4.5:1 | pass              |
-| `--text-accent`           | `--surface-base`              | 11.00:1 | 4.5:1 | pass              |
-| `--text-accent`           | `--surface-panel`             | 9.96:1  | 4.5:1 | pass              |
+| `--text-primary`          | `--surface-base`              | 16.55:1 | 4.5:1 | pass              |
+| `--text-primary`          | `--surface-raised`            | 14.18:1 | 4.5:1 | pass              |
+| `--text-primary`          | `--surface-panel`             | 14.18:1 | 4.5:1 | pass              |
+| `--text-primary`          | `--surface-overlay`           | 14.18:1 | 4.5:1 | pass              |
+| `--text-secondary`        | `--surface-base`              | 9.02:1  | 4.5:1 | pass              |
+| `--text-secondary`        | `--surface-raised`            | 7.73:1  | 4.5:1 | pass              |
+| `--text-secondary`        | `--surface-panel`             | 7.73:1  | 4.5:1 | pass              |
+| `--text-secondary`        | `--surface-overlay`           | 7.73:1  | 4.5:1 | pass              |
+| `--text-muted`            | `--surface-base`              | 5.95:1  | 4.5:1 | pass              |
+| `--text-muted`            | `--surface-panel`             | 5.09:1  | 4.5:1 | pass              |
+| `--text-accent`           | `--surface-base`              | 7.06:1  | 4.5:1 | pass              |
+| `--text-accent`           | `--surface-panel`             | 6.04:1  | 4.5:1 | pass              |
 | `--text-inverse`          | `--surface-inverse`           | 16.55:1 | 4.5:1 | pass              |
 | `--interactive-on-accent` | `--interactive-accent`        | 7.06:1  | 4.5:1 | pass              |
 | `--interactive-on-accent` | `--interactive-accent-hover`  | 8.18:1  | 4.5:1 | pass              |
 | `--interactive-on-accent` | `--interactive-accent-active` | 4.80:1  | 4.5:1 | pass              |
-| `--status-win`            | `--surface-base`              | 8.07:1  | 4.5:1 | pass              |
-| `--status-win`            | `--surface-raised`            | 6.41:1  | 4.5:1 | pass              |
-| `--status-danger`         | `--surface-base`              | 7.59:1  | 4.5:1 | pass              |
-| `--status-danger`         | `--surface-raised`            | 6.03:1  | 4.5:1 | pass              |
-| `--status-warning`        | `--surface-base`              | 11.00:1 | 4.5:1 | pass              |
-| `--status-warning-on`     | `--status-warning-surface`    | 7.44:1  | 4.5:1 | pass              |
-| `--rarity-star`           | `--surface-panel`             | 9.96:1  | 4.5:1 | pass              |
-| `--text-on-band`          | `--surface-band`              | 7.44:1  | 4.5:1 | pass              |
-| `--text-on-field`         | `--surface-field`             | 5.39:1  | 4.5:1 | pass              |
-| `--border-strong`         | `--surface-base`              | 11.67:1 | 3:1   | pass              |
-| `--border-strong`         | `--surface-raised`            | 9.28:1  | 3:1   | pass              |
-| `--border-strong`         | `--surface-panel`             | 10.57:1 | 3:1   | pass              |
-| `--border-default`        | `--surface-base`              | 5.31:1  | 4.5:1 | exempt (disabled) |
-| `--interactive-focus`     | `--surface-base`              | 11.00:1 | 3:1   | pass              |
-| `--interactive-focus`     | `--surface-panel`             | 9.96:1  | 3:1   | pass              |
-| `--interactive-focus`     | `--surface-raised`            | 8.74:1  | 3:1   | pass              |
-| `--interactive-accent`    | `--surface-base`              | 6.55:1  | 3:1   | pass              |
-| `--text-disabled`         | `--surface-raised`            | 3.03:1  | 4.5:1 | exempt (disabled) |
+| `--status-win`            | `--surface-base`              | 6.51:1  | 4.5:1 | pass              |
+| `--status-win`            | `--surface-raised`            | 5.57:1  | 4.5:1 | pass              |
+| `--status-danger`         | `--surface-base`              | 8.18:1  | 4.5:1 | pass              |
+| `--status-danger`         | `--surface-raised`            | 7.01:1  | 4.5:1 | pass              |
+| `--status-warning`        | `--surface-base`              | 10.33:1 | 4.5:1 | pass              |
+| `--status-warning-on`     | `--status-warning-surface`    | 8.09:1  | 4.5:1 | pass              |
+| `--rarity-star`           | `--surface-panel`             | 8.85:1  | 4.5:1 | pass              |
+| `--text-on-band`          | `--surface-band`              | 7.06:1  | 4.5:1 | pass              |
+| `--text-on-field`         | `--surface-field`             | 5.06:1  | 4.5:1 | pass              |
+| `--border-strong`         | `--surface-base`              | 14.19:1 | 3:1   | pass              |
+| `--border-strong`         | `--surface-raised`            | 12.16:1 | 3:1   | pass              |
+| `--border-strong`         | `--surface-panel`             | 12.16:1 | 3:1   | pass              |
+| `--border-default`        | `--surface-base`              | 4.08:1  | 4.5:1 | exempt (disabled) |
+| `--interactive-focus`     | `--surface-base`              | 7.06:1  | 3:1   | pass              |
+| `--interactive-focus`     | `--surface-panel`             | 6.04:1  | 3:1   | pass              |
+| `--interactive-focus`     | `--surface-raised`            | 6.04:1  | 3:1   | pass              |
+| `--interactive-accent`    | `--surface-base`              | 7.06:1  | 3:1   | pass              |
+| `--text-disabled`         | `--surface-raised`            | 2.93:1  | 4.5:1 | exempt (disabled) |
 
 ## Light theme
 
 | Foreground                | Background                    | Ratio   | Needs | Result            |
 | ------------------------- | ----------------------------- | ------- | ----- | ----------------- |
-| `--text-primary`          | `--surface-base`              | 15.50:1 | 4.5:1 | pass              |
+| `--text-primary`          | `--surface-base`              | 16.55:1 | 4.5:1 | pass              |
 | `--text-primary`          | `--surface-raised`            | 17.49:1 | 4.5:1 | pass              |
-| `--text-primary`          | `--surface-panel`             | 16.55:1 | 4.5:1 | pass              |
+| `--text-primary`          | `--surface-panel`             | 17.49:1 | 4.5:1 | pass              |
 | `--text-primary`          | `--surface-overlay`           | 17.49:1 | 4.5:1 | pass              |
-| `--text-secondary`        | `--surface-base`              | 7.88:1  | 4.5:1 | pass              |
-| `--text-secondary`        | `--surface-raised`            | 8.89:1  | 4.5:1 | pass              |
-| `--text-secondary`        | `--surface-panel`             | 8.41:1  | 4.5:1 | pass              |
-| `--text-secondary`        | `--surface-overlay`           | 8.89:1  | 4.5:1 | pass              |
-| `--text-muted`            | `--surface-base`              | 5.40:1  | 4.5:1 | pass              |
-| `--text-muted`            | `--surface-panel`             | 5.77:1  | 4.5:1 | pass              |
-| `--text-accent`           | `--surface-base`              | 5.92:1  | 4.5:1 | pass              |
-| `--text-accent`           | `--surface-panel`             | 6.32:1  | 4.5:1 | pass              |
-| `--text-inverse`          | `--surface-inverse`           | 15.37:1 | 4.5:1 | pass              |
-| `--interactive-on-accent` | `--interactive-accent`        | 5.06:1  | 4.5:1 | pass              |
-| `--interactive-on-accent` | `--interactive-accent-hover`  | 6.95:1  | 4.5:1 | pass              |
-| `--interactive-on-accent` | `--interactive-accent-active` | 8.68:1  | 4.5:1 | pass              |
-| `--status-win`            | `--surface-base`              | 5.52:1  | 4.5:1 | pass              |
-| `--status-win`            | `--surface-raised`            | 6.23:1  | 4.5:1 | pass              |
-| `--status-danger`         | `--surface-base`              | 5.92:1  | 4.5:1 | pass              |
-| `--status-danger`         | `--surface-raised`            | 6.68:1  | 4.5:1 | pass              |
-| `--status-warning`        | `--surface-base`              | 5.04:1  | 4.5:1 | pass              |
-| `--status-warning-on`     | `--status-warning-surface`    | 8.74:1  | 4.5:1 | pass              |
-| `--rarity-star`           | `--surface-panel`             | 4.57:1  | 4.5:1 | pass              |
-| `--text-on-band`          | `--surface-band`              | 11.85:1 | 4.5:1 | pass              |
-| `--text-on-field`         | `--surface-field`             | 6.51:1  | 4.5:1 | pass              |
-| `--border-strong`         | `--surface-base`              | 15.50:1 | 3:1   | pass              |
+| `--text-secondary`        | `--surface-base`              | 5.98:1  | 4.5:1 | pass              |
+| `--text-secondary`        | `--surface-raised`            | 6.31:1  | 4.5:1 | pass              |
+| `--text-secondary`        | `--surface-panel`             | 6.31:1  | 4.5:1 | pass              |
+| `--text-secondary`        | `--surface-overlay`           | 6.31:1  | 4.5:1 | pass              |
+| `--text-muted`            | `--surface-base`              | 4.84:1  | 4.5:1 | pass              |
+| `--text-muted`            | `--surface-panel`             | 5.12:1  | 4.5:1 | pass              |
+| `--text-accent`           | `--surface-base`              | 4.60:1  | 4.5:1 | pass              |
+| `--text-accent`           | `--surface-panel`             | 4.86:1  | 4.5:1 | pass              |
+| `--text-inverse`          | `--surface-inverse`           | 16.55:1 | 4.5:1 | pass              |
+| `--interactive-on-accent` | `--interactive-accent`        | 4.61:1  | 4.5:1 | pass              |
+| `--interactive-on-accent` | `--interactive-accent-hover`  | 5.06:1  | 4.5:1 | pass              |
+| `--interactive-on-accent` | `--interactive-accent-active` | 6.95:1  | 4.5:1 | pass              |
+| `--status-win`            | `--surface-base`              | 4.61:1  | 4.5:1 | pass              |
+| `--status-win`            | `--surface-raised`            | 4.87:1  | 4.5:1 | pass              |
+| `--status-danger`         | `--surface-base`              | 4.60:1  | 4.5:1 | pass              |
+| `--status-danger`         | `--surface-raised`            | 4.86:1  | 4.5:1 | pass              |
+| `--status-warning`        | `--surface-base`              | 4.88:1  | 4.5:1 | pass              |
+| `--status-warning-on`     | `--status-warning-surface`    | 10.33:1 | 4.5:1 | pass              |
+| `--rarity-star`           | `--surface-panel`             | 5.16:1  | 4.5:1 | pass              |
+| `--text-on-band`          | `--surface-band`              | 4.61:1  | 4.5:1 | pass              |
+| `--text-on-field`         | `--surface-field`             | 5.06:1  | 4.5:1 | pass              |
+| `--border-strong`         | `--surface-base`              | 16.55:1 | 3:1   | pass              |
 | `--border-strong`         | `--surface-raised`            | 17.49:1 | 3:1   | pass              |
-| `--border-strong`         | `--surface-panel`             | 16.55:1 | 3:1   | pass              |
-| `--border-default`        | `--surface-base`              | 15.50:1 | 4.5:1 | exempt (disabled) |
-| `--interactive-focus`     | `--surface-base`              | 4.31:1  | 3:1   | pass              |
-| `--interactive-focus`     | `--surface-panel`             | 4.60:1  | 3:1   | pass              |
-| `--interactive-focus`     | `--surface-raised`            | 4.86:1  | 3:1   | pass              |
-| `--interactive-accent`    | `--surface-base`              | 4.31:1  | 3:1   | pass              |
-| `--text-disabled`         | `--surface-raised`            | 4.26:1  | 4.5:1 | exempt (disabled) |
+| `--border-strong`         | `--surface-panel`             | 17.49:1 | 3:1   | pass              |
+| `--border-default`        | `--surface-base`              | 4.06:1  | 4.5:1 | exempt (disabled) |
+| `--interactive-focus`     | `--surface-base`              | 4.19:1  | 3:1   | pass              |
+| `--interactive-focus`     | `--surface-panel`             | 4.43:1  | 3:1   | pass              |
+| `--interactive-focus`     | `--surface-raised`            | 4.43:1  | 3:1   | pass              |
+| `--interactive-accent`    | `--surface-base`              | 4.19:1  | 3:1   | pass              |
+| `--text-disabled`         | `--surface-raised`            | 2.94:1  | 4.5:1 | exempt (disabled) |
 
 ## Notes
 

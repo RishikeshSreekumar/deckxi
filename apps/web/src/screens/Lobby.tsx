@@ -1,26 +1,47 @@
 /**
- * Lobby: player list with ready states, host-editable settings, invite
- * link/QR, and a small chat while everyone gathers.
+ * Lobby (mockup turn 7): the room code in the bar, the seats as a grid of
+ * pieces with open seats dashed, the chat beside them on a desktop and under
+ * them on a phone, and one row of actions along the bottom — ready, the deck
+ * rules (host edits them in a sheet), and Start.
  */
 import { useEffect, useMemo, useState } from "react";
 import { MAX_CHAT_LENGTH, type RoomSettings, type RoomView } from "@deckxi/shared";
-import { RoomCode } from "@deckxi/ui";
+import { Dialog, RoomCode } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
-import { MuteButton, ThemeToggle } from "../components/Chrome.js";
+import { ThemeToggle, Wordmark } from "../components/Chrome.js";
+
+const MAX_SEATS = 6;
 
 function inviteUrl(code: string): string {
   return `${location.origin}/join/${code}`;
 }
 
-function InvitePanel({ code }: { code: string }) {
-  const [qr, setQr] = useState<string | null>(null);
+function useCopy(text: string): { copied: boolean; copy: () => void } {
   const [copied, setCopied] = useState(false);
+  return {
+    copied,
+    copy: () => {
+      void navigator.clipboard
+        .writeText(text)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        })
+        .catch(() => undefined);
+    },
+  };
+}
+
+/** The invite sheet: code, link, share, and the QR for a phone across the table. */
+function InviteDialog({ code, onClose }: { code: string; onClose: () => void }) {
+  const [qr, setQr] = useState<string | null>(null);
   const url = inviteUrl(code);
+  const { copied, copy } = useCopy(url);
 
   useEffect(() => {
     let cancelled = false;
-    // qrcode is ~40kB and only ever renders here, so it loads when the lobby
-    // does rather than riding in the initial bundle (#107).
+    // qrcode is ~40kB and only ever renders here, so it loads when the sheet
+    // opens rather than riding in the initial bundle (#107).
     void import("qrcode")
       .then(({ default: QRCode }) => QRCode.toDataURL(url, { margin: 1, width: 176 }))
       .then((dataUrl) => {
@@ -33,29 +54,17 @@ function InvitePanel({ code }: { code: string }) {
   }, [url]);
 
   return (
-    <section className="panel invite-panel">
-      <h2>Invite friends</h2>
+    <Dialog title="Invite friends" onClose={onClose}>
       <RoomCode code={code} />
+      {qr !== null && <img className="invite-qr" src={qr} alt={`QR code for ${url}`} />}
       <div className="invite-actions">
-        <button
-          type="button"
-          className="button"
-          onClick={() => {
-            void navigator.clipboard
-              .writeText(url)
-              .then(() => {
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1500);
-              })
-              .catch(() => undefined);
-          }}
-        >
+        <button type="button" className="button" onClick={copy}>
           {copied ? "Copied!" : "Copy link"}
         </button>
         {"share" in navigator && (
           <button
             type="button"
-            className="button button--ghost"
+            className="button"
             onClick={() =>
               void navigator.share({ title: "Play DeckXI", url }).catch(() => undefined)
             }
@@ -64,12 +73,14 @@ function InvitePanel({ code }: { code: string }) {
           </button>
         )}
       </div>
-      {qr !== null && <img className="invite-qr" src={qr} alt={`QR code for ${url}`} />}
-    </section>
+      <button type="button" className="button button--ghost" onClick={onClose}>
+        Done
+      </button>
+    </Dialog>
   );
 }
 
-function SettingsPanel({ room, isHost }: { room: RoomView; isHost: boolean }) {
+function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean }) {
   const updateSettings = useStore((s) => s.updateSettings);
   const s = room.settings;
   const patch = (p: Partial<RoomSettings>) => void updateSettings(p).catch(() => undefined);
@@ -93,7 +104,7 @@ function SettingsPanel({ room, isHost }: { room: RoomView; isHost: boolean }) {
           ))}
         </select>
       ) : (
-        <strong>
+        <strong className="chip">
           {value}
           {unit}
         </strong>
@@ -102,13 +113,15 @@ function SettingsPanel({ room, isHost }: { room: RoomView; isHost: boolean }) {
   );
 
   return (
-    <section className="panel settings-panel">
-      <h2>Game settings {isHost ? "" : "(host decides)"}</h2>
+    <div className="setting-rows">
       {row("Cards per player", s.cardsPerPlayer, [3, 4, 5, 7, 9, 11], "cardsPerPlayer")}
       {row("Turn timer", s.turnTimerSeconds, [10, 15, 20, 30, 60], "turnTimerSeconds", "s")}
       {row("Round limit", s.maxRounds, [10, 25, 50, 100, 1000], "maxRounds")}
-      <p className="hint">Edition: {s.editionId}</p>
-    </section>
+      <p className="sub">
+        Edition: {s.editionId}
+        {isHost ? "" : " · the host decides"}
+      </p>
+    </div>
   );
 }
 
@@ -125,13 +138,15 @@ function LobbyChat() {
   };
 
   return (
-    <section className="panel chat-panel">
-      <h2>Chat</h2>
+    <section className="lobby-chat" aria-label="Chat">
+      <div className="lobby-chat-head">
+        <span className="label">Chat</span>
+      </div>
       <ul className="chat-log">
-        {chat.length === 0 && <li className="hint">Say hi while everyone gets ready…</li>}
+        {chat.length === 0 && <li className="sub">Say hi while everyone gets ready…</li>}
         {chat.map((m, i) => (
           <li key={i}>
-            <strong>{m.from.name}:</strong> {m.text}
+            <strong>{m.from.name}</strong> {m.text}
           </li>
         ))}
       </ul>
@@ -139,14 +154,15 @@ function LobbyChat() {
         <input
           value={draft}
           maxLength={MAX_CHAT_LENGTH}
-          placeholder="Message…"
+          placeholder="Say something…"
+          aria-label="Chat message"
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") send();
           }}
         />
-        <button type="button" className="button" onClick={send}>
-          Send
+        <button type="button" className="icon-button chat-send" aria-label="Send" onClick={send}>
+          ↑
         </button>
       </div>
     </section>
@@ -159,21 +175,37 @@ export function Lobby({ room }: { room: RoomView }) {
   const setReady = useStore((s) => s.setReady);
   const startGame = useStore((s) => s.startGame);
   const leaveRoom = useStore((s) => s.leaveRoom);
+  const [sheet, setSheet] = useState<"invite" | "rules" | null>(null);
 
   const isHost = selfId === room.hostId;
   const self = room.players.find((p) => p.id === selfId);
   const everyoneReady = room.players.length >= 2 && room.players.every((p) => p.ready);
   const players = useMemo(() => [...room.players].sort((a, b) => a.seat - b.seat), [room.players]);
+  const openSeats = Math.max(0, MAX_SEATS - players.length);
+  const missing = Math.max(0, 2 - players.length);
+  const { copied, copy } = useCopy(inviteUrl(room.code));
+
+  const heading = everyoneReady
+    ? "Everyone's ready"
+    : missing > 0
+      ? `Waiting for ${missing === 1 ? "one more" : "two more"}`
+      : "Waiting for ready";
 
   return (
     <main className="screen lobby" data-testid="lobby-screen">
-      <header className="screen-head">
-        <h1 className="brand brand--small">
-          Deck<span className="brand-xi">XI</span>
-        </h1>
-        <div className="head-actions">
+      <header className="app-bar lobby-bar">
+        <Wordmark />
+        <span className="lobby-code" aria-label={`Room code ${room.code.split("").join(" ")}`}>
+          {room.code}
+        </span>
+        <button type="button" className="chip" onClick={copy}>
+          {copied ? "Copied!" : "Copy invite"}
+        </button>
+        <div className="app-bar-actions">
+          <span className="sub lobby-rules-line">
+            {room.settings.editionId} · {room.settings.maxRounds} rounds
+          </span>
           <ThemeToggle />
-          <MuteButton />
           <button type="button" className="button button--ghost" onClick={() => void leaveRoom()}>
             Leave
           </button>
@@ -181,65 +213,105 @@ export function Lobby({ room }: { room: RoomView }) {
       </header>
 
       <div className="lobby-grid">
-        <section className="panel players-panel">
-          <h2>
-            Players ({players.length}/6)
-            {room.spectators.length > 0 && (
-              <span className="hint"> · {room.spectators.length} watching</span>
-            )}
-          </h2>
-          <ul className="player-list">
-            {players.map((p) => (
-              <li key={p.id} className={p.connected ? "player" : "player player--away"}>
-                <span className="player-avatar" aria-hidden="true">
-                  {p.name.slice(0, 1).toUpperCase()}
-                </span>
+        <section className="lobby-main">
+          <div className="lobby-intro">
+            <h1 className="headline">{heading}</h1>
+            <p className="sub">
+              Everyone gets {room.settings.cardsPerPlayer} cards, dealt at random.
+              {room.spectators.length > 0 && ` ${room.spectators.length} watching.`}
+            </p>
+          </div>
+
+          <ul className="player-list seat-grid" aria-label={`Players (${players.length}/6)`}>
+            {players.map((p) => {
+              const status = !p.connected
+                ? "away"
+                : p.id === selfId
+                  ? `you${p.id === room.hostId ? " · host" : ""}`
+                  : p.id === room.hostId
+                    ? "host"
+                    : p.ready
+                      ? "ready"
+                      : "not ready";
+              return (
+                <li
+                  key={p.id}
+                  className={`panel player${p.connected ? "" : " player--away"}${p.ready ? " player--ready" : ""}`}
+                >
+                  <span className="avatar player-avatar" aria-hidden="true">
+                    {p.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="player-name">
+                    <strong>{p.name}</strong>
+                    <span className="sub">{status}</span>
+                  </span>
+                  <span
+                    className={p.ready ? "ready ready--yes" : "ready"}
+                    aria-label={p.ready ? "Ready" : "Not ready"}
+                  >
+                    {p.ready ? "✓" : "…"}
+                  </span>
+                </li>
+              );
+            })}
+            {Array.from({ length: openSeats }, (_, i) => (
+              <li key={`open-${i}`} className="panel player player--open">
                 <span className="player-name">
-                  {p.name}
-                  {p.id === room.hostId && <span className="tag">host</span>}
-                  {p.id === selfId && <span className="tag tag--you">you</span>}
-                  {!p.connected && <span className="tag tag--away">away</span>}
+                  <strong>Open seat</strong>
                 </span>
-                <span className={p.ready ? "ready ready--yes" : "ready"}>
-                  {p.ready ? "Ready" : "Not ready"}
-                </span>
+                <button type="button" className="chip" onClick={() => setSheet("invite")}>
+                  Invite
+                </button>
               </li>
             ))}
           </ul>
 
-          {!spectator && self !== undefined && (
-            <button
-              type="button"
-              className={self.ready ? "button" : "button button--primary"}
-              onClick={() => void setReady(!self.ready).catch(() => undefined)}
-            >
-              {self.ready ? "Not ready" : "I'm ready"}
-            </button>
+          {spectator && (
+            <p className="sub">You're spectating — the game will appear when it starts.</p>
           )}
 
-          {isHost && (
-            <button
-              type="button"
-              className="button button--primary button--start"
-              disabled={!everyoneReady}
-              onClick={() => void startGame().catch(() => undefined)}
-            >
-              {everyoneReady
-                ? "Start game"
-                : room.players.length < 2
-                  ? "Waiting for players…"
-                  : "Waiting for ready…"}
+          <div className="lobby-actions">
+            {!spectator && self !== undefined && (
+              <button
+                type="button"
+                className={self.ready ? "button button--on" : "button"}
+                onClick={() => void setReady(!self.ready).catch(() => undefined)}
+              >
+                {self.ready ? "Not ready" : "I'm ready"}
+              </button>
+            )}
+            <button type="button" className="button" onClick={() => setSheet("rules")}>
+              Deck rules
             </button>
-          )}
-          {spectator && (
-            <p className="hint">You're spectating — the game will appear when it starts.</p>
-          )}
+            {isHost && (
+              <button
+                type="button"
+                className="button button--primary button--start"
+                disabled={!everyoneReady}
+                onClick={() => void startGame().catch(() => undefined)}
+              >
+                {everyoneReady
+                  ? "Start match"
+                  : room.players.length < 2
+                    ? "Waiting for players…"
+                    : "Waiting for ready…"}
+              </button>
+            )}
+          </div>
         </section>
 
-        <InvitePanel code={room.code} />
-        <SettingsPanel room={room} isHost={isHost} />
         <LobbyChat />
       </div>
+
+      {sheet === "invite" && <InviteDialog code={room.code} onClose={() => setSheet(null)} />}
+      {sheet === "rules" && (
+        <Dialog title="Deck rules" onClose={() => setSheet(null)}>
+          <SettingsRows room={room} isHost={isHost} />
+          <button type="button" className="button" onClick={() => setSheet(null)}>
+            Done
+          </button>
+        </Dialog>
+      )}
     </main>
   );
 }

@@ -2,17 +2,22 @@
  * DeckXI web client — screen layout and app-specific styling.
  *
  * Tokens and kit components come from @deckxi/ui/styles.css. Rules for this
- * file, from docs/design/direction.md:
+ * file, from docs/design/direction.md (v4, the cardboard turn — mockup 7):
  *
  *   - Semantic tokens only. No raw px for space or radius, no raw colour.
  *   - Mobile-first: the base rules are the phone layout, and every media
  *     query is min-width. Width queries use the breakpoint literal with the
  *     token named alongside, because media queries cannot read custom
  *     properties.
- *   - Cards are the hero; chrome is furniture. One accent-filled element per
- *     screen, at most one elevation step on any panel.
- *   - Every piece is drawn: --edge of --ink-line around it, and --elevation-*
- *     as the hard offset drop. Elevation is not blur in this system.
+ *   - Every piece is cut out of the cream stock with the same ink outline
+ *     (--edge of --ink-line). A piece that sits on the table has a hard
+ *     offset drop (--elevation-card); a piece that is part of the table is
+ *     flat. Nothing has a soft shadow.
+ *   - One accent per screen: the primary action is the only ember fill.
+ *     Green is a state — on, ready, won, the field — never chrome.
+ *   - Headings and numerals are the display face (Baloo 2, bold, never
+ *     uppercase). Section names are the small uppercase label. Running copy
+ *     is Barlow, and the quiet copy under a heading is --text-secondary.
  */
 
 /* -- reset & base ---------------------------------------------------------- */
@@ -50,6 +55,9 @@ body {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  /* The app bar is sized off 100vw, which on a desktop with a classic
+     scrollbar is a scrollbar's width too wide. Clip rather than scroll. */
+  overflow-x: clip;
 }
 
 button {
@@ -68,12 +76,13 @@ h1,
 h2,
 h3 {
   font-family: var(--font-display);
-  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-display);
   line-height: var(--leading-tight);
 }
 
 :focus-visible {
-  outline: 2px solid var(--interactive-focus);
+  outline: var(--edge) solid var(--interactive-focus);
   outline-offset: 2px;
 }
 
@@ -82,34 +91,26 @@ h3 {
 /* --gutter is the app's one horizontal rhythm. Screens use it for their own
    padding so nothing has to re-derive the edge distance. */
 :root {
-  --gutter: var(--space-6);
-}
-
-/* --bp-sm: large phone */
-@media (min-width: 480px) {
-  :root {
-    --gutter: var(--space-7);
-  }
+  --gutter: var(--space-8);
 }
 
 /* --bp-md: tablet */
 @media (min-width: 768px) {
   :root {
-    --gutter: var(--space-8);
+    --gutter: var(--space-9);
   }
 }
 
 /* --bp-lg: desktop */
 @media (min-width: 1024px) {
   :root {
-    --gutter: var(--space-9);
+    --gutter: var(--space-10);
   }
 }
 
 /* Safe areas on all four edges. viewport-fit=cover means a notch or a rounded
    corner will clip content otherwise — and in landscape that is the side
-   edges, not the bottom, which is the case the old bottom-only handling
-   missed entirely. */
+   edges, not the bottom. */
 .screen {
   flex: 1;
   display: flex;
@@ -136,16 +137,55 @@ h3 {
   align-items: center;
 }
 
+/* -- app bar --------------------------------------------------------------- */
+
+/* The bar across the top of every out-of-game screen: wordmark, the screen's
+   own items, the toggles. It is part of the stock, not a piece on it — one
+   rule under it, the same ink as every edge. Full-bleed: it pulls itself out
+   of the screen's padding so the rule runs edge to edge. */
+.app-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  /* 50% - 50vw is the negative of the space either side of the screen's
+     column, so the bar runs viewport edge to edge whatever the container;
+     the padding puts its content back on the column's gutter. */
+  margin: calc(-1 * max(var(--gutter), env(safe-area-inset-top))) calc(50% - 50vw) 0;
+  padding: max(var(--space-5), env(safe-area-inset-top)) calc(50vw - 50% + var(--gutter))
+    var(--space-5);
+  border-bottom: var(--edge) solid var(--ink-line);
+  background: var(--surface-raised);
+}
+
+.app-bar-title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-display);
+}
+
+.app-bar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
 /* -- brand ----------------------------------------------------------------- */
 
+/* DeckXI, set as one word in the display face with the XI in ember — the whole
+   brand is that colour break, so nothing else on a screen may take it. */
 .brand {
-  font-size: var(--text-2xl);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
   /* The wordmark is a link on several screens (it is the way home), so it has
      to say what colour it is or the UA paints it link-blue. */
   color: var(--text-primary);
+  text-decoration: none;
   margin: 0;
-  letter-spacing: var(--tracking-tight);
-  font-weight: var(--weight-black);
+  letter-spacing: var(--tracking-display);
+  line-height: 1;
 }
 
 .brand--small {
@@ -156,28 +196,58 @@ h3 {
   color: var(--text-accent);
 }
 
+/* -- type ------------------------------------------------------------------ */
+
+/* The one headline per screen, and the one line of quiet copy under it. */
+.headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-tight);
+  text-wrap: balance;
+}
+
+.sub {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+
 .tagline {
   color: var(--text-secondary);
-  margin: var(--space-2) 0 0;
+  margin: var(--space-3) 0 0;
 }
 
 /* -- panels & controls ----------------------------------------------------- */
 
+/* A piece: cream, outlined, with its drop. */
 .panel {
   background: var(--surface-panel);
   border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-md);
-  box-shadow: var(--elevation-raised);
-  padding: var(--space-6);
+  padding: var(--space-7);
+  box-shadow: var(--elevation-card);
 }
 
+/* A piece that is part of the table — outlined, no drop. Lists of rows, the
+   chat, anything that is furniture rather than a card you could pick up. */
+.panel--flat {
+  box-shadow: var(--elevation-flat);
+}
+
+/* A panel's own title is a headline, sized down. */
+.panel-title,
 .panel h2 {
-  margin: 0 0 var(--space-5);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-tight);
+  color: var(--text-primary);
 }
 
 .field {
@@ -186,30 +256,39 @@ h3 {
   gap: var(--space-3);
 }
 
-.field span {
+.field > span {
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
   color: var(--text-secondary);
-  font-size: var(--text-sm);
 }
 
 input,
 select {
   font-family: var(--font-sans);
-  /* Never below 16px: iOS zooms the viewport on focus otherwise, and the
-     zoom does not come back on blur. */
-  font-size: var(--text-md);
+  /* 16px on iOS or the viewport zooms on focus and never comes back. The
+     type scale's --text-md is below that in this direction, so fields state
+     the literal instead. */
+  font-size: 16px;
+  font-weight: var(--weight-medium);
   color: var(--text-primary);
   background: var(--surface-raised);
-  /* Fields are pressed into the page rather than sitting on it: the same ink
-     outline, but no drop — only things you can move have a shadow. */
   border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-sm);
-  padding: var(--space-5);
+  padding: var(--space-4) var(--space-5);
   min-height: var(--touch-min);
+}
+
+input::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
 }
 
 input:focus,
 select:focus {
-  outline: 2px solid var(--interactive-focus);
+  outline: var(--edge) solid var(--interactive-focus);
   outline-offset: 1px;
 }
 
@@ -222,144 +301,297 @@ select:focus {
 .notice {
   background: var(--surface-raised);
   border: var(--edge) solid var(--ink-line);
-  border-left: var(--space-3) solid var(--status-warning);
+  border-left-width: calc(var(--edge) * 3);
+  border-left-color: var(--status-warning);
   border-radius: var(--radius-sm);
-  box-shadow: var(--elevation-raised);
   padding: var(--space-5) var(--space-6);
   margin: 0;
+  font-size: var(--text-sm);
 }
 
+/* Status words, not chips: a state is a small uppercase word in its own
+   colour, with no pill around it. */
 .tag {
+  font-family: var(--font-label);
   font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  background: var(--surface-raised);
-  border: var(--edge) solid var(--ink-line);
-  border-radius: var(--radius-pill);
-  padding: 0 var(--space-4);
-  margin-left: var(--space-3);
+  letter-spacing: var(--tracking-label);
+  padding: 0;
+  margin-left: var(--space-4);
   color: var(--text-secondary);
   vertical-align: middle;
 }
 
 .tag--you {
   color: var(--text-accent);
-  border-color: var(--interactive-accent);
 }
 
 .tag--away {
   color: var(--status-warning);
-  border-color: var(--status-warning);
+}
+
+/* The on/off toggle from the settings mock: an outlined pill with an outlined
+   knob, green when on. */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  width: 46px;
+  height: 26px;
+  padding: 2px;
+  border: var(--edge) solid var(--ink-line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-base);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.toggle-knob {
+  width: 16px;
+  height: 16px;
+  border: var(--edge) solid var(--ink-line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.toggle--on {
+  background: var(--surface-field);
+}
+
+.toggle--on .toggle-knob {
+  transform: translateX(20px);
 }
 
 /* -- landing --------------------------------------------------------------- */
 
 .landing {
-  position: relative;
-  justify-content: center;
-  gap: var(--space-8);
-  max-width: var(--container-sm);
+  gap: 0;
+  max-width: var(--container-xl);
 }
 
-.landing-hero {
-  text-align: center;
-}
-
-.landing-hero .brand {
-  font-size: var(--text-3xl);
-}
-
-/* Box-art, not a subtitle: the tagline is a printed ribbon, off-square by a
-   degree so the first thing on the screen looks placed by hand. It is the one
-   band on the landing screen, which keeps the primary button the only fill
-   competing for the eye. */
-.landing-hero .tagline {
-  display: inline-block;
-  margin-top: var(--space-5);
-  padding: var(--space-3) var(--space-6);
-  border: var(--edge) solid var(--ink-line);
-  border-radius: var(--radius-pill);
-  background: var(--surface-band);
-  color: var(--text-on-band);
-  box-shadow: var(--elevation-raised);
-  font-weight: var(--weight-bold);
-  transform: rotate(-1.2deg);
-}
-
-.landing-form {
+.landing-body {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-7);
+  padding-top: var(--space-8);
 }
 
-.divider {
+.landing-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.landing-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-7);
+}
+
+/* --bp-md: tablet up — host and join side by side. */
+@media (min-width: 768px) {
+  .landing-grid {
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+  }
+}
+
+.landing-host,
+.landing-join {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* The CTA sits at the foot of its piece so both pieces' buttons line up. */
+.landing-cta {
+  margin-top: auto;
+}
+
+.landing-foot {
+  text-align: center;
+  margin-top: auto;
+  padding-top: var(--space-6);
+}
+
+.profile-chip {
   display: flex;
   align-items: center;
-  gap: var(--space-5);
-  color: var(--text-muted);
+  gap: var(--space-4);
+  min-height: var(--touch-min);
+  color: var(--text-primary);
+  text-decoration: none;
   font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
 }
 
-.divider::before,
-.divider::after {
-  content: "";
-  flex: 1;
-  height: 2px;
-  border-radius: var(--radius-pill);
-  background: var(--ink-line);
+.profile-chip-name {
+  color: var(--text-secondary);
 }
 
-.join-row {
+.profile-chip:hover .profile-chip-name {
+  color: var(--text-primary);
+}
+
+/* The six slots. One real input lies over them, transparent and full-size,
+   so it is still a text field to everyone that is not looking. */
+.code-slots {
+  position: relative;
   display: flex;
-  gap: var(--space-5);
+  gap: var(--space-4);
+  cursor: text;
 }
 
-.code-input {
-  flex: 1;
-  min-width: 0;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
-  font-family: var(--font-mono);
+.code-slot {
+  flex: 1 1 0;
+  max-width: 66px;
+  aspect-ratio: 4 / 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--edge) solid var(--ink-line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
   font-weight: var(--weight-bold);
-  font-size: var(--text-lg);
-  text-align: center;
+  color: var(--text-primary);
+}
+
+.code-slot--cursor {
+  border-color: var(--interactive-accent);
+  box-shadow: inset 0 0 0 1px var(--interactive-accent);
+}
+
+.code-slots .code-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  font-family: var(--font-display);
+  letter-spacing: var(--tracking-wider);
+}
+
+.code-slots .code-input::placeholder {
+  color: transparent;
+}
+
+.code-slots .code-input:focus {
+  outline: none;
+}
+
+.code-slots .code-input::selection {
+  background: transparent;
 }
 
 /* -- lobby ----------------------------------------------------------------- */
 
-.lobby-grid {
-  display: grid;
-  gap: var(--space-6);
-  grid-template-columns: 1fr;
+.lobby {
+  gap: 0;
+  max-width: var(--container-xl);
 }
 
-/* --bp-md: tablet up — the lobby's second column. Below this the panels
-   stack in priority order: players, invite, settings, chat. */
+/* On a phone the bar is the code and its chip; the wordmark comes back once
+   there is a tablet's width for it. */
+.lobby-bar .brand {
+  display: none;
+  font-size: var(--text-lg);
+}
+
+/* --bp-md: tablet up */
 @media (min-width: 768px) {
-  .lobby-grid {
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
+  .lobby-bar .brand {
+    display: block;
   }
 }
 
-.player-list {
-  list-style: none;
-  margin: 0 0 var(--space-5);
-  padding: 0;
+/* The room code in the bar: the display face, tracked so the characters read
+   one at a time down a phone line. */
+.lobby-code {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  font-variant-numeric: tabular-nums;
+}
+
+.lobby-rules-line {
+  display: none;
+}
+
+.lobby-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-7);
+  padding-top: var(--space-7);
+}
+
+.lobby-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+}
+
+.lobby-intro {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+}
+
+/* --bp-lg: desktop — chat becomes a column beside the seats, cut off by one
+   rule, and the deck line comes back into the bar. */
+@media (min-width: 1024px) {
+  .lobby-grid {
+    grid-template-columns: 1fr 330px;
+    gap: var(--space-9);
+  }
+
+  .lobby-rules-line {
+    display: inline;
+    margin-right: var(--space-4);
+  }
+}
+
+/* The seats: each player is a piece; an open seat is dashed and quiet. */
+.seat-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-5);
+}
+
+/* --bp-sm: large phone up */
+@media (min-width: 480px) {
+  .seat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* --bp-md: tablet up */
+@media (min-width: 768px) {
+  .seat-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .player {
   display: flex;
   align-items: center;
   gap: var(--space-5);
-  background: var(--surface-raised);
-  border: var(--edge) solid var(--ink-line);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--elevation-raised);
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-5) var(--space-6);
   min-height: var(--touch-min);
 }
 
@@ -367,44 +599,100 @@ select:focus {
   opacity: 0.55;
 }
 
+.player--open {
+  border-style: dashed;
+  box-shadow: var(--elevation-flat);
+  opacity: 0.7;
+}
+
 .player-avatar {
-  width: var(--space-10);
-  height: var(--space-10);
-  border: var(--edge) solid var(--ink-line);
-  border-radius: var(--radius-pill);
-  background: var(--surface-band);
-  color: var(--text-on-band);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: var(--weight-black);
-  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  font-size: var(--text-sm);
+}
+
+/* The host's seat is the one wearing the accent. */
+.player:first-child .player-avatar {
+  background: var(--interactive-accent);
+  color: var(--interactive-on-accent);
 }
 
 .player-name {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.player-name strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.ready {
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-}
-
-.ready--yes {
-  color: var(--status-win);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
   font-weight: var(--weight-bold);
 }
 
-.players-panel .button {
-  margin-top: var(--space-4);
+/* Ready is the green disc; not-yet is the outlined one. */
+.ready {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border: var(--edge) solid var(--ink-line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-base);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
 }
 
-.invite-panel .room-code {
-  margin-bottom: var(--space-5);
+.ready--yes {
+  background: var(--surface-field);
+  color: var(--text-on-field);
+}
+
+/* Ready-toggled: the button wears the state green while you are in. */
+.button--on {
+  background: var(--surface-field);
+  color: var(--text-on-field);
+}
+
+.button--on:hover:not(:disabled) {
+  background: var(--surface-field);
+}
+
+.lobby-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin-top: auto;
+  padding-top: var(--space-6);
+}
+
+.lobby-actions .button {
+  flex: 1 1 140px;
+}
+
+.lobby-actions .button--start {
+  flex: 1 1 100%;
+}
+
+/* --bp-md: tablet up — Start takes the right, the rest sit left. */
+@media (min-width: 768px) {
+  .lobby-actions .button {
+    flex: 0 0 auto;
+    min-width: 140px;
+  }
+
+  .lobby-actions .button--start {
+    flex: 0 0 auto;
+    min-width: 220px;
+    margin-left: auto;
+  }
 }
 
 .invite-actions {
@@ -412,7 +700,10 @@ select:focus {
   flex-wrap: wrap;
   gap: var(--space-5);
   justify-content: center;
-  margin-bottom: var(--space-5);
+}
+
+.invite-actions .button {
+  flex: 1;
 }
 
 .invite-qr {
@@ -420,9 +711,14 @@ select:focus {
   margin: 0 auto;
   border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-sm);
-  box-shadow: var(--elevation-raised);
   width: clamp(120px, 40vw, 168px);
   height: clamp(120px, 40vw, 168px);
+}
+
+.setting-rows,
+.settings-rows {
+  display: flex;
+  flex-direction: column;
 }
 
 .setting-row {
@@ -432,36 +728,82 @@ select:focus {
   gap: var(--space-5);
   padding: var(--space-4) 0;
   min-height: var(--touch-min);
-  border-bottom: 2px dashed var(--border-subtle);
+  border-bottom: 2px solid var(--ink-line-soft);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-sm);
 }
 
 .setting-row:last-of-type {
   border-bottom: none;
 }
 
-.chat-panel {
+.setting-row select {
+  min-height: 36px;
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-pill);
+  border-width: 2px;
+  background: var(--surface-base);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.setting-rows .sub {
+  padding-top: var(--space-4);
+}
+
+/* The chat: a flat piece with the log inside and the composer along its foot.
+   On a phone it sits under the seats; on a desktop it is the right column. */
+.lobby-chat {
   display: flex;
   flex-direction: column;
+  border: var(--edge) solid var(--ink-line);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  min-height: 260px;
+}
+
+.lobby-chat-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  border-bottom: var(--edge) solid var(--ink-line);
 }
 
 .chat-log {
   list-style: none;
-  margin: 0 0 var(--space-5);
-  padding: 0;
+  margin: 0;
+  padding: var(--space-5) var(--space-6);
   overflow-y: auto;
   overscroll-behavior: contain;
+  flex: 1 1 auto;
+  min-height: 0;
   /* Grows with the viewport instead of sitting at a fixed height that wastes
      a tablet and swamps a small phone. */
-  max-height: clamp(120px, 22dvh, 240px);
+  max-height: clamp(140px, 26dvh, 320px);
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-4);
   font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.chat-log strong {
+  color: var(--text-primary);
+}
+
+/* --bp-lg: desktop — the column runs the full height, so the log can too. */
+@media (min-width: 1024px) {
+  .lobby-chat .chat-log {
+    max-height: none;
+  }
 }
 
 .chat-row {
   display: flex;
   gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  border-top: var(--edge) solid var(--ink-line);
 }
 
 .chat-row input {
@@ -469,49 +811,44 @@ select:focus {
   min-width: 0;
 }
 
+.chat-send {
+  width: var(--touch-min);
+  border-radius: var(--radius-sm);
+  font-weight: var(--weight-bold);
+}
+
 /* -- game table ------------------------------------------------------------ */
 
 /* The neutral chip, still used by the /cards style guide. The table's own
-   version is the filled one below. */
+   version is the plate below. */
 .round-chip {
-  background: var(--surface-panel);
-  border: var(--edge) solid var(--ink-line);
+  border: 2px solid var(--ink-line);
   border-radius: var(--radius-pill);
-  box-shadow: var(--elevation-raised);
   padding: var(--space-2) var(--space-6);
-  font-weight: var(--weight-bold);
+  font-family: var(--font-sans);
   font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   white-space: nowrap;
 }
 
-/* The table was where the board-game language was invented, and it is now the
-   app's language: thick ink outlines, one hard offset shadow, a yellow band, a
-   green field. The --tbl-* names stay as the table's own vocabulary, but they
-   are aliases onto the global roles rather than a private palette — themes are
-   handled once, in tokens.json, for every screen at the same time.
-
-   Type is --font-display (rounded) rather than the design's Baloo 2: a webfont
-   is a network dependency on the screen that can least afford one, and the
-   rounded system stack carries the same voice. */
+/* The table is the cardboard set: the cream stock, the seats along the top,
+   your card as a piece on it. The --tbl-* names stay as the table's own
+   vocabulary, but they are aliases onto the global roles rather than a
+   private palette — themes are handled once, in tokens.json. */
 .table-screen {
   --tbl-line: var(--ink-line);
+  --tbl-line-soft: var(--ink-line-soft);
   --tbl-ink: var(--text-primary);
   --tbl-paper: var(--surface-base);
-  --tbl-sand: var(--surface-sunken);
-  --tbl-sun: var(--surface-band);
-  --tbl-ball: var(--interactive-accent);
+  --tbl-accent: var(--interactive-accent);
   --tbl-pitch: var(--surface-field);
-  --tbl-muted: var(--text-muted);
+  --tbl-muted: var(--text-secondary);
   /* What sits on a filled piece belongs to that fill, not to the theme's ink:
-     the green field and the yellow band each carry their own text role. */
+     the green field and the cream card face each carry their own text role. */
   --tbl-on-fill: var(--text-on-field);
-  --tbl-on-sun: var(--text-on-band);
-  --tbl-on-sun-muted: color-mix(in srgb, var(--text-on-band) 68%, transparent);
+  --tbl-on-accent: var(--interactive-on-accent);
 
-  /* One shadow step, one border width — the whole look is these two. */
   --tbl-edge: var(--edge);
-  --tbl-drop: var(--elevation-raised);
-  --tbl-drop-lg: var(--elevation-card);
   --tbl-inline: max(var(--space-6), env(safe-area-inset-left));
 
   position: relative;
@@ -524,7 +861,7 @@ select:focus {
   max-height: 100dvh;
   background: var(--tbl-paper);
   color: var(--tbl-ink);
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   overflow: hidden;
   /* Pull-to-refresh mid-match loses the round. */
   overscroll-behavior: none;
@@ -537,61 +874,69 @@ select:focus {
   margin: 0;
 }
 
+/* Inside your card the ink is the card's, not the room's. */
+.your-area .hint {
+  color: var(--card-body-muted);
+  padding: var(--space-7) var(--space-6);
+}
+
 /* -- head ------------------------------------------------------------------ */
 
+/* The head is the stock, cut off from the table by one rule. */
 .table-head {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: var(--space-5);
   padding: max(var(--space-5), env(safe-area-inset-top)) var(--tbl-inline) var(--space-5);
-  background: var(--tbl-sun);
   border-bottom: var(--tbl-edge) solid var(--tbl-line);
-  color: var(--tbl-on-sun);
+  background: var(--surface-raised);
+  color: var(--tbl-ink);
 }
 
 .table-wordmark {
+  display: none;
+  font-family: var(--font-display);
   font-size: var(--text-lg);
-  font-weight: var(--weight-black);
-  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-display);
+  line-height: 1;
 }
 
 .table-wordmark span {
-  color: var(--tbl-on-sun);
-  opacity: 0.72;
+  color: var(--tbl-accent);
 }
 
+/* "Round 4 of 6", in the display face. */
 .table-screen .round-chip {
-  background: transparent;
-  border: var(--tbl-edge) solid var(--tbl-on-sun);
-  border-radius: var(--radius-pill);
-  padding: var(--space-2) var(--space-5);
-  color: var(--tbl-on-sun);
-  font-size: var(--text-xs);
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
   font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-display);
+  color: var(--tbl-ink);
   white-space: nowrap;
 }
 
-/* Reads as a countdown before it reads as a number: the pill goes red for the
-   last five seconds, which is the only moment its exact value matters. */
+/* Reads as a countdown before it reads as a number: ember while there is
+   time, and it stays ember — the last five seconds are said by the tick. */
 .turn-timer {
   margin-left: auto;
-  min-width: 56px;
-  padding: var(--space-2) var(--space-5);
-  border: var(--tbl-edge) solid var(--tbl-on-sun);
-  border-radius: var(--radius-pill);
-  background: var(--tbl-paper);
-  color: var(--tbl-ink);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-black);
-  text-align: center;
+  min-width: 46px;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-display);
+  color: var(--tbl-accent);
+  text-align: right;
   font-variant-numeric: tabular-nums;
-  transition: background var(--dur-med) var(--ease-out);
+  transition: color var(--dur-med) var(--ease-out);
 }
 
 .turn-timer--urgent {
-  background: var(--tbl-ball);
-  color: var(--interactive-on-accent);
+  color: var(--status-danger);
 }
 
 /* -- score strip ----------------------------------------------------------- */
@@ -602,7 +947,7 @@ select:focus {
   gap: var(--space-3);
   padding: var(--space-4) var(--tbl-inline);
   background: var(--tbl-paper);
-  border-bottom: var(--tbl-edge) solid var(--tbl-line);
+  border-bottom: 2px solid var(--tbl-line-soft);
   overflow-x: auto;
   overscroll-behavior-x: contain;
   touch-action: pan-x;
@@ -616,60 +961,44 @@ select:focus {
 .score-chip {
   flex: 0 0 auto;
   padding: var(--space-2) var(--space-5);
-  border: var(--tbl-edge) solid var(--tbl-line);
+  border: 2px solid var(--tbl-line);
   border-radius: var(--radius-pill);
-  background: var(--tbl-paper);
+  font-family: var(--font-sans);
   font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
+  font-weight: var(--weight-semibold);
+  color: var(--tbl-ink);
   font-variant-numeric: tabular-nums;
 }
 
+/* You are the only seat in ember, on every screen. */
 .score-chip--mine {
-  background: var(--tbl-pitch);
-  color: var(--tbl-on-fill);
+  border-color: var(--tbl-accent);
+  color: var(--tbl-accent);
 }
 
 .score-chip--out {
-  background: var(--tbl-sand);
-  color: var(--tbl-muted);
-  opacity: 0.75;
+  opacity: 0.45;
 }
 
 /* -- the field ------------------------------------------------------------- */
 
-/* The green is the table itself: opponents sit around the top of it and the
-   called stat sits in the middle, where everyone at a real table would be
-   looking. */
+/* On a phone the field is the stock itself: a row of seats and the call under
+   them. It only turns green on a desktop, where there is room for a table. */
 .table-field {
   flex: 0 0 auto;
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-5);
   padding: var(--space-5) var(--tbl-inline);
-  background: var(--tbl-pitch);
-  border-bottom: var(--tbl-edge) solid var(--tbl-line);
+  color: var(--tbl-ink);
   overflow: hidden;
-}
-
-/* The boundary rope, drawn rather than imported. */
-.table-field::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: -90px;
-  width: 520px;
-  height: 400px;
-  transform: translateX(-50%);
-  border: 4px dashed color-mix(in srgb, var(--text-on-field) 35%, transparent);
-  border-radius: 50%;
-  pointer-events: none;
 }
 
 .field-seats {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
   gap: var(--space-4);
   align-items: start;
 }
@@ -690,37 +1019,30 @@ select:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border: var(--tbl-edge) solid var(--tbl-line);
+  width: 38px;
+  height: 38px;
   border-radius: var(--radius-pill);
-  background: var(--tbl-sun);
-  color: var(--tbl-on-sun);
+  border: var(--tbl-edge) solid var(--tbl-line);
+  background: var(--surface-sunken);
+  color: var(--tbl-ink);
+  font-family: var(--font-display);
   font-size: var(--text-sm);
-  font-weight: var(--weight-black);
-  transition:
-    box-shadow var(--dur-med) var(--ease-out),
-    transform var(--dur-med) var(--ease-out);
+  font-weight: var(--weight-bold);
+  transition: box-shadow var(--dur-med) var(--ease-out);
 }
 
-/* Whoever holds the pick is the only thing on the field that moves. */
+/* Whoever holds the pick is the one seat wearing the accent. */
 .seat--leader .seat-avatar {
-  transform: scale(1.1);
-  box-shadow:
-    0 0 0 4px var(--tbl-paper),
-    0 0 0 7px var(--tbl-line);
+  background: var(--tbl-accent);
+  color: var(--tbl-on-accent);
 }
 
 .seat-plate {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: var(--space-1);
   max-width: 100%;
-  padding: var(--space-2) var(--space-4);
-  border: var(--tbl-edge) solid var(--tbl-line);
-  border-radius: var(--radius-sm);
-  background: var(--tbl-paper);
-  box-shadow: var(--tbl-drop);
   text-align: center;
 }
 
@@ -730,12 +1052,19 @@ select:focus {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
+  font-weight: var(--weight-semibold);
+  color: var(--tbl-muted);
 }
 
+/* Played is green; anything else is the muted tan. */
 .seat-status {
   font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
   color: var(--tbl-muted);
+}
+
+.seat--leader .seat-status {
+  color: var(--tbl-accent);
 }
 
 .seat-card {
@@ -744,24 +1073,29 @@ select:focus {
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
-  width: 74px;
-  min-height: 56px;
+  width: 64px;
+  min-height: 74px;
   padding: var(--space-3) var(--space-2);
   border: var(--tbl-edge) solid var(--tbl-line);
-  border-radius: var(--radius-xs);
-  box-shadow: var(--tbl-drop);
+  border-radius: var(--radius-sm);
   text-align: center;
 }
 
+/* Face-down is the deck's own back: blue stock, the dotted grid, the ink
+   outline — the same object the hand fans under your card. */
 .seat-card--down {
-  background: var(--surface-inverse);
-  color: var(--text-inverse);
-  font-size: var(--text-md);
-  font-weight: var(--weight-black);
+  background: var(--card-back);
+  background-image: var(--card-back-grid);
+  background-size: 9px 9px;
+  box-shadow: var(--elevation-raised);
+  color: transparent;
+  font-size: 0;
 }
 
 .seat-card--up {
-  background: var(--tbl-paper);
+  background: var(--card-face);
+  color: var(--card-body-ink);
+  box-shadow: var(--elevation-raised);
   /* Staggered so the reveal reads as three cards turning, not one flash. */
   animation: flip-in var(--dur-slow) var(--ease-spring) both;
   animation-delay: calc(var(--seat-index, 0) * 130ms);
@@ -774,93 +1108,167 @@ select:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: var(--font-label);
   font-size: var(--text-xs);
-  color: var(--tbl-muted);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-normal);
+  text-transform: uppercase;
+  color: var(--card-body-muted);
 }
 
 .seat-card-value {
+  font-family: var(--font-display);
   font-size: var(--text-lg);
-  font-weight: var(--weight-black);
+  font-weight: var(--weight-bold);
   font-variant-numeric: tabular-nums;
+  color: var(--card-body-ink);
 }
 
 .seat-card-value--win {
-  color: var(--tbl-pitch);
+  color: var(--status-win);
 }
 
 .seat--winner .seat-card {
-  box-shadow: var(--tbl-drop-lg);
+  border-color: var(--status-win);
+  box-shadow:
+    inset 0 0 0 2px var(--status-win),
+    var(--elevation-raised);
 }
 
 /* -- the called stat ------------------------------------------------------- */
 
+/* On a phone: one line under the seats — the call, and the bar draining
+   beside it. On a desktop it becomes the piece in the middle of the field. */
 .called-panel {
   position: relative;
-  align-self: center;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: var(--space-2);
-  width: min(240px, 100%);
-  padding: var(--space-3) var(--space-5);
-  border: var(--tbl-edge) solid var(--tbl-line);
-  border-radius: var(--radius-md);
-  background: var(--tbl-sun);
-  box-shadow: var(--tbl-drop);
-  color: var(--tbl-on-sun);
-  text-align: center;
+  gap: var(--space-2) var(--space-5);
+  color: var(--tbl-ink);
 }
 
 .called-label {
+  grid-column: 1 / -1;
+  font-family: var(--font-label);
   font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
-  color: var(--tbl-on-sun-muted);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--tbl-muted);
 }
 
 .called-stat {
+  font-family: var(--font-display);
   font-size: var(--text-lg);
-  font-weight: var(--weight-black);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-tight);
 }
 
 .called-meter {
   width: 100%;
-  height: 9px;
-  border: var(--tbl-edge) solid var(--tbl-on-sun);
+  height: 10px;
+  border: 2px solid var(--tbl-line);
   border-radius: var(--radius-pill);
-  background: var(--surface-base);
+  background: var(--surface-raised);
   overflow: hidden;
 }
 
 .called-meter > span {
   display: block;
   height: 100%;
-  background: var(--tbl-ball);
+  background: var(--tbl-accent);
   transition: width 0.9s linear;
 }
 
 .called-pot {
   font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
-  color: var(--tbl-on-sun-muted);
+  font-weight: var(--weight-medium);
+  color: var(--tbl-muted);
+  white-space: nowrap;
 }
 
 /* -- your hand ------------------------------------------------------------- */
 
-/* The card is not drawn here, its stats are: on a phone the six rows *are*
-   the card, and they are the only tappable thing on the screen. */
+/* Your card, and its face *is* the picker: the whole region is the cream
+   piece, the head is the card's head, and the rows below it are the stat
+   table you tap. The fanned backs under it are the rest of your hand. */
 .your-area {
+  position: relative;
+  z-index: 1;
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-5) var(--tbl-inline);
-  background: var(--tbl-paper);
+  padding: 0;
+  margin: var(--space-4) var(--tbl-inline) var(--space-5);
+  border: var(--tbl-edge) solid var(--tbl-line);
+  border-radius: var(--radius-md);
+  background: var(--card-face);
+  color: var(--card-body-ink);
+  box-shadow: var(--elevation-card);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   transition: opacity var(--dur-med) var(--ease-out);
+}
+
+/* The region that holds your card and the fan under it. */
+.your-hand {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The rest of the hand, fanned under the face: three blue backs and the top
+   of the next card, tilted. It sits after the face in the flow so it never
+   scrolls with the stat rows. */
+.hand-fan {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding: 0 var(--tbl-inline) var(--space-4);
+  pointer-events: none;
+}
+
+.hand-fan-card {
+  width: 54px;
+  height: 76px;
+  margin-right: -22px;
+  border: var(--tbl-edge) solid var(--tbl-line);
+  border-radius: var(--radius-sm);
+  background: var(--card-back);
+  background-image: var(--card-back-grid);
+  background-size: 9px 9px;
+  box-shadow: var(--elevation-raised);
+}
+
+.hand-fan-card:nth-child(1) {
+  transform: rotate(-10deg);
+}
+
+.hand-fan-card:nth-child(2) {
+  transform: rotate(-3deg);
+}
+
+.hand-fan-card:nth-child(3) {
+  transform: rotate(4deg);
+}
+
+.hand-fan-card--face {
+  margin-right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card-face);
+  color: var(--tbl-accent);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  transform: rotate(11deg);
 }
 
 /* Mid-reveal your hand has already moved on to the next card; dimming it says
@@ -869,59 +1277,59 @@ select:focus {
   opacity: 0.55;
 }
 
+/* The card's own head, on the stock: name in the display face, everything
+   else small and quiet under it. */
 .hand-head {
+  flex: 0 0 auto;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-5);
+  padding: var(--space-6) var(--space-6) var(--space-4);
   animation: rise var(--dur-med) var(--ease-out);
 }
 
+/* The mini back that says this face is one of several. */
 .hand-thumb {
-  flex: 0 0 auto;
-  width: 38px;
-  height: 52px;
-  border: var(--tbl-edge) solid var(--tbl-line);
-  border-radius: var(--radius-xs);
-  background: repeating-linear-gradient(45deg, var(--tbl-sand) 0 5px, var(--tbl-paper) 5px 10px);
+  display: none;
 }
 
 .hand-id {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
   min-width: 0;
 }
 
 .hand-name {
-  font-size: var(--text-lg);
-  font-weight: var(--weight-black);
-}
-
-.hand-rarity {
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-pill);
-  background: var(--tbl-muted);
-  color: var(--tbl-paper);
-  font-size: var(--text-xs);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
   font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-tight);
+  color: var(--card-body-ink);
+}
+
+/* Rarity is a word, not a badge — the foil on the card is what makes a legend
+   look like one. */
+.hand-rarity {
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
+  color: var(--card-body-muted);
 }
 
-.hand-rarity--star {
-  background: var(--tbl-pitch);
-  color: var(--tbl-on-fill);
-}
-
+.hand-rarity--star,
 .hand-rarity--legend {
-  background: var(--tbl-ball);
-  color: var(--interactive-on-accent);
+  color: var(--card-body-accent);
 }
 
 .hand-meta {
   flex-basis: 100%;
-  font-size: var(--text-xs);
-  color: var(--tbl-muted);
+  font-size: var(--text-sm);
+  color: var(--card-body-muted);
 }
 
 .hand-count {
@@ -929,24 +1337,39 @@ select:focus {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  gap: 0;
+  font-family: var(--font-display);
   font-size: var(--text-lg);
-  font-weight: var(--weight-black);
+  font-weight: var(--weight-bold);
   font-variant-numeric: tabular-nums;
+  color: var(--card-body-ink);
+  white-space: nowrap;
 }
 
 .hand-count small {
+  font-family: var(--font-sans);
   font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
-  color: var(--tbl-muted);
+  font-weight: var(--weight-medium);
+  color: var(--card-body-muted);
 }
 
+/* The stat rows are pieces of their own: each an outlined pill inside the
+   card, stacked with a gap, and the called one is green with its drop. */
 .stat-rows {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 var(--space-5) var(--space-5);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
+}
+
+.table-screen .stat-row {
+  border-top: none;
+}
+
+.table-screen .stat-row::before {
+  display: none;
 }
 
 .table-screen .stat-button {
@@ -958,43 +1381,47 @@ select:focus {
   padding: var(--space-4) var(--space-5);
   border: var(--tbl-edge) solid var(--tbl-line);
   border-radius: var(--radius-sm);
-  background: var(--tbl-paper);
-  box-shadow: var(--tbl-drop);
-  color: var(--tbl-ink);
+  /* The rows are printed on the card, so they take the card's own stock and
+     ink in both themes — never the app's surface. */
+  background: var(--card-face);
+  color: var(--card-body-ink);
   text-align: left;
   cursor: pointer;
   touch-action: manipulation;
   transition:
+    background var(--dur-fast) var(--ease-out),
     transform var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out),
-    background var(--dur-med) var(--ease-out);
+    box-shadow var(--dur-fast) var(--ease-out);
 }
 
 /* Not your pick: still readable, still legible as data, just not a target. */
 .table-screen .stat-button:disabled {
   cursor: default;
-  box-shadow: none;
-  background: var(--tbl-sand);
+}
+
+.table-screen .stat-button:not(:disabled) {
+  box-shadow: var(--elevation-raised);
 }
 
 .table-screen .stat-button:not(:disabled):hover {
-  transform: translate(-2px, -2px);
-  box-shadow: var(--tbl-drop-lg);
+  background: var(--interactive-accent-subtle);
 }
 
 .table-screen .stat-button:not(:disabled):active {
-  transform: translate(2px, 2px);
-  box-shadow: 0 0 0 var(--tbl-line);
+  transform: translate(3px, 3px);
+  box-shadow: var(--elevation-flat);
 }
 
+/* The called stat is the one row that turns green. */
 .table-screen .stat-row--hot .stat-button {
   background: var(--tbl-pitch);
   color: var(--tbl-on-fill);
+  box-shadow: var(--elevation-raised);
 }
 
 .table-screen .stat-row--hot .stat-name,
 .table-screen .stat-row--hot .stat-hint {
-  color: color-mix(in srgb, var(--tbl-on-fill) 85%, transparent);
+  color: var(--tbl-on-fill);
 }
 
 .table-screen .stat-row--hot .stat-value {
@@ -1002,42 +1429,63 @@ select:focus {
 }
 
 .table-screen .stat-name {
-  flex: 0 0 88px;
+  flex: 1 1 auto;
+  font-family: var(--font-label);
   font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
-  color: var(--tbl-muted);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  color: var(--card-body-muted);
   text-transform: uppercase;
 }
 
 .stat-meter {
-  flex: 1;
-  height: 7px;
-  border: 2px solid var(--tbl-line);
+  flex: 0 1 72px;
+  height: 6px;
+  border: none;
   border-radius: var(--radius-pill);
-  background: var(--tbl-sand);
+  background: var(--card-rule);
   overflow: hidden;
 }
 
 .stat-meter > span {
   display: block;
   height: 100%;
-  background: var(--tbl-sun);
+  background: var(--card-body-accent);
   transition: width var(--dur-slow) var(--ease-out);
+}
+
+.table-screen .stat-row--hot .stat-meter {
+  background: color-mix(in srgb, var(--tbl-on-fill) 24%, transparent);
+}
+
+.table-screen .stat-row--hot .stat-meter > span {
+  background: var(--tbl-on-fill);
 }
 
 .table-screen .stat-value {
   flex: 0 0 auto;
-  font-size: var(--text-md);
-  font-weight: var(--weight-black);
+  min-width: 3ch;
+  text-align: right;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
   font-variant-numeric: tabular-nums;
 }
 
 .stat-hint {
+  display: none;
   flex: 0 0 52px;
   font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
-  color: var(--tbl-muted);
+  font-weight: var(--weight-medium);
+  color: var(--card-body-muted);
   text-align: right;
+}
+
+/* --bp-sm: large phone up — room for the strong / decent / risky word. */
+@media (min-width: 480px) {
+  .stat-hint {
+    display: block;
+  }
 }
 
 /* -- the bottom bar -------------------------------------------------------- */
@@ -1049,7 +1497,7 @@ select:focus {
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-4) var(--tbl-inline) max(var(--space-5), env(safe-area-inset-bottom));
-  background: var(--tbl-paper);
+  background: var(--surface-raised);
   border-top: var(--tbl-edge) solid var(--tbl-line);
 }
 
@@ -1057,34 +1505,33 @@ select:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 36px;
+  width: 38px;
+  min-width: 0;
+  height: 38px;
+  min-height: 0;
+  padding: 0;
   border: var(--tbl-edge) solid var(--tbl-line);
-  border-radius: var(--radius-xs);
-  background: var(--tbl-paper);
+  border-radius: var(--radius-pill);
+  background: var(--surface-base);
   color: var(--tbl-ink);
-  box-shadow: var(--tbl-drop);
+  font-size: var(--text-sm);
   cursor: pointer;
   touch-action: manipulation;
   transition:
-    transform var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out);
+    background var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
 }
 
 .table-screen .icon-button--accent {
   margin-left: auto;
-  background: var(--tbl-sun);
-  color: var(--tbl-on-sun);
 }
 
 .table-screen .icon-button:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: var(--tbl-drop-lg);
+  background: var(--surface-raised);
 }
 
 .table-screen .icon-button:active {
-  transform: translate(2px, 2px);
-  box-shadow: 0 0 0 var(--tbl-line);
+  opacity: 0.72;
 }
 
 /* -- emotes ---------------------------------------------------------------- */
@@ -1100,8 +1547,8 @@ select:focus {
   padding: var(--space-4);
   border: var(--tbl-edge) solid var(--tbl-line);
   border-radius: var(--radius-md);
-  background: var(--tbl-paper);
-  box-shadow: var(--tbl-drop-lg);
+  background: var(--surface-overlay);
+  box-shadow: var(--elevation-card);
   animation: rise var(--dur-fast) var(--ease-out);
 }
 
@@ -1117,21 +1564,23 @@ select:focus {
   justify-content: center;
   min-height: var(--touch-min);
   padding: var(--space-3) 0;
-  border: var(--tbl-edge) solid var(--tbl-line);
-  border-radius: var(--radius-xs);
-  background: var(--tbl-sand);
-  box-shadow: var(--tbl-drop);
+  border: 2px solid var(--tbl-line-soft);
+  border-radius: var(--radius-sm);
+  background: transparent;
   font-size: var(--text-lg);
   cursor: pointer;
   touch-action: manipulation;
   transition:
-    transform var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out);
+    background var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
+}
+
+.table-screen .emote-button:hover {
+  background: var(--interactive-accent-subtle);
 }
 
 .table-screen .emote-button:active {
-  transform: translate(2px, 2px);
-  box-shadow: 0 0 0 var(--tbl-line);
+  opacity: 0.72;
 }
 
 /* -- in-game chat ---------------------------------------------------------- */
@@ -1145,39 +1594,42 @@ select:focus {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-height: 36px;
-  padding: var(--space-3) var(--space-5);
+  min-height: 38px;
+  padding: 0 var(--space-6);
   border: var(--tbl-edge) solid var(--tbl-line);
-  border-radius: var(--radius-xs);
-  background: var(--tbl-paper);
+  border-radius: var(--radius-pill);
+  background: var(--surface-base);
   color: var(--tbl-ink);
+  font-family: var(--font-sans);
   font-size: var(--text-sm);
-  font-weight: var(--weight-bold);
-  box-shadow: var(--tbl-drop);
+  font-weight: var(--weight-semibold);
   cursor: pointer;
   touch-action: manipulation;
   transition:
-    transform var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out);
+    background var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
+}
+
+.game-chat-toggle:hover {
+  background: var(--surface-raised);
 }
 
 .game-chat-toggle:active {
-  transform: translate(2px, 2px);
-  box-shadow: 0 0 0 var(--tbl-line);
+  opacity: 0.72;
 }
 
 .game-chat-badge {
   position: absolute;
-  top: -9px;
-  right: -9px;
+  top: -8px;
+  right: -8px;
   min-width: 20px;
   padding: 0 var(--space-2);
-  border: var(--tbl-edge) solid var(--tbl-line);
+  border: 2px solid var(--tbl-line);
   border-radius: var(--radius-pill);
-  background: var(--tbl-ball);
-  color: var(--interactive-on-accent);
+  background: var(--tbl-accent);
+  color: var(--tbl-on-accent);
   font-size: var(--text-xs);
-  font-weight: var(--weight-black);
+  font-weight: var(--weight-bold);
   line-height: 16px;
   text-align: center;
 }
@@ -1205,14 +1657,16 @@ select:focus {
   align-items: center;
   gap: var(--space-5);
   padding: max(var(--space-5), env(safe-area-inset-top)) var(--tbl-inline) var(--space-5);
-  background: var(--tbl-sun);
   border-bottom: var(--tbl-edge) solid var(--tbl-line);
+  background: var(--surface-raised);
 }
 
 .game-chat-title {
+  font-family: var(--font-display);
   font-size: var(--text-lg);
-  font-weight: var(--weight-black);
-  color: var(--tbl-on-sun);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-display);
+  color: var(--tbl-ink);
 }
 
 .game-chat-head .icon-button {
@@ -1237,18 +1691,19 @@ select:focus {
   max-width: 82%;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
   padding: var(--space-4) var(--space-5);
-  border: var(--tbl-edge) solid var(--tbl-line);
+  border: 2px solid var(--tbl-line);
   border-radius: var(--radius-sm) var(--radius-sm) var(--radius-sm) var(--space-2);
-  background: var(--tbl-paper);
-  box-shadow: var(--tbl-drop);
+  background: var(--surface-raised);
+  color: var(--tbl-ink);
   font-size: var(--text-sm);
 }
 
 .chat-msg strong {
   font-size: var(--text-xs);
-  color: var(--tbl-muted);
+  font-weight: var(--weight-bold);
+  color: var(--tbl-ink);
 }
 
 .chat-msg--mine {
@@ -1259,7 +1714,7 @@ select:focus {
 }
 
 .chat-msg--mine strong {
-  color: color-mix(in srgb, var(--tbl-on-fill) 80%, transparent);
+  color: var(--tbl-on-fill);
 }
 
 .chat-quick {
@@ -1272,20 +1727,25 @@ select:focus {
 
 .chat-quick-button {
   padding: var(--space-3) var(--space-5);
-  border: var(--tbl-edge) solid var(--tbl-line);
+  border: 2px solid var(--tbl-line);
   border-radius: var(--radius-pill);
-  background: var(--tbl-sand);
+  background: var(--surface-base);
   color: var(--tbl-ink);
   font-size: var(--text-sm);
-  font-weight: var(--weight-bold);
-  box-shadow: var(--tbl-drop);
+  font-weight: var(--weight-semibold);
   cursor: pointer;
   touch-action: manipulation;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
+}
+
+.chat-quick-button:hover {
+  background: var(--surface-raised);
 }
 
 .chat-quick-button:active {
-  transform: translate(2px, 2px);
-  box-shadow: 0 0 0 var(--tbl-line);
+  opacity: 0.72;
 }
 
 .table-screen .chat-row {
@@ -1294,27 +1754,16 @@ select:focus {
   gap: var(--space-4);
   padding: var(--space-5) var(--tbl-inline) max(var(--space-5), env(safe-area-inset-bottom));
   border-top: var(--tbl-edge) solid var(--tbl-line);
+  background: var(--surface-raised);
 }
 
 .table-screen .chat-row input {
   flex: 1;
   min-width: 0;
-  padding: var(--space-5);
-  border: var(--tbl-edge) solid var(--tbl-line);
-  border-radius: var(--radius-xs);
-  background: var(--tbl-sand);
-  color: var(--tbl-ink);
-  font: inherit;
-  font-size: var(--text-md);
 }
 
 .table-screen .chat-row .button {
-  border: var(--tbl-edge) solid var(--tbl-line);
-  border-radius: var(--radius-xs);
-  background: var(--tbl-ball);
-  color: var(--interactive-on-accent);
-  font-weight: var(--weight-black);
-  box-shadow: var(--tbl-drop);
+  box-shadow: var(--elevation-raised);
 }
 
 /* -- the verdict ----------------------------------------------------------- */
@@ -1325,19 +1774,20 @@ select:focus {
   /* On top of the bottom bar rather than over it: mute, theme and chat stay
      reachable while the verdict holds. */
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 100%;
+  left: var(--tbl-inline);
+  right: var(--tbl-inline);
+  bottom: calc(100% + var(--space-4));
   z-index: 6;
-  padding: var(--space-6) var(--tbl-inline);
-  border-top: var(--tbl-edge) solid var(--tbl-line);
-  border-bottom: var(--tbl-edge) solid var(--tbl-line);
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  background: var(--tbl-ball);
-  color: var(--interactive-on-accent);
+  padding: var(--space-6);
+  border: var(--tbl-edge) solid var(--tbl-line);
+  border-radius: var(--radius-md);
+  background: var(--surface-overlay);
+  box-shadow: var(--elevation-card);
+  color: var(--tbl-ink);
   animation: rise var(--dur-med) var(--ease-out);
 }
 
+/* Winning is the one moment the table itself comes up to meet you. */
 .verdict-sheet--won {
   background: var(--tbl-pitch);
   color: var(--tbl-on-fill);
@@ -1345,15 +1795,16 @@ select:focus {
 
 .verdict-title {
   margin: 0;
+  font-family: var(--font-display);
   font-size: var(--text-xl);
-  font-weight: var(--weight-black);
-  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-tight);
 }
 
 .verdict-sub {
   margin: var(--space-3) 0 0;
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
   opacity: 0.85;
 }
 
@@ -1370,11 +1821,152 @@ select:focus {
   }
 
   .seat-card {
-    min-height: 44px;
+    min-height: 56px;
   }
 
-  .hand-thumb {
+  .stat-rows {
+    gap: var(--space-3);
+  }
+
+  .hand-fan {
     display: none;
+  }
+}
+
+/* --bp-lg: desktop — the table proper. The head spans; the field is a green
+   piece on the left with the seats around it, the call in the middle and
+   the fan along its foot; your card takes the right column; the bar spans. */
+@media (min-width: 1024px) {
+  .table-screen {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    grid-template-rows: auto auto 1fr auto;
+    max-width: var(--container-xl);
+    --toast-lift: 0px;
+  }
+
+  .table-screen > * {
+    min-height: 0;
+  }
+
+  .table-head,
+  .score-strip,
+  .table-social {
+    grid-column: 1 / -1;
+  }
+
+  .table-wordmark {
+    display: block;
+  }
+
+  .table-field {
+    grid-area: 3 / 1 / 4 / 2;
+    margin: var(--space-8) var(--space-7) var(--space-8) var(--tbl-inline);
+    padding: var(--space-7);
+    border: var(--tbl-edge) solid var(--tbl-line);
+    border-radius: var(--radius-lg);
+    background: var(--field-gradient);
+    color: var(--tbl-on-fill);
+    justify-content: flex-start;
+  }
+
+  /* The boundary rope. */
+  .table-field::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 520px;
+    height: 340px;
+    transform: translate(-50%, -50%);
+    border: 3px dashed color-mix(in srgb, var(--tbl-on-fill) 40%, transparent);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .field-seats {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+
+  .seat {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .seat-plate {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .seat-avatar {
+    background: var(--surface-raised);
+  }
+
+  .seat-name {
+    max-width: 120px;
+    font-family: var(--font-display);
+    font-size: var(--text-md);
+    font-weight: var(--weight-bold);
+    color: var(--tbl-on-fill);
+  }
+
+  .seat-status {
+    color: color-mix(in srgb, var(--tbl-on-fill) 78%, transparent);
+  }
+
+  .seat--leader .seat-status {
+    color: var(--tbl-on-fill);
+  }
+
+  .called-panel {
+    align-self: center;
+    margin: auto 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    width: 300px;
+    padding: var(--space-7);
+    border: var(--tbl-edge) solid var(--tbl-line);
+    border-radius: var(--radius-md);
+    background: var(--surface-panel);
+    color: var(--tbl-ink);
+    box-shadow: var(--elevation-card);
+    text-align: center;
+  }
+
+  .called-stat {
+    font-size: var(--text-xl);
+  }
+
+  .your-hand {
+    grid-area: 3 / 2 / 4 / 3;
+    border-left: var(--tbl-edge) solid var(--tbl-line);
+    background: var(--surface-raised);
+  }
+
+  .your-area {
+    margin: var(--space-6);
+  }
+
+  .hand-fan {
+    padding-bottom: var(--space-6);
+  }
+
+  /* The verdict rises over the field, not over your card. */
+  .verdict-sheet {
+    right: calc(320px + var(--space-7));
+  }
+
+  /* The column is narrow: the stat name gets the room, the meter shrinks
+     and the strong / risky word goes. */
+  .stat-hint {
+    display: none;
+  }
+
+  .stat-meter {
+    flex: 0 0 44px;
   }
 }
 
@@ -1429,7 +2021,7 @@ select:focus {
 }
 
 .results-panel--won {
-  box-shadow: var(--elevation-card);
+  border-color: var(--status-win);
 }
 
 .results-trophy {
@@ -1440,11 +2032,12 @@ select:focus {
 
 .results-panel .results-title {
   margin: 0;
-  font-size: var(--text-xl);
-  font-weight: var(--weight-black);
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
   color: var(--text-primary);
-  text-transform: none;
-  letter-spacing: var(--tracking-tight);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-tight);
 }
 
 .results-reason {
@@ -1464,21 +2057,22 @@ select:focus {
 .standing {
   display: flex;
   gap: var(--space-5);
-  background: var(--surface-raised);
-  border: var(--edge) solid var(--ink-line);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--elevation-raised);
   padding: var(--space-4) var(--space-5);
   min-height: var(--touch-min);
   align-items: center;
+  border: var(--edge) solid var(--ink-line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-base);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
 }
 
 /* The winner's row is the one place a standing is filled: the outcome is the
-   content here, so it takes the band. */
+   content here, so it takes the green. */
 .standing--winner {
-  background: var(--surface-band);
-  color: var(--text-on-band);
-  box-shadow: var(--elevation-card);
+  background: var(--surface-field);
+  color: var(--text-on-field);
+  box-shadow: var(--elevation-raised);
 }
 
 .standing-name {
@@ -1501,12 +2095,15 @@ select:focus {
 .conn-banner {
   background: var(--status-warning-surface);
   color: var(--status-warning-on);
-  border-bottom: var(--edge) solid var(--ink-line);
   text-align: center;
-  font-weight: var(--weight-bold);
-  font-size: var(--text-sm);
+  font-family: var(--font-label);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
   padding: var(--space-4) var(--gutter);
   padding-top: max(var(--space-4), env(safe-area-inset-top));
+  border-bottom: var(--edge) solid var(--ink-line);
 }
 
 .conn-banner--offline {
@@ -1532,11 +2129,12 @@ select:focus {
   gap: var(--space-5);
   padding: var(--space-5) var(--space-6);
   border: var(--edge) solid var(--ink-line);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--surface-overlay);
   color: var(--text-primary);
   font-size: var(--text-sm);
-  box-shadow: var(--elevation-overlay);
+  font-weight: var(--weight-medium);
+  box-shadow: var(--elevation-card);
   animation: rise var(--dur-fast) var(--ease-out);
 }
 
@@ -1553,37 +2151,26 @@ select:focus {
   }
 }
 
-/* -- profile / history / privacy ------------------------------------------- */
+/* -- settings (profile) / history / privacy -------------------------------- */
 
-/* Landing's floating chrome — theme toggle plus the profile chip. Absolute so
-   the hero stays optically centred, and inset off the safe area rather than a
-   raw px so it clears a notch in either orientation. */
-.landing-chrome {
-  position: absolute;
-  top: max(var(--space-5), env(safe-area-inset-top));
-  right: max(var(--space-5), env(safe-area-inset-right));
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
+.settings {
+  max-width: var(--container-md);
+  gap: var(--space-7);
 }
 
-.profile-chip {
+/* Each section is a label over a flat piece of rows. */
+.settings-section {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: var(--space-4);
-  min-height: var(--touch-min);
-  padding: var(--space-3) var(--space-5) var(--space-3) var(--space-3);
-  border: var(--edge) solid var(--ink-line);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--elevation-raised);
-  background: var(--surface-raised);
-  color: var(--text-primary);
-  text-decoration: none;
-  font-size: var(--text-sm);
 }
 
-.profile-chip:hover {
-  border-color: var(--interactive-accent);
+.settings-section .panel {
+  padding: var(--space-6);
+}
+
+.settings-rows {
+  padding-block: var(--space-2);
 }
 
 .profile-card {
@@ -1603,6 +2190,16 @@ select:focus {
   min-width: 0;
 }
 
+.join-row {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.join-row input {
+  flex: 1;
+  min-width: 0;
+}
+
 .avatar-button {
   border: none;
   background: none;
@@ -1617,6 +2214,7 @@ select:focus {
 
 .avatar-edit {
   font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   color: var(--text-accent);
 }
 
@@ -1629,7 +2227,7 @@ select:focus {
 .avatar-choice {
   border: var(--edge) solid transparent;
   border-radius: var(--radius-sm);
-  background: var(--surface-raised);
+  background: var(--surface-base);
   padding: var(--space-3);
   min-height: var(--touch-min);
   cursor: pointer;
@@ -1639,12 +2237,11 @@ select:focus {
 }
 
 .avatar-choice:hover {
-  border-color: var(--border-strong);
+  border-color: var(--ink-line);
 }
 
 .avatar-choice--current {
-  border-color: var(--ink-line);
-  box-shadow: var(--elevation-raised);
+  border-color: var(--interactive-accent);
 }
 
 /* Two-up on a small phone rather than four cramped columns; four only once
@@ -1663,28 +2260,31 @@ select:focus {
 }
 
 .stat-tile {
-  background: var(--surface-raised);
+  background: var(--surface-base);
   border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-sm);
-  box-shadow: var(--elevation-raised);
   padding: var(--space-5) var(--space-3);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
   text-align: center;
 }
 
 .stat-tile strong {
-  font-size: var(--text-lg);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
   font-variant-numeric: tabular-nums;
 }
 
 .stat-tile span {
   color: var(--text-secondary);
+  font-family: var(--font-label);
   font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
+  letter-spacing: var(--tracking-label);
 }
 
 .profile-actions {
@@ -1698,13 +2298,39 @@ select:focus {
   text-decoration: none;
 }
 
+.panel .divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  margin: var(--space-5) 0;
+  color: var(--text-muted);
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.panel .divider::before,
+.panel .divider::after {
+  content: "";
+  flex: 1;
+  height: 2px;
+  background: var(--ink-line-soft);
+}
+
 /* Buttons in a stacked action column fill it. A 44px-tall button that only
    spans its own label is still a small target on a phone. */
-.landing-form > .button,
 .players-panel .button,
 .profile-actions .button,
-.results-actions .button {
+.results-actions .button,
+.settings-section .panel > .button {
   width: 100%;
+}
+
+.settings-section .panel > .button + .divider,
+.settings-section .panel > .hint + .button {
+  margin-top: var(--space-5);
 }
 
 .match-list {
@@ -1725,25 +2351,23 @@ select:focus {
   padding: var(--space-5) var(--space-6);
   border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-sm);
-  box-shadow: var(--elevation-raised);
-  background: var(--surface-raised);
+  background: var(--surface-base);
 }
 
 .match-outcome {
-  font-weight: var(--weight-bold);
+  font-family: var(--font-sans);
+  font-weight: var(--weight-semibold);
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
   padding: var(--space-2) var(--space-5);
-  border: var(--edge) solid var(--ink-line);
+  border: 2px solid var(--ink-line);
   border-radius: var(--radius-pill);
-  background: var(--surface-panel);
   color: var(--text-secondary);
   flex-shrink: 0;
 }
 
 .match-outcome--won {
-  color: var(--status-win);
+  background: var(--surface-field);
+  color: var(--text-on-field);
 }
 
 .match-outcome--lost {
@@ -1764,8 +2388,6 @@ select:focus {
 }
 
 .privacy-copy h2 {
-  text-transform: none;
-  letter-spacing: var(--tracking-tight);
   color: var(--text-primary);
   font-size: var(--text-lg);
   margin-top: var(--space-8);
@@ -1815,9 +2437,11 @@ select:focus {
 
 .gallery-item figcaption {
   color: var(--text-secondary);
+  font-family: var(--font-label);
   font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
+  letter-spacing: var(--tracking-label);
 }
 
 .gallery-grid {
@@ -1840,14 +2464,17 @@ select:focus {
   overflow: hidden;
 }
 
+/* The green table under the card, warmed by the team's colour. */
 .share-glow {
   position: absolute;
   inset: 0;
-  background: radial-gradient(
-    ellipse 60% 80% at 28% 50%,
-    color-mix(in srgb, var(--team-color) 35%, transparent),
-    transparent 70%
-  );
+  background:
+    radial-gradient(
+      ellipse 60% 80% at 28% 50%,
+      color-mix(in srgb, var(--team-color) 35%, transparent),
+      transparent 70%
+    ),
+    var(--field-gradient);
 }
 
 .share-card {
@@ -1868,37 +2495,46 @@ select:focus {
   gap: var(--space-5);
 }
 
+/* The OG frame is the green table in both themes, so its type is the field's
+   ink rather than the app's. */
 .share-copy .brand {
   font-size: 4rem;
+  color: var(--text-on-field);
 }
 
 .share-player {
   margin: 0;
-  font-size: 2.2rem;
-  font-weight: var(--weight-black);
+  font-family: var(--font-display);
+  font-size: 2.6rem;
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-tight);
+  color: var(--text-on-field);
 }
 
 .share-team {
   margin: 0;
-  font-size: 1.3rem;
-  color: var(--text-secondary);
+  font-family: var(--font-label);
+  font-size: 1.2rem;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text-on-field) 80%, transparent);
 }
 
 .share-cta {
   margin: var(--space-5) 0 0;
   font-size: 1.1rem;
-  color: var(--text-accent);
-  font-weight: var(--weight-bold);
+  color: var(--text-on-field);
+  font-weight: var(--weight-semibold);
 }
 
 /* -- landscape phones ------------------------------------------------------ */
 
 /* Players turn the phone for the table, so this is a real layout, not a
    stopgap. Height, not width, is what is scarce once the phone is turned, so
-   the two tall regions sit side by side instead of stacked: the field on the
+   the two tall regions sit side by side instead of stacked: the seats on the
    left, your stat rows on the right, with the head and the bottom bar
-   spanning both. Stacking them (as portrait does) puts a green field and six
-   stat rows into ~390px of height, which does not fit and never did. */
+   spanning both. */
 @media (orientation: landscape) and (max-height: 560px) {
   .screen {
     gap: var(--space-4);
@@ -1930,16 +2566,36 @@ select:focus {
 
   .table-field {
     grid-area: 3 / 1 / 4 / 2;
+    margin: 0;
+    border: none;
     border-right: var(--tbl-edge) solid var(--tbl-line);
+    border-radius: 0;
+    background: none;
+    color: var(--tbl-ink);
     overflow-y: auto;
   }
 
-  .your-area {
-    grid-area: 3 / 2 / 4 / 3;
+  .table-field::before {
+    display: none;
   }
 
-  .hand-thumb {
+  .your-hand {
+    grid-area: 3 / 2 / 4 / 3;
+    border-left: none;
+    background: none;
+  }
+
+  /* No room for a fan beside the field — the face keeps the whole column. */
+  .hand-fan {
     display: none;
+  }
+
+  .your-area {
+    margin: var(--space-4) var(--tbl-inline);
+  }
+
+  .stat-rows {
+    gap: var(--space-3);
   }
 }
 
@@ -1967,20 +2623,13 @@ select:focus {
   .table-screen .stat-button,
   .table-screen .icon-button,
   .game-chat-toggle,
+  .chat-quick-button,
   .your-area,
   .turn-timer,
-  .seat-avatar {
+  .seat-avatar,
+  .toggle,
+  .toggle-knob {
     transition: none;
-  }
-
-  .table-screen .emote-button:active,
-  .table-screen .stat-button:not(:disabled):hover,
-  .table-screen .stat-button:not(:disabled):active,
-  .table-screen .icon-button:hover,
-  .table-screen .icon-button:active,
-  .game-chat-toggle:active,
-  .chat-quick-button:active {
-    transform: none;
   }
 }
 

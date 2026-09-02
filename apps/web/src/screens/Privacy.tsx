@@ -3,18 +3,16 @@
  * rid of it. Linked from the profile screen.
  */
 import { Link } from "react-router-dom";
-import { ThemeToggle } from "../components/Chrome.js";
+import { AppBar } from "../components/Chrome.js";
 
 export function PrivacyScreen() {
   return (
     <main className="screen privacy">
-      <div className="screen-head">
-        <Link to="/" className="brand brand--small" style={{ textDecoration: "none" }}>
-          Deck<span className="brand-xi">XI</span>
+      <AppBar title="Privacy">
+        <Link to="/" className="button button--ghost">
+          Back
         </Link>
-        <h2 style={{ margin: 0 }}>Privacy</h2>
-        <ThemeToggle />
-      </div>
+      </AppBar>
 
       <div className="panel privacy-copy">
         <h2>What we store</h2>

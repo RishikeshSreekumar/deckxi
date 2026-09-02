@@ -12,7 +12,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ThemeToggle } from "../components/Chrome.js";
+import { AppBar } from "../components/Chrome.js";
 import { AdminFeed } from "../components/AdminFeed.js";
 import { AdminOps } from "../components/AdminOps.js";
 import {
@@ -85,13 +85,11 @@ export function AdminScreen() {
 
   return (
     <main className="screen admin" data-testid="admin-screen">
-      <div className="screen-head">
-        <Link to="/" className="brand brand--small" style={{ textDecoration: "none" }}>
-          Deck<span className="brand-xi">XI</span>
+      <AppBar title="Ops">
+        <Link to="/" className="button button--ghost">
+          Back
         </Link>
-        <h2 style={{ margin: 0 }}>Ops</h2>
-        <ThemeToggle />
-      </div>
+      </AppBar>
 
       <div className="admin-summary">
         <div className="stat-tile">

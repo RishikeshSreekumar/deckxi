@@ -59,7 +59,7 @@ test("the service worker registers and leaves a deep link working", async ({ pag
   // The SPA fallback must survive the worker: an invite link is how most
   // players arrive, and it is a route that only exists client-side.
   await page.goto("/join/ABCDEF");
-  await expect(page.getByRole("heading", { name: /Deck/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Start playing/ })).toBeVisible();
 });
 
 test("gameplay traffic is never served from the cache", async ({ page }) => {
@@ -69,7 +69,7 @@ test("gameplay traffic is never served from the cache", async ({ page }) => {
   // Play far enough to generate socket traffic, then interrogate every cache
   // the worker owns. Nothing that carries game state may be in any of them.
   await page.getByLabel(/name/i).first().fill("Cache Check");
-  await page.getByRole("button", { name: /create a room/i }).click();
+  await page.getByRole("button", { name: /create table/i }).click();
   await expect(page.getByTestId("lobby-screen")).toBeVisible();
 
   const cached = await page.evaluate(async () => {

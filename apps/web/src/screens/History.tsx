@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ensureSession } from "../lib/auth.js";
 import { fetchMatches, fetchProfile, type MatchSummary } from "../lib/api.js";
-import { ThemeToggle } from "../components/Chrome.js";
+import { AppBar } from "../components/Chrome.js";
 
 const OUTCOME_COPY = { won: "Won", lost: "Lost", unfinished: "Unfinished" } as const;
 
@@ -36,13 +36,11 @@ export function HistoryScreen() {
 
   return (
     <main className="screen history">
-      <div className="screen-head">
-        <Link to="/" className="brand brand--small" style={{ textDecoration: "none" }}>
-          Deck<span className="brand-xi">XI</span>
+      <AppBar title="Match history">
+        <Link to="/" className="button button--ghost">
+          Back
         </Link>
-        <h2 style={{ margin: 0 }}>Match history</h2>
-        <ThemeToggle />
-      </div>
+      </AppBar>
 
       {error !== null && <p className="notice">{error}</p>}
       {error === null && matches === null && <p className="hint">Loading…</p>}

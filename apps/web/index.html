@@ -8,8 +8,19 @@
 
     <!-- Status-bar tint for the pre-JS paint; src/lib/theme.ts replaces both
          with a single tag once it knows the user's explicit preference. -->
-    <meta name="theme-color" content="#f6ecd6" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#241b16" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#fff3dc" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1b1410" media="(prefers-color-scheme: dark)" />
+
+    <!-- The cardboard direction is a typographic one: Baloo 2 for the wordmark,
+         headings and every numeral, Barlow for everything you read. display=swap
+         so a slow font never blocks the first paint of a match; every stack in
+         tokens.json degrades to a rounded system face that keeps the same voice. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Barlow:wght@400;500;600;700&display=swap"
+    />
 
     <!-- Identity. The SVG is the real icon; the .ico exists so the browser's
          automatic /favicon.ico request does not fall through the SPA rewrite

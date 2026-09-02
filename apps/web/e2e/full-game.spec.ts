@@ -6,7 +6,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 async function readRoomCode(page: Page): Promise<string> {
-  const code = (await page.locator(".room-code").innerText()).replace(/\s+/g, "");
+  const code = (await page.locator(".lobby-code").innerText()).replace(/\s+/g, "");
   expect(code).toMatch(/^[A-Z2-9]{6}$/);
   return code;
 }
@@ -28,20 +28,23 @@ test("two browsers play a full game", async ({ browser }) => {
   // Host creates a room.
   await host.goto("/");
   await host.getByPlaceholder("e.g. CoverDrive").fill("Hosty");
-  await host.getByRole("button", { name: "Create a room" }).click();
-  await expect(host.locator(".room-code")).toBeVisible();
+  await host.getByRole("button", { name: "Create table" }).click();
+  await expect(host.locator(".lobby-code")).toBeVisible();
   const code = await readRoomCode(host);
 
-  // Short game: 3 cards each, 10-round cap, quick timer as a safety net.
+  // Short game: 3 cards each, 10-round cap, quick timer as a safety net. The
+  // rules live in a sheet behind "Deck rules".
+  await host.getByRole("button", { name: "Deck rules" }).click();
   await host.locator(".setting-row select").nth(0).selectOption("3");
   await host.locator(".setting-row select").nth(1).selectOption("10");
   await host.locator(".setting-row select").nth(2).selectOption("10");
+  await host.getByRole("button", { name: "Done" }).click();
 
   // Guest joins via the invite link.
   await guest.goto(`/join/${code}`);
   await guest.getByPlaceholder("e.g. CoverDrive").fill("Guesty");
-  await guest.getByRole("button", { name: "Join", exact: true }).click();
-  await expect(guest.locator(".room-code")).toBeVisible();
+  await guest.getByRole("button", { name: "Join table" }).click();
+  await expect(guest.locator(".lobby-code")).toBeVisible();
 
   // Both see each other in the lobby.
   await expect(host.locator(".player-list")).toContainText("Guesty");
@@ -50,7 +53,7 @@ test("two browsers play a full game", async ({ browser }) => {
   // Ready up and start.
   await host.getByRole("button", { name: "I'm ready" }).click();
   await guest.getByRole("button", { name: "I'm ready" }).click();
-  await host.getByRole("button", { name: "Start game" }).click();
+  await host.getByRole("button", { name: "Start match" }).click();
 
   await expect(host.getByTestId("game-table")).toBeVisible();
   await expect(guest.getByTestId("game-table")).toBeVisible();

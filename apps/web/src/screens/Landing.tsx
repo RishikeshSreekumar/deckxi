@@ -1,6 +1,8 @@
 /**
- * Landing: pick a name, create a room, or join by code. Visiting an invite
- * link (`/join/CODE`) lands here with the code prefilled and focus on Join.
+ * Landing: host a table or join one with a code (mockup turn 7). Two pieces
+ * side by side on a desktop, stacked on a phone, under one "Start playing"
+ * heading. Visiting an invite link (`/join/CODE`) lands here with the code
+ * prefilled and focus on Join.
  */
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -11,16 +13,16 @@ import { loadPlayerName } from "../lib/session.js";
 import { fetchProfile, type ProfileUser } from "../lib/api.js";
 import { ensureSession } from "../lib/auth.js";
 import { Avatar } from "@deckxi/ui";
-import { ThemeToggle } from "../components/Chrome.js";
+import { AppBar, CodeSlots } from "../components/Chrome.js";
 
 const CLOSED_COPY: Record<RoomClosedReason, string> = {
-  "host-left": "The host left, so the room closed.",
-  idle: "The room closed after sitting idle.",
-  "server-shutdown": "The server restarted and closed the room.",
+  "host-left": "The host left, so the table closed.",
+  idle: "The table closed after sitting idle.",
+  "server-shutdown": "The server restarted and closed the table.",
   // Operator actions (#70). Said plainly: a player who was removed deserves
   // to know it happened rather than to wonder what broke.
-  "closed-by-admin": "That room was closed by a moderator.",
-  kicked: "You were removed from that room by a moderator.",
+  "closed-by-admin": "That table was closed by a moderator.",
+  kicked: "You were removed from that table by a moderator.",
 };
 
 export function Landing() {
@@ -59,6 +61,7 @@ export function Landing() {
   }, []);
 
   const canSubmit = name.trim().length > 0 && busy === null && connection === "online";
+  const codeComplete = code.trim().length === JOIN_CODE_LENGTH;
 
   const doJoin = async (spectator: boolean) => {
     setBusy("join");
@@ -75,96 +78,101 @@ export function Landing() {
 
   return (
     <main className="screen landing">
-      <div className="landing-chrome">
-        <ThemeToggle />
+      <AppBar>
         <Link to="/profile" className="profile-chip" aria-label="Your profile">
           {me !== null ? (
             <>
-              <Avatar image={me.image} name={me.name} size={28} />
-              <span>{me.name}</span>
+              <span className="profile-chip-name">{me.name}</span>
+              <Avatar image={me.image} name={me.name} size={34} />
             </>
           ) : (
-            <span>Profile</span>
+            <span className="profile-chip-name">Profile</span>
           )}
         </Link>
-      </div>
-      <div className="landing-hero">
-        <h1 className="brand">
-          Deck<span className="brand-xi">XI</span>
-        </h1>
-        <p className="tagline">Cricket trump cards — live with friends.</p>
-      </div>
+      </AppBar>
 
-      {roomClosedReason !== null && (
-        <p className="notice" role="status">
-          {CLOSED_COPY[roomClosedReason]}
-        </p>
-      )}
-
-      <div className="panel landing-form">
-        <label className="field">
-          <span>Your name</span>
-          <input
-            value={name}
-            maxLength={MAX_NAME_LENGTH}
-            placeholder="e.g. CoverDrive"
-            autoComplete="nickname"
-            onChange={(e) => setName(e.target.value)}
-          />
-        </label>
-
-        <button
-          type="button"
-          className="button button--primary"
-          disabled={!canSubmit}
-          onClick={() => {
-            setBusy("create");
-            void createRoom(name.trim())
-              .then(() => history.replaceState(null, "", "/"))
-              .catch(() => undefined)
-              .finally(() => setBusy(null));
-          }}
-        >
-          {busy === "create" ? "Creating…" : "Create a room"}
-        </button>
-
-        <div className="divider">
-          <span>or join with a code</span>
+      <div className="landing-body">
+        <div className="landing-intro">
+          <h1 className="headline">Start playing</h1>
+          <p className="sub">Host a table for your group, or drop into one with a code.</p>
         </div>
 
-        <div className="join-row">
-          <input
-            className="code-input"
-            value={code}
-            maxLength={JOIN_CODE_LENGTH}
-            placeholder="ABC123"
-            autoCapitalize="characters"
-            autoCorrect="off"
-            spellCheck={false}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && canSubmit && code.length === JOIN_CODE_LENGTH)
-                void doJoin(false);
-            }}
-          />
-          <button
-            ref={joinRef}
-            type="button"
-            className="button"
-            disabled={!canSubmit || code.trim().length !== JOIN_CODE_LENGTH}
-            onClick={() => void doJoin(false)}
-          >
-            {busy === "join" ? "Joining…" : "Join"}
-          </button>
-        </div>
-
-        {offerSpectate && (
-          <button type="button" className="button button--ghost" onClick={() => void doJoin(true)}>
-            Room is full — watch as a spectator
-          </button>
+        {roomClosedReason !== null && (
+          <p className="notice" role="status">
+            {CLOSED_COPY[roomClosedReason]}
+          </p>
         )}
 
-        {connection !== "online" && <p className="hint">Waiting for the server…</p>}
+        <div className="landing-grid">
+          <section className="panel landing-host" aria-labelledby="host-title">
+            <h2 className="panel-title" id="host-title">
+              Host a table
+            </h2>
+            <p className="sub">Pick the rules once you're in, then send the code.</p>
+            <label className="field">
+              <span>Your name</span>
+              <input
+                value={name}
+                maxLength={MAX_NAME_LENGTH}
+                placeholder="e.g. CoverDrive"
+                autoComplete="nickname"
+                onChange={(e) => setName(e.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="button button--primary button--block landing-cta"
+              disabled={!canSubmit}
+              onClick={() => {
+                setBusy("create");
+                void createRoom(name.trim())
+                  .then(() => history.replaceState(null, "", "/"))
+                  .catch(() => undefined)
+                  .finally(() => setBusy(null));
+              }}
+            >
+              {busy === "create" ? "Creating…" : "Create table"}
+            </button>
+          </section>
+
+          <section className="panel landing-join" aria-labelledby="join-title">
+            <h2 className="panel-title" id="join-title">
+              Join with a code
+            </h2>
+            <CodeSlots
+              value={code}
+              onChange={setCode}
+              onSubmit={() => {
+                if (canSubmit && codeComplete) void doJoin(false);
+              }}
+            />
+            <p className="sub">Six characters, from whoever invited you.</p>
+            <button
+              ref={joinRef}
+              type="button"
+              className="button button--block landing-cta"
+              disabled={!canSubmit || !codeComplete}
+              onClick={() => void doJoin(false)}
+            >
+              {busy === "join" ? "Joining…" : "Join table"}
+            </button>
+            {offerSpectate && (
+              <button
+                type="button"
+                className="button button--ghost"
+                onClick={() => void doJoin(true)}
+              >
+                Table is full — watch as a spectator
+              </button>
+            )}
+          </section>
+        </div>
+
+        {connection !== "online" ? (
+          <p className="sub landing-foot">Waiting for the server…</p>
+        ) : (
+          me !== null && <p className="sub landing-foot">Signed in as {me.name}</p>
+        )}
       </div>
     </main>
   );

@@ -1,8 +1,11 @@
 /**
- * App chrome shared by every screen: connection banner, update and install
- * prompts, toasts, floating emote reactions, and the mute and theme toggles.
+ * App chrome shared by every screen: the app bar and wordmark, the six-slot
+ * code entry, connection banner, update and install prompts, toasts, floating
+ * emote reactions, and the mute and theme toggles.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
+import { JOIN_CODE_LENGTH } from "@deckxi/shared";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { useStore } from "../store/store.js";
 import { isMuted, setMuted } from "../lib/sounds.js";
@@ -250,5 +253,92 @@ export function MuteButton() {
     >
       {muted ? "🔇" : "🔊"}
     </button>
+  );
+}
+
+/** The wordmark: Deck in ink, XI in the accent. A link home where it is one. */
+export function Wordmark({ to }: { to?: string }) {
+  const mark = (
+    <>
+      Deck<span className="brand-xi">XI</span>
+    </>
+  );
+  if (to === undefined) return <span className="brand">{mark}</span>;
+  return (
+    <Link to={to} className="brand">
+      {mark}
+    </Link>
+  );
+}
+
+/**
+ * The bar across the top of every out-of-game screen (mockup turn 7): the
+ * wordmark on the left, whatever the screen puts beside it, and the theme
+ * toggle on the right. One rule under it, the same ink as every edge.
+ */
+export function AppBar({ children, title }: { children?: ReactNode; title?: string }) {
+  return (
+    <header className="app-bar">
+      <Wordmark to="/" />
+      {title !== undefined && <span className="app-bar-title">{title}</span>}
+      <div className="app-bar-actions">
+        {children}
+        <ThemeToggle />
+      </div>
+    </header>
+  );
+}
+
+/**
+ * Six outlined slots that fill as you type (mockup turn 7's join piece). One
+ * real input sits over the slots — transparent, full width — so it is still
+ * a single text field to a keyboard, a screen reader, autofill and the tests;
+ * the slots are the picture of it. The next empty slot wears the accent.
+ */
+export function CodeSlots({
+  value,
+  onChange,
+  onSubmit,
+}: {
+  value: string;
+  onChange: (code: string) => void;
+  onSubmit: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [focused, setFocused] = useState(false);
+  const chars = value.toUpperCase().slice(0, JOIN_CODE_LENGTH).split("");
+  const cursor = Math.min(chars.length, JOIN_CODE_LENGTH - 1);
+
+  return (
+    <div className="code-slots" onClick={() => inputRef.current?.focus()}>
+      {Array.from({ length: JOIN_CODE_LENGTH }, (_, i) => (
+        <span
+          key={i}
+          className={`code-slot${focused && i === cursor && chars.length < JOIN_CODE_LENGTH ? " code-slot--cursor" : ""}`}
+          aria-hidden="true"
+        >
+          {chars[i] ?? ""}
+        </span>
+      ))}
+      <input
+        ref={inputRef}
+        className="code-input"
+        aria-label="Room code"
+        value={value}
+        maxLength={JOIN_CODE_LENGTH}
+        placeholder="ABC123"
+        autoCapitalize="characters"
+        autoCorrect="off"
+        autoComplete="off"
+        spellCheck={false}
+        inputMode="text"
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onChange={(e) => onChange(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onSubmit();
+        }}
+      />
+    </div>
   );
 }

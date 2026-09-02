@@ -1,8 +1,9 @@
 /**
- * The game table (mobile-first), in the arcade look from the "DeckXI Mobile"
- * design: a yellow head strip, a green field where the opponents sit with
- * their cards face down, and your own card broken out into tappable stat rows
- * along the bottom.
+ * The game table (mobile-first), in the cardboard look (mockup turn 7): the
+ * opponents in a row of seats, your top card as a cream piece whose stat rows
+ * *are* the picker, and the rest of your hand fanned under it. On a desktop the
+ * seats sit around a green field with the call in the middle, and your card
+ * takes a column beside it.
  *
  * The reveal happens in place — each opponent's card flips where they sit and
  * the verdict rises from the bottom edge — rather than in a separate overlay,
@@ -130,7 +131,7 @@ function TableHead({
         Deck<span>XI</span>
       </span>
       <span className="round-chip" data-testid="round-chip">
-        Round {round}/{maxRounds}
+        Round {round} of {maxRounds}
       </span>
       <span
         className={`turn-timer ${urgent ? "turn-timer--urgent" : ""}`}
@@ -320,7 +321,7 @@ export function GameTable({ room }: { room: RoomView }) {
                   : `Waiting on ${leaderName}…`}
           </span>
           <span className="called-stat">
-            {hotStat !== null ? statName(editionId, hotStat) : "PICK ONE"}
+            {hotStat !== null ? statName(editionId, hotStat) : "Pick a stat"}
           </span>
           <span className="called-meter" aria-hidden="true">
             <span style={{ width: meter }} />
@@ -329,87 +330,102 @@ export function GameTable({ room }: { room: RoomView }) {
         </div>
       </section>
 
-      <section
-        className={[
-          "your-area",
-          yourTurn ? "your-area--turn" : "",
-          current !== null ? "your-area--waiting" : "",
-        ]
-          .filter(Boolean)
-          .join(" ")}
-      >
-        {spectator || game.yourHand === null ? (
-          <p className="hint">Spectating — {game.config.players.length} players in the match.</p>
-        ) : game.yourHand.length === 0 ? (
-          <p className="hint">
-            You're out of cards{game.active[selfId ?? ""] ? "" : " — eliminated"}.
-          </p>
-        ) : (
-          <>
-            <div className="hand-head" key={`${game.round}-${topCard ?? "none"}`}>
-              <span className="hand-thumb" aria-hidden="true" />
-              <div className="hand-id">
-                <span className="hand-name">{player?.name ?? topCard}</span>
-                {player !== null && (
-                  <span className={`hand-rarity hand-rarity--${player.rarity}`}>
-                    {player.rarity}
+      {/* .your-hand carries the fanned backs of the rest of your hand; the card
+          face inside it scrolls its own stat rows, so the backs cannot live on
+          it or they would scroll away with the table. */}
+      <div className="your-hand">
+        <section
+          className={[
+            "your-area",
+            yourTurn ? "your-area--turn" : "",
+            current !== null ? "your-area--waiting" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          {spectator || game.yourHand === null ? (
+            <p className="hint">Spectating — {game.config.players.length} players in the match.</p>
+          ) : game.yourHand.length === 0 ? (
+            <p className="hint">
+              You're out of cards{game.active[selfId ?? ""] ? "" : " — eliminated"}.
+            </p>
+          ) : (
+            <>
+              <div className="hand-head" key={`${game.round}-${topCard ?? "none"}`}>
+                <span className="hand-thumb" aria-hidden="true" />
+                <div className="hand-id">
+                  <span className="hand-name">{player?.name ?? topCard}</span>
+                  {player !== null && (
+                    <span className={`hand-rarity hand-rarity--${player.rarity}`}>
+                      {player.rarity}
+                    </span>
+                  )}
+                  <span className="hand-meta">
+                    {team?.shortName ?? "?"}
+                    {player !== null && ` · ${ROLE_LABELS[player.role] ?? player.role}`}
                   </span>
-                )}
-                <span className="hand-meta">
-                  {team?.shortName ?? "?"}
-                  {player !== null && ` · ${ROLE_LABELS[player.role] ?? player.role}`}
+                </div>
+                <span className="hand-count" data-testid="hand-count">
+                  {game.yourHand.length}
+                  <small>in hand</small>
                 </span>
               </div>
-              <span className="hand-count" data-testid="hand-count">
-                {game.yourHand.length}
-                <small>in hand</small>
-              </span>
-            </div>
 
-            <ul className="stat-rows">
-              {game.config.stats.map((def) => {
-                const value = myStats?.[def.key];
-                const fraction =
-                  value === undefined
-                    ? 0
-                    : Math.min(1, Math.max(0, (value - def.min) / (def.max - def.min)));
-                const strength = def.direction === "lower" ? 1 - fraction : fraction;
-                const hot = hotStat === def.key;
-                const hint =
-                  value === undefined
-                    ? "—"
-                    : def.direction === "lower"
-                      ? "lower wins"
-                      : strength > 0.7
-                        ? "strong"
-                        : strength > 0.4
-                          ? "decent"
-                          : "risky";
-                return (
-                  <li key={def.key} className={hot ? "stat-row stat-row--hot" : "stat-row"}>
-                    <button
-                      type="button"
-                      className="stat-button"
-                      data-stat={def.key}
-                      disabled={!yourTurn}
-                      onClick={() => void selectStat(def.key)}
-                    >
-                      <span className="stat-name">{statName(editionId, def.key)}</span>
-                      <span className="stat-meter" aria-hidden="true">
-                        <span style={{ width: `${Math.round(Math.max(0.04, strength) * 100)}%` }} />
-                      </span>
-                      <span className="stat-value">
-                        {value === undefined ? "—" : formatStatValue(editionId, def.key, value)}
-                      </span>
-                      <span className="stat-hint">{hint}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </>
+              <ul className="stat-rows">
+                {game.config.stats.map((def) => {
+                  const value = myStats?.[def.key];
+                  const fraction =
+                    value === undefined
+                      ? 0
+                      : Math.min(1, Math.max(0, (value - def.min) / (def.max - def.min)));
+                  const strength = def.direction === "lower" ? 1 - fraction : fraction;
+                  const hot = hotStat === def.key;
+                  const hint =
+                    value === undefined
+                      ? "—"
+                      : def.direction === "lower"
+                        ? "lower wins"
+                        : strength > 0.7
+                          ? "strong"
+                          : strength > 0.4
+                            ? "decent"
+                            : "risky";
+                  return (
+                    <li key={def.key} className={hot ? "stat-row stat-row--hot" : "stat-row"}>
+                      <button
+                        type="button"
+                        className="stat-button"
+                        data-stat={def.key}
+                        disabled={!yourTurn}
+                        onClick={() => void selectStat(def.key)}
+                      >
+                        <span className="stat-name">{statName(editionId, def.key)}</span>
+                        <span className="stat-meter" aria-hidden="true">
+                          <span
+                            style={{ width: `${Math.round(Math.max(0.04, strength) * 100)}%` }}
+                          />
+                        </span>
+                        <span className="stat-value">
+                          {value === undefined ? "—" : formatStatValue(editionId, def.key, value)}
+                        </span>
+                        <span className="stat-hint">{hint}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </section>
+        {game.yourHand !== null && game.yourHand.length > 1 && (
+          <div className="hand-fan" aria-hidden="true">
+            {Array.from({ length: Math.min(3, game.yourHand.length - 1) }, (_, i) => (
+              <span key={i} className="hand-fan-card" />
+            ))}
+            <span className="hand-fan-card hand-fan-card--face">XI</span>
+          </div>
         )}
-      </section>
+      </div>
 
       {emotesOpen && !spectator && (
         <div className="emote-tray">
