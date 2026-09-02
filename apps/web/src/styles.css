@@ -148,11 +148,13 @@ h3 {
   align-items: center;
   gap: var(--space-5);
   /* 50% - 50vw is the negative of the space either side of the screen's
-     column, so the bar runs viewport edge to edge whatever the container;
-     the padding puts its content back on the column's gutter. */
+     column, so the bar runs viewport edge to edge whatever the container.
+     The padding then puts the content on one column of its own — the widest
+     container's — rather than the screen's, so the wordmark sits in the same
+     place on every page whether the screen under it is wide or narrow. */
   margin: calc(-1 * max(var(--gutter), env(safe-area-inset-top))) calc(50% - 50vw) 0;
-  padding: max(var(--space-5), env(safe-area-inset-top)) calc(50vw - 50% + var(--gutter))
-    var(--space-5);
+  padding: max(var(--space-5), env(safe-area-inset-top))
+    max(var(--gutter), calc((100vw - var(--container-xl)) / 2 + var(--gutter))) var(--space-5);
   border-bottom: var(--edge) solid var(--ink-line);
   background: var(--surface-raised);
 }
@@ -169,6 +171,21 @@ h3 {
   display: flex;
   align-items: center;
   gap: var(--space-4);
+}
+
+/* A link dressed as an icon button (the chevron home) must not go link-blue
+   or underline. */
+a.icon-button {
+  text-decoration: none;
+}
+
+/* A text button with a glyph in front of the word. */
+.button--icon {
+  gap: var(--space-3);
+}
+
+.button--icon svg {
+  flex: 0 0 auto;
 }
 
 /* -- brand ----------------------------------------------------------------- */
@@ -1189,6 +1206,128 @@ select:focus {
   white-space: nowrap;
 }
 
+/* -- the reveal ------------------------------------------------------------ */
+
+/* Every card that was played, face up in the middle where the call was —
+   yours among them — each under its owner's name. The winner wears green. */
+.reveal-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--tbl-ink);
+}
+
+.reveal-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.reveal-card {
+  flex: 0 1 108px;
+  min-width: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  animation: flip-in var(--dur-slow) var(--ease-spring) both;
+  animation-delay: calc(var(--seat-index, 0) * 130ms);
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+}
+
+.reveal-card-owner {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--tbl-muted);
+}
+
+.reveal-card--mine .reveal-card-owner {
+  color: var(--tbl-accent);
+}
+
+.reveal-card-face {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-4) var(--space-3);
+  border: var(--tbl-edge) solid var(--tbl-line);
+  border-radius: var(--radius-sm);
+  background: var(--card-face);
+  color: var(--card-body-ink);
+  box-shadow: var(--elevation-raised);
+  text-align: center;
+}
+
+.reveal-card--mine .reveal-card-face {
+  border-color: var(--tbl-accent);
+}
+
+.reveal-card--win .reveal-card-face {
+  border-color: var(--status-win);
+  box-shadow:
+    inset 0 0 0 2px var(--status-win),
+    var(--elevation-raised);
+}
+
+.reveal-card--lost {
+  opacity: 0.72;
+}
+
+.reveal-card-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-tight);
+}
+
+.reveal-card-meta {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--card-body-muted);
+}
+
+.reveal-card-value {
+  margin-top: var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.reveal-card--win .reveal-card-value {
+  color: var(--status-win);
+}
+
+/* The seat's back once its card has gone to the middle. */
+.seat-card--played {
+  opacity: 0.4;
+  transform: translateY(4px);
+  box-shadow: none;
+}
+
 /* -- your hand ------------------------------------------------------------- */
 
 /* Your card, and its face *is* the picker: the whole region is the cream
@@ -1203,11 +1342,14 @@ select:focus {
   flex-direction: column;
   padding: 0;
   margin: var(--space-4) var(--tbl-inline) var(--space-5);
-  border: var(--tbl-edge) solid var(--tbl-line);
-  border-radius: var(--radius-md);
+  border: 3px solid var(--tbl-line);
+  border-radius: var(--radius-lg);
   background: var(--card-face);
   color: var(--card-body-ink);
-  box-shadow: var(--elevation-card);
+  box-shadow:
+    inset 0 0 0 2px var(--surface-panel),
+    inset 0 0 0 4px var(--card-rule),
+    var(--elevation-card);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   transition: opacity var(--dur-med) var(--ease-out);
@@ -1282,15 +1424,28 @@ select:focus {
 .hand-head {
   flex: 0 0 auto;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-5);
-  padding: var(--space-6) var(--space-6) var(--space-4);
+  margin: 6px 6px 0;
+  padding: var(--space-5) var(--space-5) var(--space-4);
+  border-bottom: 2px solid var(--card-rule);
+  border-radius: calc(var(--radius-lg) - 6px) calc(var(--radius-lg) - 6px) 0 0;
+  background: color-mix(in srgb, var(--card-body-ink) 5%, transparent);
   animation: rise var(--dur-med) var(--ease-out);
 }
 
 /* The mini back that says this face is one of several. */
 .hand-thumb {
-  display: none;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 42px;
+  border: 2px solid var(--tbl-line);
+  border-radius: 4px;
+  background: var(--card-back);
+  background-image: var(--card-back-grid);
+  background-size: 6px 6px;
+  box-shadow: var(--elevation-flat);
+  transform: rotate(-6deg);
 }
 
 .hand-id {
@@ -1358,7 +1513,7 @@ select:focus {
 .stat-rows {
   list-style: none;
   margin: 0;
-  padding: 0 var(--space-5) var(--space-5);
+  padding: var(--space-4) var(--space-5) var(--space-6);
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -1748,9 +1903,56 @@ select:focus {
   opacity: 0.72;
 }
 
+/* The emoji tray sits between the quick phrases and the input: a grid of
+   big targets, one tap each, that drops into the draft. */
+.chat-emoji {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: var(--space-2);
+  padding: var(--space-4) var(--tbl-inline);
+  border-top: 2px solid var(--tbl-line-soft);
+  background: var(--surface-base);
+  animation: rise var(--dur-fast) var(--ease-out);
+}
+
+.chat-emoji-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-min);
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.chat-emoji-button:hover {
+  border-color: var(--tbl-line-soft);
+  background: var(--interactive-accent-subtle);
+}
+
+.chat-emoji-button:active {
+  opacity: 0.72;
+}
+
+.table-screen .icon-button--on {
+  background: var(--interactive-accent-subtle);
+  border-color: var(--tbl-accent);
+  color: var(--tbl-accent);
+}
+
 .table-screen .chat-row {
   flex: 0 0 auto;
   display: flex;
+  align-items: center;
   gap: var(--space-4);
   padding: var(--space-5) var(--tbl-inline) max(var(--space-5), env(safe-area-inset-bottom));
   border-top: var(--tbl-edge) solid var(--tbl-line);
@@ -1936,6 +2138,32 @@ select:focus {
     text-align: center;
   }
 
+  /* The reveal takes the same seat in the middle, wide enough for a row of
+     four cards. */
+  .reveal-panel {
+    align-self: center;
+    margin: auto 0;
+    width: min(100%, 620px);
+    padding: var(--space-6) var(--space-7);
+    border: var(--tbl-edge) solid var(--tbl-line);
+    border-radius: var(--radius-md);
+    background: var(--surface-panel);
+    color: var(--tbl-ink);
+    box-shadow: var(--elevation-card);
+  }
+
+  .reveal-card {
+    flex: 0 1 124px;
+  }
+
+  /* The tray hangs off the reactions button on the right, not across the
+     whole bar. */
+  .emote-tray {
+    left: auto;
+    right: calc(var(--tbl-inline) + 96px);
+    width: 380px;
+  }
+
   .called-stat {
     font-size: var(--text-xl);
   }
@@ -1946,7 +2174,10 @@ select:focus {
     background: var(--surface-raised);
   }
 
+  /* Only as tall as its face: a card, not a column. It still scrolls if the
+     stat rows outgrow the viewport. */
   .your-area {
+    flex: 0 1 auto;
     margin: var(--space-6);
   }
 
@@ -2603,11 +2834,13 @@ select:focus {
 
 @media (prefers-reduced-motion: reduce) {
   .seat-card--up,
+  .reveal-card,
   .hand-head,
   .verdict-sheet,
   .results-trophy,
   .reaction-float,
   .emote-tray,
+  .chat-emoji,
   .game-chat-panel {
     animation: none;
   }
@@ -2615,11 +2848,13 @@ select:focus {
   /* Drop the layer promotion too — with no animation left to run it only
      costs memory. */
   .seat-card--up,
+  .reveal-card,
   .reaction-float {
     will-change: auto;
   }
 
   .table-screen .emote-button,
+  .chat-emoji-button,
   .table-screen .stat-button,
   .table-screen .icon-button,
   .game-chat-toggle,

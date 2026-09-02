@@ -1,7 +1,7 @@
 /**
  * Profile and settings (mockup turn 7's settings screen): who you are across
  * games — display name, avatar (card-art-style set), stats — plus the device
- * settings (sounds, theme), and the guest→account upgrade path (Google or
+ * settings (sounds), and the guest→account upgrade path (Google or
  * magic link). Deleting the account scrubs your match history server-side.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -11,9 +11,8 @@ import { authClient, ensureSession } from "../lib/auth.js";
 import { fetchProfile, type Profile } from "../lib/api.js";
 import { Avatar, DEFAULT_EDITION_ID, statName } from "@deckxi/ui";
 import { savePlayerName } from "../lib/session.js";
-import { AppBar } from "../components/Chrome.js";
+import { AppBar, BackLink } from "../components/Chrome.js";
 import { isMuted, setMuted } from "../lib/sounds.js";
-import { useTheme } from "../lib/theme.js";
 
 export function ProfileScreen() {
   const navigate = useNavigate();
@@ -29,7 +28,6 @@ export function ProfileScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [muted, setLocalMuted] = useState(isMuted());
-  const { theme, toggle: toggleTheme } = useTheme();
 
   const reload = useCallback(async () => {
     try {
@@ -246,19 +244,6 @@ export function ProfileScreen() {
               <span className="toggle-knob" />
             </button>
           </div>
-          <div className="setting-row">
-            <span>Dark theme</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={theme === "dark"}
-              aria-label="Dark theme"
-              className={`toggle${theme === "dark" ? " toggle--on" : ""}`}
-              onClick={toggleTheme}
-            >
-              <span className="toggle-knob" />
-            </button>
-          </div>
         </div>
       </section>
 
@@ -371,9 +356,7 @@ export function ProfileScreen() {
 function ScreenHead() {
   return (
     <AppBar title="Settings">
-      <Link to="/" className="button button--ghost">
-        Back
-      </Link>
+      <BackLink />
     </AppBar>
   );
 }

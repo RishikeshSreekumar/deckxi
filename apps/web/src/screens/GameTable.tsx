@@ -5,9 +5,10 @@
  * seats sit around a green field with the call in the middle, and your card
  * takes a column beside it.
  *
- * The reveal happens in place — each opponent's card flips where they sit and
- * the verdict rises from the bottom edge — rather than in a separate overlay,
- * so the table never disappears at the one moment the player is watching it.
+ * The reveal happens on the table: every player's card — yours included —
+ * turns face up in the middle where the call was, and the verdict rises from
+ * the bottom edge. Nothing leaves the screen at the one moment the player is
+ * watching it.
  */
 import { useEffect, useRef, useState } from "react";
 import type { RoomView, TurnTimerView } from "@deckxi/shared";
@@ -16,7 +17,7 @@ import { Dialog, formatStatValue, getCardInfo, statName } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
 import { EmoteBar } from "../components/EmoteBar.js";
 import { GameChat } from "../components/GameChat.js";
-import { MuteButton, ThemeToggle } from "../components/Chrome.js";
+import { MuteButton, SmileIcon } from "../components/Chrome.js";
 import { sounds } from "../lib/sounds.js";
 
 type Stage = "flip" | "verdict";
@@ -205,16 +206,12 @@ export function GameTable({ room }: { room: RoomView }) {
   // optimistic pick, else whatever the leader has locked in.
   const hotStat = current?.stat ?? pendingStat ?? game.selected?.stat ?? null;
 
-  // The bar drains with the turn timer, then fills as the round resolves.
+  // The bar drains with the turn timer.
   const totalSeconds = room.settings.turnTimerSeconds;
   const meter =
-    current !== null
-      ? stage === "verdict"
-        ? "100%"
-        : "50%"
-      : seconds !== null && totalSeconds > 0
-        ? `${Math.round(Math.min(1, seconds / totalSeconds) * 100)}%`
-        : "100%";
+    seconds !== null && totalSeconds > 0
+      ? `${Math.round(Math.min(1, seconds / totalSeconds) * 100)}%`
+      : "100%";
 
   return (
     <main className="screen table-screen" data-testid="game-table">
@@ -289,45 +286,82 @@ export function GameTable({ room }: { room: RoomView }) {
                   <span className="seat-name">{names[id] ?? id}</span>
                   <span className="seat-status">{status}</span>
                 </div>
-                {reveal !== undefined && current !== null ? (
-                  <div className="seat-card seat-card--up">
-                    <span className="seat-card-name">
-                      {getCardInfo(editionId, reveal.cardId).player?.name ?? reveal.cardId}
-                    </span>
-                    <span
-                      className={`seat-card-value ${id === winnerId ? "seat-card-value--win" : ""}`}
-                    >
-                      {formatStatValue(editionId, current.stat, reveal.value)}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="seat-card seat-card--down" aria-hidden="true">
-                    XI
-                  </div>
-                )}
+                <div
+                  className={`seat-card seat-card--down ${reveal !== undefined && current !== null ? "seat-card--played" : ""}`}
+                  aria-hidden="true"
+                >
+                  XI
+                </div>
               </div>
             );
           })}
         </div>
 
-        <div className="called-panel">
-          <span className="called-label" data-testid="turn-line">
-            {current !== null
-              ? "cards on the table"
-              : game.finished
+        {current !== null ? (
+          <div className="reveal-panel" data-testid="reveal-cards">
+            <span className="called-label" data-testid="turn-line">
+              {statName(editionId, current.stat)} · cards on the table
+            </span>
+            <ul className="reveal-cards">
+              {current.revealed.map((r, index) => {
+                const isSelf = r.playerId === selfId && !spectator;
+                const won = stage === "verdict" && r.playerId === winnerId;
+                const info = getCardInfo(editionId, r.cardId);
+                return (
+                  <li
+                    key={r.playerId}
+                    className={[
+                      "reveal-card",
+                      isSelf ? "reveal-card--mine" : "",
+                      won ? "reveal-card--win" : "",
+                      stage === "verdict" && !won && current.result.kind === "won"
+                        ? "reveal-card--lost"
+                        : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    style={{ "--seat-index": index } as React.CSSProperties}
+                    data-testid={`reveal-card-${r.playerId}`}
+                  >
+                    <span className="reveal-card-owner">
+                      {isSelf ? "You" : (names[r.playerId] ?? r.playerId)}
+                    </span>
+                    <span className="reveal-card-face">
+                      <span className="reveal-card-name">{info.player?.name ?? r.cardId}</span>
+                      <span className="reveal-card-meta">
+                        {info.team?.shortName ?? "?"}
+                        {info.player !== null &&
+                          ` · ${ROLE_LABELS[info.player.role] ?? info.player.role}`}
+                      </span>
+                      <span className="reveal-card-value">
+                        {formatStatValue(editionId, current.stat, r.value)}
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : (
+          <div className="called-panel">
+            <span className="called-label" data-testid="turn-line">
+              {game.finished
                 ? "game over"
                 : yourTurn
                   ? "Your call — tap a stat"
                   : `Waiting on ${leaderName}…`}
-          </span>
-          <span className="called-stat">
-            {hotStat !== null ? statName(editionId, hotStat) : "Pick a stat"}
-          </span>
-          <span className="called-meter" aria-hidden="true">
-            <span style={{ width: meter }} />
-          </span>
-          {game.pot.length > 0 && <span className="called-pot">{game.pot.length} in the pot</span>}
-        </div>
+            </span>
+            <span className="called-stat">
+              {hotStat !== null ? statName(editionId, hotStat) : "Pick a stat"}
+            </span>
+            <span className="called-meter" aria-hidden="true">
+              <span style={{ width: meter }} />
+            </span>
+            {game.pot.length > 0 && (
+              <span className="called-pot">{game.pot.length} in the pot</span>
+            )}
+          </div>
+        )}
       </section>
 
       {/* .your-hand carries the fanned backs of the rest of your hand; the card
@@ -427,13 +461,12 @@ export function GameTable({ room }: { room: RoomView }) {
         )}
       </div>
 
-      {emotesOpen && !spectator && (
-        <div className="emote-tray">
-          <EmoteBar />
-        </div>
-      )}
-
       <div className="table-social">
+        {emotesOpen && !spectator && (
+          <div className="emote-tray">
+            <EmoteBar />
+          </div>
+        )}
         {current !== null && stage === "verdict" && (
           <div
             className={`verdict-sheet ${winnerId === selfId && !spectator ? "verdict-sheet--won" : ""}`}
@@ -460,7 +493,6 @@ export function GameTable({ room }: { room: RoomView }) {
           </div>
         )}
 
-        <ThemeToggle />
         <MuteButton />
         <button
           type="button"
@@ -478,7 +510,7 @@ export function GameTable({ room }: { room: RoomView }) {
             aria-expanded={emotesOpen}
             onClick={() => setEmotesOpen(!emotesOpen)}
           >
-            ☺
+            <SmileIcon />
           </button>
         )}
         <GameChat />

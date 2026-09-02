@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 import type { RoomView } from "@deckxi/shared";
 import { useStore } from "../store/store.js";
 import { sounds } from "../lib/sounds.js";
-import { AppBar, MuteButton } from "../components/Chrome.js";
+import { AppBar, LeaveIcon, MuteButton } from "../components/Chrome.js";
 
 const REASON_COPY = {
   "last-standing": "took every card on the table",
@@ -90,7 +90,12 @@ export function Results({ room }: { room: RoomView }) {
           ) : (
             <p className="hint">Waiting for the host to start a rematch…</p>
           )}
-          <button type="button" className="button button--ghost" onClick={() => void leaveRoom()}>
+          <button
+            type="button"
+            className="button button--ghost button--icon"
+            onClick={() => void leaveRoom()}
+          >
+            <LeaveIcon size={18} />
             Leave room
           </button>
         </div>

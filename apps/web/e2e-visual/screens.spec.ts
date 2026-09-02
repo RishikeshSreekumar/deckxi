@@ -1,7 +1,7 @@
 /**
  * Screenshot the app screens the redesign touches — lobby, game table (your
- * turn and mid-reveal) and results — in both themes, at every viewport
- * project.
+ * turn and mid-reveal) and results — at every viewport project. The theme is
+ * pinned to light for now (src/lib/theme.ts), so there is one baseline each.
  *
  * State comes from src/dev/visualFixtures.ts via /__visual/<scenario>, not
  * from a live server: the fixtures are literal, so a diff here is a design
@@ -31,35 +31,18 @@ async function seed(page: Page, scenario: string, ready: string) {
  * no visual coverage of its own — the one component whose every colour changed
  * with nothing watching.
  */
-test(`${OPEN_CHAT} — dark`, async ({ page }) => {
+test(OPEN_CHAT, async ({ page }) => {
   await seed(page, "table-turn", "game-table");
   await page.getByTestId("game-chat").getByRole("button").first().click();
+  // Park the pointer so no baseline photographs a hover state.
   await page.mouse.move(0, 0);
-  await expect(page).toHaveScreenshot(`${OPEN_CHAT}-dark.png`);
-});
-
-test(`${OPEN_CHAT} — light`, async ({ page }) => {
-  await seed(page, "table-turn", "game-table");
-  await page.getByTestId("theme-toggle").first().click();
-  await page.getByTestId("game-chat").getByRole("button").first().click();
-  await page.mouse.move(0, 0);
-  await expect(page).toHaveScreenshot(`${OPEN_CHAT}-light.png`);
+  await expect(page).toHaveScreenshot(`${OPEN_CHAT}.png`);
 });
 
 for (const scenario of SCENARIOS) {
-  test(`${scenario.name} — dark`, async ({ page }) => {
+  test(scenario.name, async ({ page }) => {
     await seed(page, scenario.path, scenario.ready);
-    await expect(page).toHaveScreenshot(`${scenario.name}-dark.png`);
-  });
-
-  test(`${scenario.name} — light`, async ({ page }) => {
-    await seed(page, scenario.path, scenario.ready);
-    // Through the real toggle, so the screenshot proves the in-app control
-    // works and not merely that the CSS has a light block.
-    await page.getByTestId("theme-toggle").first().click();
-    // Park the pointer: otherwise every light baseline also photographs the
-    // toggle's hover state and dark's does not.
     await page.mouse.move(0, 0);
-    await expect(page).toHaveScreenshot(`${scenario.name}-light.png`);
+    await expect(page).toHaveScreenshot(`${scenario.name}.png`);
   });
 }

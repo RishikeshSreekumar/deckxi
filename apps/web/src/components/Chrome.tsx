@@ -1,7 +1,7 @@
 /**
  * App chrome shared by every screen: the app bar and wordmark, the six-slot
  * code entry, connection banner, update and install prompts, toasts, floating
- * emote reactions, and the mute and theme toggles.
+ * emote reactions, the mute toggle, and the shared icon glyphs.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
@@ -9,7 +9,6 @@ import { JOIN_CODE_LENGTH } from "@deckxi/shared";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { useStore } from "../store/store.js";
 import { isMuted, setMuted } from "../lib/sounds.js";
-import { useTheme } from "../lib/theme.js";
 
 const BANNER_COPY = {
   connecting: "Connecting…",
@@ -219,23 +218,61 @@ export function FloatingReactions() {
   );
 }
 
-/**
- * Theme toggle. Lives in real app chrome rather than the dev-facing /cards
- * gallery it used to hide in. Keeps the `theme-toggle` test id the visual
- * specs drive.
- */
-export function ThemeToggle() {
-  const { theme, toggle } = useTheme();
+/** Line icons for the chrome: one stroke weight, currentColor, 20px box. */
+function Icon({ children, size = 20 }: { children: ReactNode; size?: number }) {
   return (
-    <button
-      type="button"
-      className="icon-button"
-      data-testid="theme-toggle"
-      aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-      onClick={toggle}
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
     >
-      {theme === "dark" ? "☀️" : "🌙"}
-    </button>
+      {children}
+    </svg>
+  );
+}
+
+export function ChevronLeftIcon({ size }: { size?: number }) {
+  return (
+    <Icon {...(size !== undefined ? { size } : {})}>
+      <path d="M15 5l-7 7 7 7" />
+    </Icon>
+  );
+}
+
+/** Door with an arrow out of it. */
+export function LeaveIcon({ size }: { size?: number }) {
+  return (
+    <Icon {...(size !== undefined ? { size } : {})}>
+      <path d="M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5" />
+      <path d="M14 8l4 4-4 4" />
+      <path d="M18 12H9" />
+    </Icon>
+  );
+}
+
+export function SmileIcon({ size }: { size?: number }) {
+  return (
+    <Icon {...(size !== undefined ? { size } : {})}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8.5 14.5c.9 1.2 2.1 1.8 3.5 1.8s2.6-.6 3.5-1.8" />
+      <path d="M9 10h.01M15 10h.01" />
+    </Icon>
+  );
+}
+
+/** A chevron home: the one way back from every settings-side screen. */
+export function BackLink({ to = "/", label = "Back" }: { to?: string; label?: string }) {
+  return (
+    <Link to={to} className="icon-button" aria-label={label}>
+      <ChevronLeftIcon />
+    </Link>
   );
 }
 
@@ -273,18 +310,15 @@ export function Wordmark({ to }: { to?: string }) {
 
 /**
  * The bar across the top of every out-of-game screen (mockup turn 7): the
- * wordmark on the left, whatever the screen puts beside it, and the theme
- * toggle on the right. One rule under it, the same ink as every edge.
+ * wordmark on the left and whatever the screen puts beside it on the right.
+ * One rule under it, the same ink as every edge.
  */
 export function AppBar({ children, title }: { children?: ReactNode; title?: string }) {
   return (
     <header className="app-bar">
       <Wordmark to="/" />
       {title !== undefined && <span className="app-bar-title">{title}</span>}
-      <div className="app-bar-actions">
-        {children}
-        <ThemeToggle />
-      </div>
+      <div className="app-bar-actions">{children}</div>
     </header>
   );
 }

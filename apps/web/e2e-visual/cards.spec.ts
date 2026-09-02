@@ -19,26 +19,15 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("component kit", async ({ page }) => {
-  await expect(page.getByTestId("gallery-kit")).toHaveScreenshot("kit-dark.png");
-});
-
-test("component kit — light", async ({ page }) => {
-  await page.getByTestId("theme-toggle").click();
-  await page.mouse.move(0, 0);
-  await expect(page.getByTestId("gallery-kit")).toHaveScreenshot("kit-light.png");
+  await expect(page.getByTestId("gallery-kit")).toHaveScreenshot("kit.png");
 });
 
 test("sizes and states", async ({ page }) => {
   await expect(page.getByTestId("gallery-states")).toHaveScreenshot("states.png");
 });
 
-test("rarities — dark", async ({ page }) => {
-  await expect(page.getByTestId("gallery-rarities")).toHaveScreenshot("rarities-dark.png");
-});
-
-test("rarities — light", async ({ page }) => {
-  await page.getByTestId("theme-toggle").click();
-  await expect(page.getByTestId("gallery-rarities")).toHaveScreenshot("rarities-light.png");
+test("rarities", async ({ page }) => {
+  await expect(page.getByTestId("gallery-rarities")).toHaveScreenshot("rarities.png");
 });
 
 test("full edition grid", async ({ page }) => {

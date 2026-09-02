@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MAX_CHAT_LENGTH, type RoomSettings, type RoomView } from "@deckxi/shared";
 import { Dialog, RoomCode } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
-import { ThemeToggle, Wordmark } from "../components/Chrome.js";
+import { LeaveIcon, Wordmark } from "../components/Chrome.js";
 
 const MAX_SEATS = 6;
 
@@ -205,9 +205,14 @@ export function Lobby({ room }: { room: RoomView }) {
           <span className="sub lobby-rules-line">
             {room.settings.editionId} · {room.settings.maxRounds} rounds
           </span>
-          <ThemeToggle />
-          <button type="button" className="button button--ghost" onClick={() => void leaveRoom()}>
-            Leave
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Leave room"
+            title="Leave room"
+            onClick={() => void leaveRoom()}
+          >
+            <LeaveIcon />
           </button>
         </div>
       </header>

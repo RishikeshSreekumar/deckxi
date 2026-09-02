@@ -10,9 +10,42 @@
 import { useEffect, useRef, useState } from "react";
 import { MAX_CHAT_LENGTH } from "@deckxi/shared";
 import { useStore } from "../store/store.js";
+import { SmileIcon } from "./Chrome.js";
 
 /** Table talk, one tap. Short enough to read at a glance in a bubble. */
 const QUICK_PHRASES = ["HOWZAT", "good call", "no chance", "rematch"];
+
+/**
+ * The emoji tray behind the smiley: the things a table says without words.
+ * A fixed set, not a full picker — the keyboard has one of those already;
+ * this is for the players who are on a laptop or mid-round.
+ */
+const EMOJI = [
+  "😂",
+  "🤣",
+  "😮",
+  "😭",
+  "😤",
+  "🥶",
+  "😎",
+  "🤔",
+  "👏",
+  "🙌",
+  "👀",
+  "💪",
+  "🤝",
+  "👋",
+  "🙏",
+  "🫡",
+  "🔥",
+  "💯",
+  "🎯",
+  "🎉",
+  "❤️",
+  "💀",
+  "🏏",
+  "🏆",
+] as const;
 
 export function GameChat() {
   const chat = useStore((s) => s.chat);
@@ -21,6 +54,7 @@ export function GameChat() {
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState(chat.length);
   const [draft, setDraft] = useState("");
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const logRef = useRef<HTMLUListElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -47,7 +81,21 @@ export function GameChat() {
     const text = draft.trim();
     if (text.length === 0) return;
     setDraft("");
+    setEmojiOpen(false);
     post(text);
+  };
+
+  /** Drop an emoji at the caret (or the end) and keep typing. */
+  const insertEmoji = (emoji: string) => {
+    const input = inputRef.current;
+    const at = input?.selectionStart ?? draft.length;
+    const next = draft.slice(0, at) + emoji + draft.slice(at);
+    if (next.length > MAX_CHAT_LENGTH) return;
+    setDraft(next);
+    requestAnimationFrame(() => {
+      input?.focus();
+      input?.setSelectionRange(at + emoji.length, at + emoji.length);
+    });
   };
 
   return (
@@ -109,7 +157,32 @@ export function GameChat() {
             ))}
           </div>
 
+          {emojiOpen && (
+            <div className="chat-emoji" role="group" aria-label="Emoji">
+              {EMOJI.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  className="chat-emoji-button"
+                  aria-label={`Add ${emoji}`}
+                  onClick={() => insertEmoji(emoji)}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="chat-row">
+            <button
+              type="button"
+              className={`icon-button ${emojiOpen ? "icon-button--on" : ""}`}
+              aria-label={emojiOpen ? "Hide emoji" : "Add emoji"}
+              aria-expanded={emojiOpen}
+              onClick={() => setEmojiOpen(!emojiOpen)}
+            >
+              <SmileIcon />
+            </button>
             <input
               ref={inputRef}
               value={draft}
@@ -119,7 +192,10 @@ export function GameChat() {
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") send();
-                if (e.key === "Escape") setOpen(false);
+                if (e.key === "Escape") {
+                  if (emojiOpen) setEmojiOpen(false);
+                  else setOpen(false);
+                }
               }}
             />
             <button type="button" className="button" onClick={send}>

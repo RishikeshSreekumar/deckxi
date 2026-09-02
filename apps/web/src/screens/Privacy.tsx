@@ -3,15 +3,13 @@
  * rid of it. Linked from the profile screen.
  */
 import { Link } from "react-router-dom";
-import { AppBar } from "../components/Chrome.js";
+import { AppBar, BackLink } from "../components/Chrome.js";
 
 export function PrivacyScreen() {
   return (
     <main className="screen privacy">
       <AppBar title="Privacy">
-        <Link to="/" className="button button--ghost">
-          Back
-        </Link>
+        <BackLink />
       </AppBar>
 
       <div className="panel privacy-copy">

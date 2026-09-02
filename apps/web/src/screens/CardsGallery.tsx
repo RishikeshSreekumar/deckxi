@@ -10,7 +10,6 @@
  */
 import { DEFAULT_EDITION_ID, RoomCode, TimerRing, TrumpCard, getEdition } from "@deckxi/ui";
 import type { Rarity } from "@deckxi/shared";
-import { ThemeToggle } from "../components/Chrome.js";
 
 /** A fixed deadline so the timer ring's arc is the same in every screenshot. */
 const FROZEN_TIMER = { deadline: 0, seconds: 20 };
@@ -125,7 +124,6 @@ export function CardsGalleryScreen() {
         <h1 className="brand brand--small">
           Deck<span className="brand-xi">XI</span> cards — {edition.name}
         </h1>
-        <ThemeToggle />
       </header>
 
       <KitSection />

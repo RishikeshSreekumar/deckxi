@@ -12,7 +12,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { AppBar } from "../components/Chrome.js";
+import { AppBar, BackLink } from "../components/Chrome.js";
 import { AdminFeed } from "../components/AdminFeed.js";
 import { AdminOps } from "../components/AdminOps.js";
 import {
@@ -86,9 +86,7 @@ export function AdminScreen() {
   return (
     <main className="screen admin" data-testid="admin-screen">
       <AppBar title="Ops">
-        <Link to="/" className="button button--ghost">
-          Back
-        </Link>
+        <BackLink />
       </AppBar>
 
       <div className="admin-summary">

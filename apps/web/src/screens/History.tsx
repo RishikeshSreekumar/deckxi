@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ensureSession } from "../lib/auth.js";
 import { fetchMatches, fetchProfile, type MatchSummary } from "../lib/api.js";
-import { AppBar } from "../components/Chrome.js";
+import { AppBar, BackLink } from "../components/Chrome.js";
 
 const OUTCOME_COPY = { won: "Won", lost: "Lost", unfinished: "Unfinished" } as const;
 
@@ -37,9 +37,7 @@ export function HistoryScreen() {
   return (
     <main className="screen history">
       <AppBar title="Match history">
-        <Link to="/" className="button button--ghost">
-          Back
-        </Link>
+        <BackLink />
       </AppBar>
 
       {error !== null && <p className="notice">{error}</p>}

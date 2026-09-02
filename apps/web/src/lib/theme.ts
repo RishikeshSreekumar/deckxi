@@ -24,7 +24,8 @@ const listeners = new Set<() => void>();
 
 let preference: ThemePreference = "system";
 
-function readStored(): ThemePreference {
+/** The stored choice, kept for when the toggle returns; unused while pinned. */
+export function readStoredThemePreference(): ThemePreference {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw === "light" || raw === "dark" ? raw : "system";
@@ -70,9 +71,15 @@ export function setThemePreference(pref: ThemePreference): void {
   for (const listener of listeners) listener();
 }
 
-/** Call once at boot, before first paint of the app tree. */
+/**
+ * Call once at boot, before first paint of the app tree.
+ *
+ * Pinned to light for now: the dark palette is parked until the redesign
+ * settles, so the OS preference and any stored choice are ignored. The
+ * preference plumbing stays so the toggle can come back without a rewrite.
+ */
 export function initTheme(): void {
-  preference = readStored();
+  preference = "light";
   apply(preference);
   // While on "system", follow the OS if it changes mid-session.
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
