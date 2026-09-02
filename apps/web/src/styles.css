@@ -1421,6 +1421,31 @@ select:focus {
 
 /* The card's own head, on the stock: name in the display face, everything
    else small and quiet under it. */
+/* The face as a whole — head and stat rows — is what changes between rounds,
+   so it is the thing that deals in: up from the fan, a touch of tilt, and it
+   settles. Keyed on the card, so the reveal (which holds the played card)
+   never re-deals mid-round. */
+.hand-face {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  animation: deal-in 520ms var(--ease-spring) both;
+}
+
+@keyframes deal-in {
+  from {
+    transform: translateY(28px) rotate(-2deg) scale(0.96);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
 .hand-head {
   flex: 0 0 auto;
   display: flex;
@@ -1431,7 +1456,6 @@ select:focus {
   border-bottom: 2px solid var(--card-rule);
   border-radius: calc(var(--radius-lg) - 6px) calc(var(--radius-lg) - 6px) 0 0;
   background: color-mix(in srgb, var(--card-body-ink) 5%, transparent);
-  animation: rise var(--dur-med) var(--ease-out);
 }
 
 /* The mini back that says this face is one of several. */
@@ -1802,8 +1826,19 @@ select:focus {
   z-index: 8;
   display: flex;
   flex-direction: column;
+  border: var(--tbl-edge) solid var(--tbl-line);
   background: var(--tbl-paper);
+  box-shadow: var(--elevation-card);
+  overflow: hidden;
   animation: rise var(--dur-med) var(--ease-out);
+}
+
+/* With room around it the sheet is a piece on the table, not the screen. */
+@media (min-width: 768px) {
+  .game-chat-panel {
+    inset: var(--space-7) 0;
+    border-radius: var(--radius-md);
+  }
 }
 
 .game-chat-head {
@@ -2835,7 +2870,7 @@ select:focus {
 @media (prefers-reduced-motion: reduce) {
   .seat-card--up,
   .reveal-card,
-  .hand-head,
+  .hand-face,
   .verdict-sheet,
   .results-trophy,
   .reaction-float,

@@ -11,7 +11,7 @@ import { authClient, ensureSession } from "../lib/auth.js";
 import { fetchProfile, type Profile } from "../lib/api.js";
 import { Avatar, DEFAULT_EDITION_ID, statName } from "@deckxi/ui";
 import { savePlayerName } from "../lib/session.js";
-import { AppBar, BackLink } from "../components/Chrome.js";
+import { AppBar } from "../components/Chrome.js";
 import { isMuted, setMuted } from "../lib/sounds.js";
 
 export function ProfileScreen() {
@@ -354,9 +354,5 @@ export function ProfileScreen() {
 }
 
 function ScreenHead() {
-  return (
-    <AppBar title="Settings">
-      <BackLink />
-    </AppBar>
-  );
+  return <AppBar title="Settings" back />;
 }
