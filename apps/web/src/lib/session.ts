@@ -1,6 +1,6 @@
 /**
  * Per-tab persistence: the resume token (survives reloads, not tab close) and
- * small localStorage conveniences (name, mute). All guarded — storage access
+ * small localStorage conveniences (name, mute, haptics). All guarded — storage access
  * can throw in private windows.
  */
 export interface StoredSession {
@@ -11,6 +11,7 @@ export interface StoredSession {
 const SESSION_KEY = "deckxi:session";
 const NAME_KEY = "deckxi:name";
 const MUTE_KEY = "deckxi:muted";
+const HAPTICS_KEY = "deckxi:haptics";
 
 export function saveSession(session: StoredSession): void {
   try {
@@ -76,5 +77,22 @@ export function loadMuted(): boolean {
     return localStorage.getItem(MUTE_KEY) === "1";
   } catch {
     return false;
+  }
+}
+
+export function saveHaptics(enabled: boolean): void {
+  try {
+    localStorage.setItem(HAPTICS_KEY, enabled ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Defaults to on: the pulses are short, and a setting nobody finds is off forever. */
+export function loadHaptics(): boolean {
+  try {
+    return localStorage.getItem(HAPTICS_KEY) !== "0";
+  } catch {
+    return true;
   }
 }

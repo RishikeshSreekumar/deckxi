@@ -1,7 +1,7 @@
 /**
  * Profile and settings (mockup turn 7's settings screen): who you are across
  * games — display name, avatar (card-art-style set), stats — plus the device
- * settings (sounds), and the guest→account upgrade path (Google or
+ * settings (sounds, vibration), and the guest→account upgrade path (Google or
  * magic link). Deleting the account scrubs your match history server-side.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -13,6 +13,7 @@ import { Avatar, DEFAULT_EDITION_ID, statName } from "@deckxi/ui";
 import { savePlayerName } from "../lib/session.js";
 import { AppBar } from "../components/Chrome.js";
 import { isMuted, setMuted } from "../lib/sounds.js";
+import { hapticsEnabled, hapticsSupported, setHapticsEnabled } from "../lib/haptics.js";
 
 export function ProfileScreen() {
   const navigate = useNavigate();
@@ -28,6 +29,7 @@ export function ProfileScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [muted, setLocalMuted] = useState(isMuted());
+  const [vibration, setLocalVibration] = useState(hapticsEnabled());
 
   const reload = useCallback(async () => {
     try {
@@ -261,6 +263,26 @@ export function ProfileScreen() {
               <span className="toggle-knob" />
             </button>
           </div>
+          {/* iOS Safari has no Vibration API; a switch that does nothing is worse
+              than no switch, so the row only exists where it can work. */}
+          {hapticsSupported() && (
+            <div className="setting-row">
+              <span>Vibration</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={vibration}
+                aria-label="Vibration"
+                className={`toggle${vibration ? " toggle--on" : ""}`}
+                onClick={() => {
+                  setHapticsEnabled(!vibration);
+                  setLocalVibration(!vibration);
+                }}
+              >
+                <span className="toggle-knob" />
+              </button>
+            </div>
+          )}
         </div>
       </section>
 

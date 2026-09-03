@@ -493,19 +493,58 @@
 
 /* -- trump card ------------------------------------------------------------- */
 
-/* The card is a printed piece and it is identical in both themes: cream face,
-   ink outline, ink drop. Everything inside it uses the --card-body-* ink
-   roles rather than --text-*, which belong to the app's surfaces. */
-.card {
-  background: var(--card-face);
-  border: var(--edge) solid var(--ink-line);
-  border-radius: var(--radius-card);
-  overflow: hidden;
+/* Design 9b: a printed piece, identical in both themes. Cream stock, ink
+   outline, ink drop. The top is the photo, bled to the edges, with the name
+   printed over its foot; under it an ink table with the numbers. Everything
+   inside uses the --card-* roles, never --text-*, which belong to the app.
+
+   One drawing, at every size. The card's font-size comes from its own width
+   (container units on the .card-scale wrapper), so a 130px reveal card and
+   a 320px deck card are the same picture, scaled; and every card is a
+   playing card's 5:7. */
+.card-scale {
+  container-type: inline-size;
   width: 100%;
-  box-shadow: var(--elevation-card);
+}
+
+.card-scale--full {
+  max-width: 320px;
+}
+
+.card-scale--reveal {
+  width: clamp(132px, 26vw, 180px);
+}
+
+/* The hard case: a hand card on a small phone. Scales with the viewport
+   rather than sitting at a fixed 140px that crowds a 320px screen. */
+.card-scale--hand {
+  width: clamp(112px, 34vw, 150px);
+}
+
+.card {
+  --card-pad: 0.9em;
+  --card-table-ink: var(--ink-900);
+  --card-table-rule: rgba(255, 250, 240, 0.14);
+  --card-table-muted: var(--tan-300);
+  --card-table-text: var(--cream-100);
+  --card-row: 1.85em;
+
   position: relative;
-  font-family: var(--font-sans);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  /* 320px wide → 13px. Browsers without container units get the 13px. */
+  font-size: 13px;
+  font-size: 4.06cqw;
+  padding: 0.5em;
+  border: 0.2em solid var(--ink-line);
+  border-radius: 0.8em;
+  background: var(--card-face);
   color: var(--card-body-ink);
+  box-shadow: 0.3em 0.3em 0 var(--ink-line);
+  font-family: var(--font-sans);
+  overflow: hidden;
   /* Cards get dragged past, tapped and swiped. None of that should select
      text or start a native image drag. */
   user-select: none;
@@ -513,210 +552,292 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.card--full {
-  max-width: 300px;
-}
-
-.card--reveal {
-  width: clamp(120px, 26vw, 180px);
-  font-size: var(--text-sm);
-}
-
-/* The hard case: a hand card on a small phone. Scales with the viewport
-   rather than sitting at a fixed 140px that crowds a 320px screen. */
-.card--hand {
-  width: clamp(112px, 34vw, 148px);
-  font-size: var(--text-xs);
-}
-
-/* Inner frame layer — rarity foils live here. On stock it is a printed inner
-   rule rather than a bevel. */
+/* Inner frame — the printed rule just inside the edge. Rarity foils live on
+   it. */
 .card-frame {
   position: absolute;
-  inset: 3px;
-  border-radius: calc(var(--radius-card) - 4px);
+  inset: 0.3em;
   border: 1px solid var(--card-hairline);
+  border-radius: 0.5em;
   pointer-events: none;
   z-index: 3;
 }
 
-/* The head is the same stock as the rest of the face. A colour bar across the
-   top is the only place the team is a fill; everywhere else it is the tint in
-   the stat meters and the portrait behind the name. */
-.card-head {
-  background: transparent;
-  border-top: 4px solid var(--team-color);
-  color: var(--card-body-ink);
-  padding: var(--space-5) var(--space-5) var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+/* -- the photo -- */
+
+/* The photo and the band over its foot. Takes whatever height the table
+   leaves, never less than the band needs. */
+.card-top {
   position: relative;
+  flex: 1 1 auto;
+  min-height: 8.5em;
+  display: flex;
+  border-radius: 0.5em 0.5em 0 0;
   overflow: hidden;
-  min-height: 3.2em;
-  justify-content: flex-end;
 }
 
+/* Full bleed inside the stock's margin. No photos yet: the striped stock with
+   the role silhouette in the team's colour stands in, and looks like it
+   meant to. */
+.card-photo {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  background-color: var(--cream-100);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--cream-300) 0 0.9em,
+    transparent 0.9em 1.8em
+  );
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* Sized by the photo, never the other way round: absolute, so the silhouette
+   cannot decide how tall the card is. */
 .card-portrait {
   position: absolute;
-  right: -4px;
-  bottom: -6px;
-  height: 130%;
+  left: 50%;
+  bottom: 1.4em;
+  width: auto;
+  height: min(78%, 20em);
+  transform: translateX(-50%);
   color: var(--team-color);
-  opacity: 0.16;
+  opacity: 0.55;
   pointer-events: none;
 }
 
+/* Rating in a roundel, the role glyph under it: the corner of a playing
+   card, with the rank and the suit. */
+.card-roundel {
+  position: absolute;
+  top: 0.7em;
+  left: 0.7em;
+  width: 3.1em;
+  height: 3.1em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  border: 0.16em solid var(--ink-line);
+  border-radius: 50%;
+  background: var(--cream-50);
+  color: var(--card-body-ink);
+  line-height: 1;
+}
+
+.card-roundel-rating {
+  font-family: var(--font-display);
+  font-size: 1.25em;
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.card-roundel .role-icon {
+  width: 0.9em;
+  height: 0.9em;
+}
+
+/* The nation, top right: the flag, printed straight on the photo. */
+.card-flag {
+  position: absolute;
+  top: 0.55em;
+  right: 0.7em;
+  font-size: 1.9em;
+  line-height: 1;
+}
+
+.card-flag--text {
+  top: 0.9em;
+  font-family: var(--font-label);
+  font-weight: var(--weight-bold);
+  font-size: 1em;
+  letter-spacing: var(--tracking-wide);
+  color: var(--card-body-ink);
+}
+
+/* Star and legend marks, on the photo above the band. */
+.card-rarity {
+  position: absolute;
+  right: 0.8em;
+  top: 3.2em;
+  font-size: 1.3em;
+  line-height: 1;
+  color: var(--card-body-accent);
+}
+
+.card-rarity--legend {
+  color: var(--rarity-legend-ink);
+}
+
+/* -- the band -- */
+
+/* Printed over the foot of the photo. A long name grows upward into the
+   photo rather than pushing the table down. */
+.card-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15em;
+  padding: 1.6em var(--card-pad) 0.55em;
+  background: linear-gradient(
+    to top,
+    var(--card-table-ink) 0,
+    var(--card-table-ink) 62%,
+    color-mix(in srgb, var(--card-table-ink) 60%, transparent) 84%,
+    transparent 100%
+  );
+  color: var(--card-table-text);
+}
+
 /* Long names wrap to a second line rather than truncating on the first — a
-   cricket card with a clipped surname is worse than one with a tighter head.
-   Card type is sized in em off the card's own font-size, so this behaves
-   identically at hand, reveal and full. Two lines is the cap. */
+   cricket card with a clipped surname is worse than one with a taller band.
+   Two lines is the cap. */
 .card-name {
   font-family: var(--font-display);
+  font-size: 1.7em;
   font-weight: var(--weight-bold);
-  font-size: 1.35em;
   line-height: var(--leading-tight);
   letter-spacing: var(--tracking-display);
-  position: relative;
-  padding-right: 34px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  overflow-wrap: anywhere;
+  /* Break between words, never inside a name. */
+  overflow-wrap: normal;
+  hyphens: none;
 }
 
-.card-meta {
+.card-nation {
+  flex: 0 0 auto;
   font-family: var(--font-label);
-  font-size: 0.9em;
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-wide);
+  font-size: 0.85em;
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
-  color: var(--card-body-muted);
-  position: relative;
+  color: var(--ember-400);
+}
+
+/* -- the table (stats are gameplay, not decoration) -- */
+
+.card-table {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--card-table-ink);
+  color: var(--card-table-text);
+  border-top: 1px solid var(--card-table-rule);
+  border-radius: 0 0 0.5em 0.5em;
+}
+
+.card-column {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  flex-direction: column;
+  min-width: 0;
+  padding: 0.6em var(--card-pad) 0.7em;
 }
 
-.role-icon {
-  width: 1.1em;
-  height: 1.1em;
-  flex-shrink: 0;
+.card-column + .card-column {
+  border-left: 1px solid var(--card-table-rule);
 }
 
-.rarity-mark {
-  font-size: 0.9em;
-}
-
-/* The marks sit on the cream face, so they take the card's own ink rather
-   than the theme's rarity role. */
-.card--star .rarity-mark {
-  color: var(--card-body-accent);
-}
-
-.card--legend .rarity-mark {
-  color: var(--surface-field);
-}
-
-/* Rating badge — a shield overlapping the header edge. */
-.card-rating {
-  position: absolute;
-  top: 5px;
-  right: 6px;
-  width: 2.6em;
-  height: 2.9em;
-  display: flex;
+/* The bat and the ball are the headings: small, one line, out of the way. */
+.card-column-icon {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-display);
-  font-weight: var(--weight-bold);
-  font-size: 1.05em;
-  color: var(--card-ink);
-  z-index: 2;
+  width: 1.6em;
+  height: 1.6em;
+  margin-bottom: 0.35em;
+  border-radius: 50%;
+  background: var(--cream-100);
+  color: var(--ink-900);
 }
 
-.card-rating svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+.card-column-icon--bat {
+  background: var(--ember-500);
+  color: var(--cream-50);
 }
 
-.card-rating span {
-  position: relative;
-  font-size: 1em;
-  font-variant-numeric: tabular-nums;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+.card-column-icon .role-icon {
+  width: 0.95em;
+  height: 0.95em;
 }
 
-/* -- stat table (stats are gameplay, not decoration) -- */
+.card-column-icon--ball .role-icon {
+  color: var(--ink-900);
+}
 
-/* On the phone this table *is* the picker: the face of the card is the only
-   thing you touch during a round, so the rows are full-bleed rules rather
-   than an inset list. */
 .card-stats {
   list-style: none;
   margin: 0;
   padding: 0;
-  position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .stat-row {
-  border-top: 2px solid var(--card-rule);
   position: relative;
 }
 
-/* Value meter — normalized against the stat's min/max from the edition. */
-.stat-row::before {
-  content: "";
-  position: absolute;
-  inset: 2px auto 2px 0;
-  width: var(--meter, 0%);
-  background: color-mix(in srgb, var(--team-color) 16%, transparent);
-  border-radius: 0 var(--space-2) var(--space-2) 0;
-  pointer-events: none;
-}
-
+/* Label, leader, number — one line each, the same height in both columns so
+   the rows line up across the rule. Nothing wraps; the label gives way
+   first, then the leader. */
 .stat-button,
 .stat-static {
   display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: var(--space-4);
-  align-items: center;
+  grid-template-columns: auto minmax(0.4em, 1fr) auto;
+  align-items: baseline;
+  gap: 0.35em;
   width: 100%;
-  padding: var(--space-3) var(--space-5);
-  background: transparent;
+  height: var(--card-row);
+  min-height: 0;
+  margin: 0;
+  padding: 0;
   border: none;
+  border-radius: 0.25em;
+  background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
   position: relative;
+  overflow: hidden;
 }
 
 /* A stat row is the single most-tapped target in the game. Rows are dense by
-   necessity, so the row itself carries the 44px target via an expansion that
+   necessity, so the row itself carries the target via an expansion that
    overlaps its neighbours' padding rather than by growing the card. */
 .stat-button {
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  min-height: 34px;
   transition: background var(--dur-fast) var(--ease-out);
 }
 
-/* --stat-row-min lets a screen that is genuinely short on height step the
-   rows down (the game table does, on small phones and in landscape). It is
-   the one place the 44px minimum bends, because six stacked rows is 264px
-   before anything else on the screen exists, and the alternative is a table
-   that scrolls mid-match. */
-.card--full .stat-button {
-  min-height: var(--stat-row-min, var(--touch-min));
+.stat-button {
+  padding-inline: 0.4em;
+  margin-inline: -0.4em;
+  width: calc(100% + 0.8em);
+}
+
+/* The printed row is short; the finger target is not. The hit area reaches
+   into the neighbours' leading, and the row keeps its look. */
+.stat-button::after {
+  content: "";
+  position: absolute;
+  inset: -0.35em 0;
 }
 
 .stat-button:hover,
 .stat-button:focus-visible {
-  background: var(--interactive-accent-subtle);
+  background: rgba(255, 250, 240, 0.1);
 }
 
 .stat-button:focus-visible {
@@ -725,51 +846,58 @@
 }
 
 .stat-button:active {
-  background: color-mix(in srgb, var(--interactive-accent) 24%, transparent);
+  background: rgba(255, 250, 240, 0.18);
 }
 
 .stat-name {
+  min-width: 0;
   font-family: var(--font-label);
   font-size: 0.95em;
   font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
-  color: var(--card-body-muted);
+  color: var(--card-table-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.stat-dir {
-  color: var(--card-body-accent);
-  font-size: 0.7em;
+/* The dotted leader from the label to the number. */
+.stat-leader {
+  min-width: 0;
+  height: 0;
+  border-bottom: 0.14em dotted var(--card-table-muted);
+  opacity: 0.55;
+  transform: translateY(-0.2em);
 }
 
 .stat-value {
   font-family: var(--font-display);
+  font-size: 1.25em;
   font-weight: var(--weight-bold);
-  font-size: 1.4em;
   font-variant-numeric: tabular-nums;
-  color: var(--card-body-ink);
+  color: var(--card-table-text);
+  line-height: 1;
+  white-space: nowrap;
 }
 
 /* The called stat is the one row that inverts: the green of the table,
-   pulled onto the stock. */
-.stat-row--hot {
+   pulled onto the ink. */
+.stat-row--hot .stat-button,
+.stat-row--hot .stat-static {
   background: var(--surface-field);
+  padding-inline: 0.4em;
+  margin-inline: -0.4em;
+  width: calc(100% + 0.8em);
 }
 
 .stat-row--hot .stat-name,
-.stat-row--hot .stat-dir {
-  color: var(--text-on-field);
-}
-
 .stat-row--hot .stat-value {
   color: var(--text-on-field);
 }
 
-.stat-row--hot::before {
-  display: none;
+.stat-row--hot .stat-leader {
+  border-color: var(--text-on-field);
 }
 
 /* -- card back (the brand mark) -- */
@@ -777,12 +905,10 @@
 /* The back is the deck: the blue stock, the ink outline, and the dotted grid
    that makes a fanned stack read as a stack. */
 .card--back {
-  aspect-ratio: 5 / 7;
   background: var(--card-back);
   background-image: var(--card-back-grid);
-  background-size: 9px 9px;
-  border: var(--edge) solid var(--ink-line);
-  box-shadow: var(--elevation-raised);
+  background-size: 0.7em 0.7em;
+  box-shadow: 0.2em 0.2em 0 var(--ink-line);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -814,7 +940,7 @@
   mask-composite: exclude;
 }
 
-/* Legend: holographic foil — a static holo tint always present, with a
+/* Legend: holographic foil — a static holo tint over the photo, with a
    travelling sheen on top. Reduced motion keeps the tint, drops the sweep. */
 .card--legend {
   box-shadow:
@@ -831,7 +957,7 @@
   mask-composite: exclude;
 }
 
-.card--legend::before {
+.card--legend .card-top::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -841,7 +967,7 @@
   z-index: 2;
 }
 
-.card--legend::after {
+.card--legend .card-top::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -983,7 +1109,7 @@
     will-change: auto;
   }
 
-  .card--legend::after {
+  .card--legend .card-top::after {
     animation: none;
     display: none;
   }

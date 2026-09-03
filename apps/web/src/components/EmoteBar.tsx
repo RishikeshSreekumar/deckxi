@@ -3,6 +3,7 @@
  */
 import { EMOTES } from "@deckxi/shared";
 import { useStore } from "../store/store.js";
+import { haptics } from "../lib/haptics.js";
 
 export function EmoteBar() {
   const react = useStore((s) => s.react);
@@ -13,7 +14,10 @@ export function EmoteBar() {
           key={emote}
           type="button"
           className="emote-button"
-          onClick={() => void react(emote).catch(() => undefined)}
+          onClick={() => {
+            haptics.tap();
+            void react(emote).catch(() => undefined);
+          }}
         >
           {emote}
         </button>

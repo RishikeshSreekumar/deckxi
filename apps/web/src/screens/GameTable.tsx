@@ -13,21 +13,15 @@
 import { useEffect, useRef, useState } from "react";
 import type { RoomView, TurnTimerView } from "@deckxi/shared";
 import type { ResolvedRound } from "../game/clientGame.js";
-import { Dialog, formatStatValue, getCardInfo, statName } from "@deckxi/ui";
+import { Dialog, TrumpCard, formatStatValue, statName } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
 import { EmoteBar } from "../components/EmoteBar.js";
 import { GameChat } from "../components/GameChat.js";
 import { MuteButton, SmileIcon } from "../components/Chrome.js";
 import { sounds } from "../lib/sounds.js";
+import { haptics } from "../lib/haptics.js";
 
 type Stage = "flip" | "verdict";
-
-const ROLE_LABELS: Record<string, string> = {
-  batter: "batter",
-  bowler: "bowler",
-  "all-rounder": "all-rounder",
-  keeper: "keeper",
-};
 
 /**
  * How long each beat of the reveal holds. Mutable so the visual-regression
@@ -56,9 +50,16 @@ function useRevealPresenter(selfId: string | null) {
     timers.current.push(
       window.setTimeout(() => {
         setStage("verdict");
-        if (round.result.kind === "tie") sounds.tie();
-        else if (round.result.winner === selfId) sounds.roundWin();
-        else sounds.roundLose();
+        if (round.result.kind === "tie") {
+          sounds.tie();
+          haptics.lose();
+        } else if (round.result.winner === selfId) {
+          sounds.roundWin();
+          haptics.win();
+        } else {
+          sounds.roundLose();
+          haptics.lose();
+        }
       }, revealTiming.flipMs),
       window.setTimeout(() => {
         setCurrent(null);
@@ -173,6 +174,7 @@ export function GameTable({ room }: { room: RoomView }) {
     if (yourTurn && !nudged.current) {
       nudged.current = true;
       sounds.yourTurn();
+      haptics.yourTurn();
     }
     if (!yourTurn) nudged.current = false;
   }, [yourTurn]);
@@ -196,8 +198,6 @@ export function GameTable({ room }: { room: RoomView }) {
       : null;
   const topCard = playedCard ?? game.yourHand?.[0] ?? null;
   const leaderName = game.leader === selfId ? "you" : (names[game.leader] ?? "…");
-  const { player, team } =
-    topCard === null ? { player: null, team: null } : getCardInfo(editionId, topCard);
 
   // The engine's own numbers, not the edition's — the config is what resolved
   // the round, so the bars and the result can never disagree.
@@ -313,7 +313,6 @@ export function GameTable({ room }: { room: RoomView }) {
               {current.revealed.map((r, index) => {
                 const isSelf = r.playerId === selfId && !spectator;
                 const won = stage === "verdict" && r.playerId === winnerId;
-                const info = getCardInfo(editionId, r.cardId);
                 return (
                   <li
                     key={r.playerId}
@@ -333,17 +332,18 @@ export function GameTable({ room }: { room: RoomView }) {
                     <span className="reveal-card-owner">
                       {isSelf ? "You" : (names[r.playerId] ?? r.playerId)}
                     </span>
-                    <span className="reveal-card-face">
-                      <span className="reveal-card-name">{info.player?.name ?? r.cardId}</span>
-                      <span className="reveal-card-meta">
-                        {info.team?.shortName ?? "?"}
-                        {info.player !== null &&
-                          ` · ${ROLE_LABELS[info.player.role] ?? info.player.role}`}
-                      </span>
-                      <span className="reveal-card-value">
-                        {formatStatValue(editionId, current.stat, r.value)}
-                      </span>
-                    </span>
+                    <TrumpCard
+                      editionId={editionId}
+                      cardId={r.cardId}
+                      size="hand"
+                      highlightStat={current.stat}
+                      stats={{ [current.stat]: r.value }}
+                      {...(won
+                        ? { outcome: "winner" as const }
+                        : stage === "verdict" && current.result.kind === "won"
+                          ? { outcome: "loser" as const }
+                          : {})}
+                    />
                   </li>
                 );
               })}
@@ -375,6 +375,12 @@ export function GameTable({ room }: { room: RoomView }) {
           face inside it scrolls its own stat rows, so the backs cannot live on
           it or they would scroll away with the table. */}
       <div className="your-hand">
+        {!spectator && game.yourHand !== null && game.yourHand.length > 0 && (
+          <span className="hand-count" data-testid="hand-count">
+            {game.yourHand.length}
+            <small>in hand</small>
+          </span>
+        )}
         <section
           className={[
             "your-area",
@@ -393,69 +399,21 @@ export function GameTable({ room }: { room: RoomView }) {
           ) : (
             <>
               <div className="hand-face" key={topCard ?? "none"}>
-                <div className="hand-head">
-                  <span className="hand-thumb" aria-hidden="true" />
-                  <div className="hand-id">
-                    <span className="hand-name">{player?.name ?? topCard}</span>
-                    {player !== null && (
-                      <span className={`hand-rarity hand-rarity--${player.rarity}`}>
-                        {player.rarity}
-                      </span>
-                    )}
-                    <span className="hand-meta">
-                      {team?.shortName ?? "?"}
-                      {player !== null && ` · ${ROLE_LABELS[player.role] ?? player.role}`}
-                    </span>
-                  </div>
-                  <span className="hand-count" data-testid="hand-count">
-                    {game.yourHand.length}
-                    <small>in hand</small>
-                  </span>
-                </div>
-
-                <ul className="stat-rows">
-                  {game.config.stats.map((def) => {
-                    const value = myStats?.[def.key];
-                    const fraction =
-                      value === undefined
-                        ? 0
-                        : Math.min(1, Math.max(0, (value - def.min) / (def.max - def.min)));
-                    const strength = def.direction === "lower" ? 1 - fraction : fraction;
-                    const hot = hotStat === def.key;
-                    const hint =
-                      value === undefined
-                        ? "—"
-                        : def.direction === "lower"
-                          ? "lower wins"
-                          : strength > 0.7
-                            ? "strong"
-                            : strength > 0.4
-                              ? "decent"
-                              : "risky";
-                    return (
-                      <li key={def.key} className={hot ? "stat-row stat-row--hot" : "stat-row"}>
-                        <button
-                          type="button"
-                          className="stat-button"
-                          data-stat={def.key}
-                          disabled={!yourTurn}
-                          onClick={() => void selectStat(def.key)}
-                        >
-                          <span className="stat-name">{statName(editionId, def.key)}</span>
-                          <span className="stat-meter" aria-hidden="true">
-                            <span
-                              style={{ width: `${Math.round(Math.max(0.04, strength) * 100)}%` }}
-                            />
-                          </span>
-                          <span className="stat-value">
-                            {value === undefined ? "—" : formatStatValue(editionId, def.key, value)}
-                          </span>
-                          <span className="stat-hint">{hint}</span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <TrumpCard
+                  editionId={editionId}
+                  cardId={topCard}
+                  size="full"
+                  {...(myStats !== null ? { stats: myStats } : {})}
+                  {...(hotStat !== null ? { highlightStat: hotStat } : {})}
+                  {...(yourTurn
+                    ? {
+                        onSelectStat: (key: string) => {
+                          haptics.tap();
+                          void selectStat(key);
+                        },
+                      }
+                    : {})}
+                />
               </div>
             </>
           )}
