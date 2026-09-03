@@ -313,9 +313,19 @@ export function Wordmark({ to }: { to?: string }) {
  * wordmark on the left and whatever the screen puts beside it on the right.
  * One rule under it, the same ink as every edge.
  */
-export function AppBar({ children, title }: { children?: ReactNode; title?: string }) {
+export function AppBar({
+  children,
+  title,
+  back = false,
+}: {
+  children?: ReactNode;
+  title?: string;
+  /** A chevron home, leading — the way back from a settings-side screen. */
+  back?: boolean;
+}) {
   return (
     <header className="app-bar">
+      {back && <BackLink />}
       <Wordmark to="/" />
       {title !== undefined && <span className="app-bar-title">{title}</span>}
       <div className="app-bar-actions">{children}</div>

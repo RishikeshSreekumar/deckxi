@@ -187,7 +187,14 @@ export function GameTable({ room }: { room: RoomView }) {
 
   const editionId = game.config.editionId;
   const opponents = game.config.players.filter((id) => id !== selfId);
-  const topCard = game.yourHand?.[0] ?? null;
+  // The store has already moved on to the next round while a reveal is
+  // presenting, so your hand's top is the *next* card. Until the reveal has
+  // played out, your face stays the card you put on the table.
+  const playedCard =
+    current !== null && !spectator
+      ? (current.revealed.find((r) => r.playerId === selfId)?.cardId ?? null)
+      : null;
+  const topCard = playedCard ?? game.yourHand?.[0] ?? null;
   const leaderName = game.leader === selfId ? "you" : (names[game.leader] ?? "…");
   const { player, team } =
     topCard === null ? { player: null, team: null } : getCardInfo(editionId, topCard);
@@ -385,69 +392,71 @@ export function GameTable({ room }: { room: RoomView }) {
             </p>
           ) : (
             <>
-              <div className="hand-head" key={`${game.round}-${topCard ?? "none"}`}>
-                <span className="hand-thumb" aria-hidden="true" />
-                <div className="hand-id">
-                  <span className="hand-name">{player?.name ?? topCard}</span>
-                  {player !== null && (
-                    <span className={`hand-rarity hand-rarity--${player.rarity}`}>
-                      {player.rarity}
+              <div className="hand-face" key={topCard ?? "none"}>
+                <div className="hand-head">
+                  <span className="hand-thumb" aria-hidden="true" />
+                  <div className="hand-id">
+                    <span className="hand-name">{player?.name ?? topCard}</span>
+                    {player !== null && (
+                      <span className={`hand-rarity hand-rarity--${player.rarity}`}>
+                        {player.rarity}
+                      </span>
+                    )}
+                    <span className="hand-meta">
+                      {team?.shortName ?? "?"}
+                      {player !== null && ` · ${ROLE_LABELS[player.role] ?? player.role}`}
                     </span>
-                  )}
-                  <span className="hand-meta">
-                    {team?.shortName ?? "?"}
-                    {player !== null && ` · ${ROLE_LABELS[player.role] ?? player.role}`}
+                  </div>
+                  <span className="hand-count" data-testid="hand-count">
+                    {game.yourHand.length}
+                    <small>in hand</small>
                   </span>
                 </div>
-                <span className="hand-count" data-testid="hand-count">
-                  {game.yourHand.length}
-                  <small>in hand</small>
-                </span>
-              </div>
 
-              <ul className="stat-rows">
-                {game.config.stats.map((def) => {
-                  const value = myStats?.[def.key];
-                  const fraction =
-                    value === undefined
-                      ? 0
-                      : Math.min(1, Math.max(0, (value - def.min) / (def.max - def.min)));
-                  const strength = def.direction === "lower" ? 1 - fraction : fraction;
-                  const hot = hotStat === def.key;
-                  const hint =
-                    value === undefined
-                      ? "—"
-                      : def.direction === "lower"
-                        ? "lower wins"
-                        : strength > 0.7
-                          ? "strong"
-                          : strength > 0.4
-                            ? "decent"
-                            : "risky";
-                  return (
-                    <li key={def.key} className={hot ? "stat-row stat-row--hot" : "stat-row"}>
-                      <button
-                        type="button"
-                        className="stat-button"
-                        data-stat={def.key}
-                        disabled={!yourTurn}
-                        onClick={() => void selectStat(def.key)}
-                      >
-                        <span className="stat-name">{statName(editionId, def.key)}</span>
-                        <span className="stat-meter" aria-hidden="true">
-                          <span
-                            style={{ width: `${Math.round(Math.max(0.04, strength) * 100)}%` }}
-                          />
-                        </span>
-                        <span className="stat-value">
-                          {value === undefined ? "—" : formatStatValue(editionId, def.key, value)}
-                        </span>
-                        <span className="stat-hint">{hint}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+                <ul className="stat-rows">
+                  {game.config.stats.map((def) => {
+                    const value = myStats?.[def.key];
+                    const fraction =
+                      value === undefined
+                        ? 0
+                        : Math.min(1, Math.max(0, (value - def.min) / (def.max - def.min)));
+                    const strength = def.direction === "lower" ? 1 - fraction : fraction;
+                    const hot = hotStat === def.key;
+                    const hint =
+                      value === undefined
+                        ? "—"
+                        : def.direction === "lower"
+                          ? "lower wins"
+                          : strength > 0.7
+                            ? "strong"
+                            : strength > 0.4
+                              ? "decent"
+                              : "risky";
+                    return (
+                      <li key={def.key} className={hot ? "stat-row stat-row--hot" : "stat-row"}>
+                        <button
+                          type="button"
+                          className="stat-button"
+                          data-stat={def.key}
+                          disabled={!yourTurn}
+                          onClick={() => void selectStat(def.key)}
+                        >
+                          <span className="stat-name">{statName(editionId, def.key)}</span>
+                          <span className="stat-meter" aria-hidden="true">
+                            <span
+                              style={{ width: `${Math.round(Math.max(0.04, strength) * 100)}%` }}
+                            />
+                          </span>
+                          <span className="stat-value">
+                            {value === undefined ? "—" : formatStatValue(editionId, def.key, value)}
+                          </span>
+                          <span className="stat-hint">{hint}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             </>
           )}
         </section>
