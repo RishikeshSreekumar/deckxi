@@ -5,7 +5,7 @@
  * magic link). Deleting the account scrubs your match history server-side.
  */
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AVATARS, MAX_NAME_LENGTH } from "@deckxi/shared";
 import { authClient, ensureSession } from "../lib/auth.js";
 import { fetchProfile, type Profile } from "../lib/api.js";
@@ -44,6 +44,14 @@ export function ProfileScreen() {
     void ensureSession().then(reload);
   }, [reload]);
 
+  // Landed here from the provider's error redirect (errorCallbackURL below).
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    if (params.get("auth") !== "failed") return;
+    setLinkError("Google sign-in didn't complete — try again, or use a magic link.");
+    setParams({}, { replace: true });
+  }, [params, setParams]);
+
   const saveName = async () => {
     const trimmed = name.trim();
     if (trimmed.length === 0 || profile === null || trimmed === profile.user.name) return;
@@ -63,10 +71,19 @@ export function ProfileScreen() {
     await reload();
   };
 
+  // better-auth resolves a relative callbackURL against *its* baseURL — the
+  // API origin — so "/profile" would land on the API's 404 page. Both the
+  // success and the error redirect need the web origin spelled out.
+  const returnTo = `${window.location.origin}/profile`;
+
   const signInGoogle = async () => {
     setBusy("google");
     try {
-      await authClient.signIn.social({ provider: "google", callbackURL: "/profile" });
+      await authClient.signIn.social({
+        provider: "google",
+        callbackURL: returnTo,
+        errorCallbackURL: `${returnTo}?auth=failed`,
+      });
     } finally {
       setBusy(null);
     }
@@ -78,7 +95,7 @@ export function ProfileScreen() {
     try {
       const { error: sendError } = await authClient.signIn.magicLink({
         email: email.trim(),
-        callbackURL: "/profile",
+        callbackURL: returnTo,
       });
       // Delivery can genuinely fail (#93). Saying so beats "check your inbox"
       // for an email that is never coming.
