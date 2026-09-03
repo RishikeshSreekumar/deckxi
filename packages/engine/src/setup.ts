@@ -62,7 +62,11 @@ function validateConfig(config: GameConfig): void {
  * the game's first event. `reduce(undefined, event)` yields the initial state.
  */
 export function initGame(input: GameConfigInput): GameEvent {
-  const config: GameConfig = { ...input, maxRounds: input.maxRounds ?? DEFAULT_MAX_ROUNDS };
+  const config: GameConfig = {
+    ...input,
+    maxRounds: input.maxRounds ?? DEFAULT_MAX_ROUNDS,
+    mode: input.mode ?? "classic-trumps",
+  };
   validateConfig(config);
 
   const rng = mulberry32(config.seed);

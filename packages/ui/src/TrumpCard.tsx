@@ -1,19 +1,23 @@
 /**
- * The trump card renderer (design 9b — full-bleed photo, icons instead of
- * headings). A printed piece: cream stock with an ink outline and drop; the
- * top two thirds are the player's photo, bled to the edges, with a rating
- * roundel in one corner and the nation's flag in the other, and the name in
- * an ink band printed over the photo's foot; under it an ink table carries
- * the stats in two columns — bat on the left, ball on the right — each a
- * label, a dotted leader and a number. International cards: the nation is
- * the only affiliation printed on them.
+ * The trump card renderer (design 10 — shirt number, light table). A printed
+ * piece: cream stock with an ink outline and drop; the top two thirds are
+ * the player's photo, bled to the edges, with the shirt number in an ink
+ * square in one corner and the nation's flag in the other, and the name in
+ * an ink band printed over the photo's foot; under it, on the cream, a
+ * table carries the stats in two headed columns — BATTING on the left,
+ * BOWLING on the right — each row a label, a dotted leader and a number.
+ * International cards: the nation is the only affiliation printed on them,
+ * and rarity is not printed at all — every card is the same piece of stock.
+ * A card whose shirt number is not on record prints the rating in the
+ * square, with the role glyph under it, so the corner is never blank.
  *
  * Stats are gameplay, not decoration: with `onSelectStat` every row is a
  * button, and the called stat inverts to the table's green.
  *
  * Data-driven from the edition dataset; unknown cards render a graceful
- * fallback. There are no player photos yet, so the photo area is the striped
- * stock with the role silhouette in the team's colour.
+ * fallback. A card whose player carries a licensed photo prints it full
+ * bleed; without one the photo area is the striped stock with the role
+ * silhouette in the team's colour. Photo credits are listed on /credits.
  */
 import { getCardInfo, getEdition, formatStatValue, statName } from "./editions.js";
 import { CardBackArt, RoleIcon, RolePortrait } from "./cardArt.js";
@@ -31,6 +35,8 @@ export interface TrumpCardProps {
   onSelectStat?: (stat: string) => void;
   /** Optimistically selected stat awaiting the server. */
   pendingStat?: string;
+  /** Stats that may not be picked right now (power trumps: last round's call). */
+  disabledStats?: readonly string[];
   outcome?: "winner" | "loser" | undefined;
   /**
    * Stat values to print instead of the edition's — the game passes the
@@ -56,12 +62,13 @@ const STAT_LAYOUT: Record<string, { column: "bat" | "ball"; label: string }> = {
   battingAvg: { column: "bat", label: "Avg." },
   strikeRate: { column: "bat", label: "S/R" },
   runs: { column: "bat", label: "Runs" },
-  highest: { column: "bat", label: "High" },
+  highest: { column: "bat", label: "H/S" },
   matches: { column: "bat", label: "Match" },
   wickets: { column: "ball", label: "Wkt." },
   economy: { column: "ball", label: "Econ." },
   overs: { column: "ball", label: "Overs" },
   catches: { column: "ball", label: "Ct." },
+  bestBowling: { column: "ball", label: "Best" },
 };
 
 /** Flag emoji by nationality; anything unlisted gets its initials instead. */
@@ -99,6 +106,7 @@ export function TrumpCard({
   highlightStat,
   onSelectStat,
   pendingStat,
+  disabledStats,
   outcome,
   stats: statOverride,
 }: TrumpCardProps) {
@@ -117,7 +125,6 @@ export function TrumpCard({
   // Fallback matches the --team-color role's dark default (night-600) for cards
   // whose team is missing from the edition.
   const color = team?.color ?? "#1d4137";
-  const rarity = player?.rarity ?? "regular";
   const stats = edition?.stats ?? [];
 
   const columns: { bat: typeof stats; ball: typeof stats } = { bat: [], ball: [] };
@@ -129,7 +136,6 @@ export function TrumpCard({
 
   const classes = [
     "card",
-    `card--${rarity}`,
     outcome === "winner" ? "card--winner" : "",
     outcome === "loser" ? "card--loser" : "",
   ]
@@ -142,6 +148,7 @@ export function TrumpCard({
     const value = statOverride?.[def.key] ?? player?.stats[def.key];
     const display = value === undefined ? "—" : formatStatValue(editionId, def.key, value);
     const highlighted = highlightStat === def.key || pendingStat === def.key;
+    const disabled = disabledStats?.includes(def.key) ?? false;
     const label = STAT_LAYOUT[def.key]?.label ?? statName(editionId, def.key);
     const row = (
       <>
@@ -153,13 +160,23 @@ export function TrumpCard({
       </>
     );
     return (
-      <li key={def.key} className={highlighted ? "stat-row stat-row--hot" : "stat-row"}>
+      <li
+        key={def.key}
+        className={[
+          "stat-row",
+          highlighted ? "stat-row--hot" : "",
+          disabled ? "stat-row--spent" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         {onSelectStat !== undefined ? (
           <button
             type="button"
             className="stat-button"
             data-stat={def.key}
-            aria-label={`${statName(editionId, def.key)} ${display}`}
+            disabled={disabled}
+            aria-label={`${statName(editionId, def.key)}${disabled ? " (called last round)" : ""} ${display}`}
             onClick={() => onSelectStat(def.key)}
           >
             {row}
@@ -177,14 +194,35 @@ export function TrumpCard({
         <div className="card-frame" aria-hidden="true" />
 
         <div className="card-top">
-          <div className="card-photo" aria-hidden="true">
-            {player !== null && <RolePortrait role={player.role} />}
-            {player !== null && (
+          <div
+            className={player?.photo === undefined ? "card-photo" : "card-photo card-photo--real"}
+            aria-hidden="true"
+          >
+            {player !== null && player.photo === undefined && <RolePortrait role={player.role} />}
+            {player?.photo !== undefined && (
+              <img
+                className="card-photo-img"
+                src={player.photo.src}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                draggable={false}
+              />
+            )}
+            {player !== null && player.jerseyNumber !== undefined && (
               <span
-                className="card-roundel"
+                className="card-jersey"
+                title={`${ROLE_LABELS[player.role] ?? player.role} · shirt ${player.jerseyNumber}`}
+              >
+                <span className="card-jersey-number">{player.jerseyNumber}</span>
+              </span>
+            )}
+            {player !== null && player.jerseyNumber === undefined && (
+              <span
+                className="card-jersey card-jersey--rating"
                 title={`${ROLE_LABELS[player.role] ?? player.role} · rating ${Math.round(player.rating)}`}
               >
-                <span className="card-roundel-rating">{Math.round(player.rating)}</span>
+                <span className="card-jersey-number">{Math.round(player.rating)}</span>
                 <RoleIcon role={player.role} />
               </span>
             )}
@@ -193,29 +231,29 @@ export function TrumpCard({
                 {flag ?? initials(player.nationality)}
               </span>
             )}
-            {rarity !== "regular" && (
-              <span className={`card-rarity card-rarity--${rarity}`}>
-                {rarity === "legend" ? "★" : "✦"}
-              </span>
-            )}
           </div>
 
           <header className="card-band">
             <span className="card-name">{player?.name ?? cardId}</span>
-            {player !== null && <span className="card-nation">{player.nationality}</span>}
           </header>
         </div>
 
         <div className="card-table">
           <div className="card-column">
-            <span className="card-column-icon card-column-icon--bat" aria-label="Batting">
-              <RoleIcon role="batter" />
+            <span className="card-column-head">
+              <span className="card-column-icon card-column-icon--bat" aria-hidden="true">
+                <RoleIcon role="batter" />
+              </span>
+              Batting
             </span>
             <ul className="card-stats">{columns.bat.map(renderRow)}</ul>
           </div>
           <div className="card-column">
-            <span className="card-column-icon card-column-icon--ball" aria-label="Bowling">
-              <RoleIcon role="bowler" />
+            <span className="card-column-head">
+              <span className="card-column-icon card-column-icon--ball" aria-hidden="true">
+                <RoleIcon role="bowler" />
+              </span>
+              Bowling
             </span>
             <ul className="card-stats">{columns.ball.map(renderRow)}</ul>
           </div>

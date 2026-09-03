@@ -13,7 +13,7 @@ import { useStore } from "../store/store.js";
 import { AckError } from "../lib/socket.js";
 import { loadPlayerName } from "../lib/session.js";
 import { fetchProfile, type ProfileUser } from "../lib/api.js";
-import { ensureSession } from "../lib/auth.js";
+import { authClient, ensureSession } from "../lib/auth.js";
 import { Avatar, Dialog, RoomCode } from "@deckxi/ui";
 import { AppBar, CodeSlots } from "../components/Chrome.js";
 
@@ -60,16 +60,20 @@ export function Landing() {
     history.replaceState(null, "", "/");
   };
 
-  // Who am I? Fills the name from the account (generated cricket handle for
-  // fresh guests) and shows the profile chip. Best-effort — offline is fine.
+  // Who am I? The account's display name (generated cricket handle for fresh
+  // guests, whatever you set on the profile screen since) is the name at the
+  // table, so it replaces the copy this browser last remembered — unless you
+  // have already started typing, which is never overwritten. Shows the
+  // profile chip too. Best-effort — offline is fine.
   useEffect(() => {
     let cancelled = false;
+    const remembered = loadPlayerName();
     void ensureSession()
       .then(fetchProfile)
       .then(({ user }) => {
         if (cancelled) return;
         setMe(user);
-        setName((current) => (current === "" ? user.name : current));
+        setName((current) => (current === remembered ? user.name : current));
       })
       .catch(() => undefined);
     return () => {
@@ -80,11 +84,33 @@ export function Landing() {
   const canSubmit = name.trim().length > 0 && busy === null && connection === "online";
   const codeComplete = code.trim().length === JOIN_CODE_LENGTH;
 
+  /**
+   * The server seats you under your account's display name, so a name typed
+   * here becomes that display name first — one name everywhere, not one on
+   * the profile and another at the table. Best-effort: if the update fails
+   * the server still has the last saved one.
+   */
+  const commitName = async (): Promise<string> => {
+    const trimmed = name.trim();
+    // `me` may still be loading if you were quick; the session is what
+    // matters, and the update is a no-op when the name already matches.
+    if (me === null || trimmed !== me.name) {
+      try {
+        await ensureSession();
+        await authClient.updateUser({ name: trimmed });
+        setMe((current) => (current === null ? current : { ...current, name: trimmed }));
+      } catch {
+        /* offline / signed out — the server falls back to what it has */
+      }
+    }
+    return trimmed;
+  };
+
   const doJoin = async (spectator: boolean) => {
     setBusy("join");
     setOfferSpectate(false);
     try {
-      await joinRoom(code.trim().toUpperCase(), name.trim(), spectator);
+      await joinRoom(code.trim().toUpperCase(), await commitName(), spectator);
       history.replaceState(null, "", "/");
     } catch (error) {
       if (error instanceof AckError && error.code === "room-full") setOfferSpectate(true);
@@ -157,7 +183,8 @@ export function Landing() {
                 disabled={!canSubmit}
                 onClick={() => {
                   setBusy("create");
-                  void createRoom(name.trim())
+                  void commitName()
+                    .then(createRoom)
                     .then(() => history.replaceState(null, "", "/"))
                     .catch(() => undefined)
                     .finally(() => setBusy(null));

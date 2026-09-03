@@ -1,6 +1,6 @@
 /**
  * /cards — the design-system gallery: the component kit's full state matrix,
- * then every card in every size, state and rarity. Dev-facing (unlinked from
+ * then every card in every size and state. Dev-facing (unlinked from
  * the app flow) and the surface most of the visual-regression screenshots run
  * against.
  *
@@ -8,8 +8,8 @@
  * room code is reviewable as a pixel diff. Before it, /cards exercised the
  * card renderer and nothing else, and a button regression was invisible.
  */
+import { useSearchParams } from "react-router-dom";
 import { DEFAULT_EDITION_ID, RoomCode, TimerRing, TrumpCard, getEdition } from "@deckxi/ui";
-import type { Rarity } from "@deckxi/shared";
 
 /** A fixed deadline so the timer ring's arc is the same in every screenshot. */
 const FROZEN_TIMER = { deadline: 0, seconds: 20 };
@@ -110,11 +110,13 @@ function KitSection() {
 }
 
 export function CardsGalleryScreen() {
-  const edition = getEdition(DEFAULT_EDITION_ID);
+  // `?edition=edition-fixture` pins the fictional edition, so the visual
+  // baselines never move when the real deck is refreshed.
+  const [params] = useSearchParams();
+  const edition = getEdition(params.get("edition") ?? DEFAULT_EDITION_ID);
   if (edition === null) return <main className="screen">Unknown edition.</main>;
 
-  const byRarity = (rarity: Rarity) => edition.players.find((p) => p.rarity === rarity);
-  const sample = byRarity("regular") ?? edition.players[0];
+  const sample = edition.players[0];
   const firstStat = edition.stats[0]?.key ?? "";
   if (sample === undefined) return <main className="screen">Empty edition.</main>;
 
@@ -182,21 +184,6 @@ export function CardsGalleryScreen() {
             />
             <figcaption>loser</figcaption>
           </figure>
-        </div>
-      </section>
-
-      <section className="panel gallery-section" data-testid="gallery-rarities">
-        <h2>Rarities</h2>
-        <div className="gallery-row">
-          {(["regular", "star", "legend"] as const).map((rarity) => {
-            const player = byRarity(rarity);
-            return player === undefined ? null : (
-              <figure key={rarity} className="gallery-item">
-                <TrumpCard editionId={edition.id} cardId={player.id} size="reveal" />
-                <figcaption>{rarity}</figcaption>
-              </figure>
-            );
-          })}
         </div>
       </section>
 

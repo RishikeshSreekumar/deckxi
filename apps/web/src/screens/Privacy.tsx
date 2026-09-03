@@ -39,6 +39,12 @@ export function PrivacyScreen() {
           <Link to="/profile">Delete your account</Link> any time. Your email and profile are
           removed immediately, and your name is scrubbed from past match records.
         </p>
+
+        <h2>Credits</h2>
+        <p>
+          The cards are built from open cricket data and freely licensed photographs —{" "}
+          <Link to="/credits">who made what</Link>.
+        </p>
       </div>
 
       <p className="hint">

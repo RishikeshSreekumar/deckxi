@@ -292,6 +292,8 @@ export function buildApp(options: AppOptions = {}): App {
     logger: log,
     metrics,
     ops,
+    resolveName: async (socket) =>
+      (await userFromHeaders(auth, socket.handshake.headers))?.name ?? null,
   });
 
   registerAdminRoutes(fastify, {

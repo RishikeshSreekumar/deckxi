@@ -57,6 +57,8 @@ export function GameChat() {
   const [emojiOpen, setEmojiOpen] = useState(false);
   const logRef = useRef<HTMLUListElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const emojiRef = useRef<HTMLDivElement>(null);
+  const emojiToggleRef = useRef<HTMLButtonElement>(null);
 
   const unread = open ? 0 : Math.max(0, chat.length - seen);
 
@@ -71,6 +73,22 @@ export function GameChat() {
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
+
+  // The tray is a popover: a tap anywhere else — the log, the input, the
+  // table behind the sheet — puts it away. The toggle is exempt so its own
+  // click flips the state once, not twice.
+  useEffect(() => {
+    if (!emojiOpen) return;
+    const away = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (emojiRef.current?.contains(target) === true) return;
+      if (emojiToggleRef.current?.contains(target) === true) return;
+      setEmojiOpen(false);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [emojiOpen]);
 
   const post = (text: string) => {
     if (text.length === 0) return;
@@ -158,7 +176,7 @@ export function GameChat() {
           </div>
 
           {emojiOpen && (
-            <div className="chat-emoji" role="group" aria-label="Emoji">
+            <div className="chat-emoji" role="group" aria-label="Emoji" ref={emojiRef}>
               {EMOJI.map((emoji) => (
                 <button
                   key={emoji}
@@ -175,6 +193,7 @@ export function GameChat() {
 
           <div className="chat-row">
             <button
+              ref={emojiToggleRef}
               type="button"
               className={`icon-button ${emojiOpen ? "icon-button--on" : ""}`}
               aria-label={emojiOpen ? "Hide emoji" : "Add emoji"}

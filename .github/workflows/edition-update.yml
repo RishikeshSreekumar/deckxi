@@ -26,12 +26,15 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Apply form drift
-        id: drift
+      # Re-derives every card from Cricsheet's latest T20I data (downloaded
+      # fresh), keeps names/photos from the committed cache and fetches
+      # photos only for newcomers. See docs/data-sources.md.
+      - name: Refresh the edition from Cricsheet
+        id: refresh
         run: |
           {
             echo "summary<<EOF"
-            pnpm --silent --filter @deckxi/data update-edition
+            pnpm --silent --filter @deckxi/data import-cricsheet --photos
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -42,16 +45,17 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           branch: data/weekly-edition-update
-          commit-message: "data: weekly edition form-drift update"
+          commit-message: "data: weekly edition refresh from Cricsheet"
           title: "Weekly edition update"
           body: |
-            Automated weekly form drift (`update-edition`, seeded by today's date — reproducible).
+            Automated weekly refresh of the shipped edition from Cricsheet's men's T20I
+            data (`import-cricsheet`; derived, so re-running on the same snapshot is a no-op).
 
             ```
-            ${{ steps.drift.outputs.summary }}
+            ${{ steps.refresh.outputs.summary }}
             ```
 
             The edition validation + balance report runs in CI on this PR; review the
-            stat diff before merging.
+            stat diff, any squad changes and any new photo credits before merging.
           labels: task, phase-2
           delete-branch: true

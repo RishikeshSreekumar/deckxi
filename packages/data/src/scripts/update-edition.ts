@@ -1,9 +1,12 @@
 /**
- * Weekly edition refresh: applies form drift to the current edition and
- * writes it back in place (same edition id, version +1). Run by the cron
- * workflow, which opens a PR with the diff.
+ * Synthetic edition refresh: applies form drift to an edition and writes it
+ * back in place (same edition id, version +1).
  *
  *   pnpm --filter @deckxi/data update-edition [--edition <id>] [--seed <n>]
+ *
+ * Drift is invented movement, so it only makes sense for invented data. An
+ * edition derived from real sources (it declares `sources`) is refused —
+ * refresh those with `import-cricsheet`, which re-derives every number.
  *
  * The seed defaults to the current UTC date (YYYYMMDD), so re-runs on the
  * same day are idempotent and the PR is reproducible.
@@ -26,6 +29,13 @@ const seed = Number(arg("seed") ?? defaultSeed);
 const generatedAt = now.toISOString().replace(/\.\d+Z$/, "Z");
 
 const before = loadEdition(editionId);
+if (before.sources !== undefined) {
+  console.error(
+    `${editionId} is derived from real data (${before.sources.map((s) => s.name).join(", ")}); ` +
+      "run import-cricsheet to refresh it instead of drifting it.",
+  );
+  process.exit(1);
+}
 const { edition: after } = driftEdition(before, seed, generatedAt);
 writeFileSync(editionPath(editionId), JSON.stringify(after, null, 2) + "\n");
 

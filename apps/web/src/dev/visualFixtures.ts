@@ -8,14 +8,16 @@
  * fixed state instead of a socket.
  *
  * Everything here is deliberately literal — no randomness, no clock, no
- * network. Card ids come from the bundled edition in seat order, so a change
- * to the edition surfaces as an intentional baseline diff rather than noise.
+ * network. Card ids come from the bundled *fixture* edition in seat order:
+ * fictional players whose numbers never change, so a weekly refresh of the
+ * real deck cannot move a single baseline pixel.
  *
  * Only reachable when the bundle is built with VITE_VISUAL=1; a normal
  * production build never imports this module.
  */
 import type { ChatMessageView, RedactedGameConfig, RoomView } from "@deckxi/shared";
-import { DEFAULT_EDITION_ID, getEdition } from "@deckxi/ui";
+import { getEdition, registerEdition } from "@deckxi/ui";
+import editionFixture from "@deckxi/data/editions/edition-fixture.json";
 import type { ClientGameState, ResolvedRound } from "../game/clientGame.js";
 import { useStore } from "../store/store.js";
 import { revealTiming } from "../screens/GameTable.js";
@@ -28,7 +30,9 @@ const SEATS = [
   { id: "p-nour", name: "Nour" },
 ];
 
-const edition = getEdition(DEFAULT_EDITION_ID);
+const EDITION_ID = "edition-fixture";
+registerEdition(EDITION_ID, editionFixture);
+const edition = getEdition(EDITION_ID);
 
 /** Cards in edition order, so a fixture never depends on shuffle behaviour. */
 function cards(count: number, offset = 0): string[] {
@@ -37,6 +41,7 @@ function cards(count: number, offset = 0): string[] {
 }
 
 const config: RedactedGameConfig = {
+  mode: "classic-trumps",
   players: SEATS.map((s) => s.id),
   cards: (edition?.players ?? []).map((p) => ({ id: p.id, stats: p.stats })),
   stats: (edition?.stats ?? []).map((s) => ({
@@ -46,7 +51,7 @@ const config: RedactedGameConfig = {
     max: s.max,
   })),
   maxRounds: 25,
-  editionId: DEFAULT_EDITION_ID,
+  editionId: EDITION_ID,
 };
 
 function room(phase: RoomView["phase"]): RoomView {
@@ -57,7 +62,7 @@ function room(phase: RoomView["phase"]): RoomView {
     hostId: SELF,
     settings: {
       gameMode: "classic-trumps",
-      editionId: DEFAULT_EDITION_ID,
+      editionId: EDITION_ID,
       cardsPerPlayer: 7,
       turnTimerSeconds: 20,
       maxRounds: 25,
@@ -84,6 +89,11 @@ function game(overrides: Partial<ClientGameState> = {}): ClientGameState {
     pot: cards(2, 20),
     active: { [SELF]: true, "p-asha": true, "p-dev": true, "p-nour": true },
     selected: null,
+    phase: "selecting",
+    plays: {},
+    yourPlay: null,
+    lastStat: null,
+    powers: {},
     lastResolved: null,
     finished: false,
     winner: null,
@@ -109,6 +119,7 @@ const resolvedRound: ResolvedRound = {
   })),
   result: { kind: "won", winner: "p-asha" },
   potTaken: 2,
+  power: null,
 };
 
 type StoreState = Partial<ReturnType<typeof useStore.getState>>;

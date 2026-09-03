@@ -9,8 +9,10 @@ import {
   type Ack,
   type ClientMessageName,
   type ErrorCode,
+  type PowerPlayView,
   type RoomJoined,
   type RoomSettings,
+  MAX_NAME_LENGTH,
   PROTOCOL_VERSION,
 } from "@deckxi/shared";
 import type { GameServer, GameSocket } from "./app.js";
@@ -43,6 +45,12 @@ export interface SocketOptions {
   metrics?: Metrics | undefined;
   /** Live ops flags: maintenance notice and mode kill switches (#70). */
   ops?: OpsConfig | undefined;
+  /**
+   * The account's current display name for this socket, looked up fresh —
+   * the landing form may have renamed the account a moment before joining,
+   * after the handshake snapshot was taken. Null when there is no account.
+   */
+  resolveName?: ((socket: GameSocket) => Promise<string | null>) | undefined;
 }
 
 export function registerSockets(io: GameServer, options: SocketOptions = {}): RoomManager {
@@ -142,10 +150,10 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
      * Register one message handler: require an ack callback, validate the
      * payload, run, and answer `Ack<T>` — RoomErrors become error acks.
      */
-    const on = <T>(event: ClientMessageName, handler: (payload: never) => T): void => {
+    const on = <T>(event: ClientMessageName, handler: (payload: never) => T | Promise<T>): void => {
       (socket as unknown as { on(e: string, f: (p: unknown, a: unknown) => void): void }).on(
         event,
-        (payload, ackRaw) => {
+        async (payload, ackRaw) => {
           if (typeof ackRaw !== "function") return;
           const ack = ackRaw as (reply: Ack<T | null>) => void;
           if (!globalBucket.tryTake()) {
@@ -163,7 +171,7 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
             return;
           }
           try {
-            ack({ ok: true, data: handler(parsed.data as never) ?? null });
+            ack({ ok: true, data: (await handler(parsed.data as never)) ?? null });
             metrics.increment("deckxi_commands_total", { command: event });
           } catch (error) {
             if (error instanceof RoomError) {
@@ -219,21 +227,41 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       return socket.data.sessionId;
     };
 
-    on("room:create", (payload: { name: string; settings?: Partial<RoomSettings> }) => {
+    /**
+     * The name at the table is the account's display name whenever the
+     * socket carries one (the landing form syncs what you type into it);
+     * the payload only stands in for a cookieless, one-off client.
+     */
+    const tableName = async (fallback: string): Promise<string> => {
+      let account = socket.data.userName;
+      if (options.resolveName !== undefined) {
+        try {
+          account = (await options.resolveName(socket)) ?? account;
+        } catch {
+          /* auth store hiccup — the handshake snapshot will do */
+        }
+      }
+      const trimmed = account?.trim() ?? "";
+      if (trimmed.length === 0) return fallback;
+      socket.data.userName = trimmed;
+      return trimmed.slice(0, MAX_NAME_LENGTH);
+    };
+
+    on("room:create", async (payload: { name: string; settings?: Partial<RoomSettings> }) => {
       if (socket.data.sessionId !== null) throw new RoomError("already-in-room");
       const { room, session } = manager.createRoom(
-        payload.name,
+        await tableName(payload.name),
         payload.settings ?? {},
         socket.data.userId,
       );
       return attach(room, session);
     });
 
-    on("room:join", (payload: { code: string; name: string; spectator?: boolean }) => {
+    on("room:join", async (payload: { code: string; name: string; spectator?: boolean }) => {
       if (socket.data.sessionId !== null) throw new RoomError("already-in-room");
       const { room, session } = manager.joinRoom(
         payload.code,
-        payload.name,
+        await tableName(payload.name),
         payload.spectator,
         socket.data.userId,
       );
@@ -260,10 +288,7 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       return {
         ...joined,
         events: game !== null ? redactLog(game.log, viewerId, game.editionId) : [],
-        timer:
-          game !== null && room.phase === "playing" && game.turnDeadline !== null
-            ? { playerId: game.state.leader, deadline: game.turnDeadline }
-            : null,
+        timer: game !== null && room.phase === "playing" ? manager.timerView(game) : null,
       };
     });
 
@@ -293,8 +318,19 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       return null;
     });
 
-    on("game:selectStat", (payload: { stat: string }) => {
-      manager.selectStat(requireSessionId(), payload.stat);
+    on(
+      "game:selectStat",
+      (payload: { stat: string; cardIndex?: number; power?: PowerPlayView | null }) => {
+        manager.selectStat(requireSessionId(), payload.stat, {
+          cardIndex: payload.cardIndex,
+          power: payload.power,
+        });
+        return null;
+      },
+    );
+
+    on("game:playCard", (payload: { cardIndex: number; power?: PowerPlayView | null }) => {
+      manager.playCard(requireSessionId(), payload.cardIndex, payload.power ?? null);
       return null;
     });
 

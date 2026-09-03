@@ -3,13 +3,15 @@
  * rendered by the same TrumpCard as the game so exports never drift. The
  * export pipeline screenshots this route; it is not linked from the app.
  */
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { DEFAULT_EDITION_ID, TrumpCard, getCardInfo, getEdition } from "@deckxi/ui";
 
 export function ShareCardScreen() {
   const { cardId } = useParams();
-  const edition = getEdition(DEFAULT_EDITION_ID);
-  const { player, team } = getCardInfo(DEFAULT_EDITION_ID, cardId ?? "");
+  const [params] = useSearchParams();
+  const editionId = params.get("edition") ?? DEFAULT_EDITION_ID;
+  const edition = getEdition(editionId);
+  const { player, team } = getCardInfo(editionId, cardId ?? "");
 
   return (
     <div className="share-frame" data-testid="share-frame">
@@ -18,7 +20,7 @@ export function ShareCardScreen() {
         style={{ "--team-color": team?.color ?? "#3b4a6b" } as React.CSSProperties}
       />
       <div className="share-card">
-        <TrumpCard editionId={DEFAULT_EDITION_ID} cardId={cardId ?? null} size="full" />
+        <TrumpCard editionId={editionId} cardId={cardId ?? null} size="full" />
       </div>
       <div className="share-copy">
         <h1 className="brand">

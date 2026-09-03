@@ -10,7 +10,8 @@ import { loadEdition } from "./editions.js";
 import { computeRating } from "./rating.js";
 import type { Player } from "@deckxi/shared";
 
-const edition = loadEdition();
+// The fictional fixture: its bounds are wide enough for the edits below.
+const edition = loadEdition("edition-fixture");
 const first = edition.players[0] as Player;
 
 describe("admin operations", () => {

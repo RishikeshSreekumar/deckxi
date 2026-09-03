@@ -5,6 +5,7 @@
  * making it.
  */
 import { useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { DEFAULT_EDITION_ID, TrumpCard, getEdition } from "@deckxi/ui";
 import type { Player } from "@deckxi/shared";
 import { AppBar } from "../components/Chrome.js";
@@ -22,7 +23,8 @@ const FILTERS: { key: Filter; label: string }[] = [
 ];
 
 export function DeckScreen() {
-  const edition = getEdition(DEFAULT_EDITION_ID);
+  const [params] = useSearchParams();
+  const edition = getEdition(params.get("edition") ?? DEFAULT_EDITION_ID);
   const [filter, setFilter] = useState<Filter>("all");
 
   if (edition === null) {
@@ -46,6 +48,12 @@ export function DeckScreen() {
           <h1 className="headline">{edition.name}</h1>
           <p className="sub">
             {shown.length} of {edition.players.length} cards · v{edition.version}
+            {edition.sources !== undefined && (
+              <>
+                {" "}
+                · <Link to={`/credits?edition=${edition.id}`}>data &amp; photo credits</Link>
+              </>
+            )}
           </p>
         </div>
         <div className="deck-filters" role="group" aria-label="Filter cards">

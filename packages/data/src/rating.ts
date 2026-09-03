@@ -7,10 +7,46 @@ import type { Player, PlayerRole, StatDefinition } from "@deckxi/shared";
 
 /** Per-role stat weights; keys absent from a map fall back to weight 1. */
 const ROLE_WEIGHTS: Record<PlayerRole, Record<string, number>> = {
-  batter: { battingAvg: 3, strikeRate: 3, runs: 2, wickets: 0.25, economy: 0.25, catches: 1 },
-  bowler: { battingAvg: 0.25, strikeRate: 0.25, runs: 0.25, wickets: 3, economy: 3, catches: 1 },
-  "all-rounder": { battingAvg: 2, strikeRate: 2, runs: 1, wickets: 2, economy: 2, catches: 1 },
-  keeper: { battingAvg: 2.5, strikeRate: 2.5, runs: 1.5, wickets: 0.1, economy: 0.1, catches: 3 },
+  batter: {
+    battingAvg: 3,
+    strikeRate: 3,
+    runs: 2,
+    highest: 1.5,
+    wickets: 0.25,
+    economy: 0.25,
+    catches: 1,
+    bestBowling: 0.25,
+  },
+  bowler: {
+    battingAvg: 0.25,
+    strikeRate: 0.25,
+    runs: 0.25,
+    highest: 0.25,
+    wickets: 3,
+    economy: 3,
+    catches: 1,
+    bestBowling: 1.5,
+  },
+  "all-rounder": {
+    battingAvg: 2,
+    strikeRate: 2,
+    runs: 1,
+    highest: 1,
+    wickets: 2,
+    economy: 2,
+    catches: 1,
+    bestBowling: 1,
+  },
+  keeper: {
+    battingAvg: 2.5,
+    strikeRate: 2.5,
+    runs: 1.5,
+    highest: 1,
+    wickets: 0.1,
+    economy: 0.1,
+    catches: 3,
+    bestBowling: 0.1,
+  },
 };
 
 /** Normalised strength in [0, 1] respecting direction; missing → 0. */

@@ -23,7 +23,7 @@ export function listEditionIds(): string[] {
 }
 
 export function editionPath(id: string): string {
-  if (!/^edition-\d{4}-q[1-4]$/.test(id)) throw new Error(`invalid edition id: ${id}`);
+  if (!/^edition-[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) throw new Error(`invalid edition id: ${id}`);
   return join(editionsDir(), `${id}.json`);
 }
 

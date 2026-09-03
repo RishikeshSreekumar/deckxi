@@ -33,6 +33,9 @@ const HistoryScreen = lazy(() =>
 const PrivacyScreen = lazy(() =>
   import("./screens/Privacy.js").then((m) => ({ default: m.PrivacyScreen })),
 );
+const CreditsScreen = lazy(() =>
+  import("./screens/Credits.js").then((m) => ({ default: m.CreditsScreen })),
+);
 const CardsGalleryScreen = lazy(() =>
   import("./screens/CardsGallery.js").then((m) => ({ default: m.CardsGalleryScreen })),
 );
@@ -66,6 +69,7 @@ function Screen() {
           <Route path="/profile" element={<ProfileScreen />} />
           <Route path="/history" element={<HistoryScreen />} />
           <Route path="/privacy" element={<PrivacyScreen />} />
+          <Route path="/credits" element={<CreditsScreen />} />
           <Route path="/cards" element={<CardsGalleryScreen />} />
           <Route path="/deck" element={<DeckScreen />} />
           <Route path="/cards/share/:cardId" element={<ShareCardScreen />} />

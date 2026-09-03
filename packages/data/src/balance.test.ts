@@ -54,9 +54,11 @@ describe("analyzeBalance failure modes", () => {
         battingAvg: 70,
         strikeRate: 250,
         runs: 15000,
+        highest: 200,
         wickets: 600,
         economy: 3,
         catches: 350,
+        bestBowling: 699,
       },
     };
     const broken: Edition = {

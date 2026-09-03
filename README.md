@@ -45,12 +45,17 @@ files.
 
 ### Card data pipeline
 
-Card data lives in versioned editions (`packages/data/editions/*.json`), Zod-validated in CI.
+Card data lives in versioned editions (`packages/data/editions/*.json`), Zod-validated in CI. The
+shipped edition is real: 210 men's T20 International careers derived from
+[Cricsheet](https://cricsheet.org/) ball-by-ball data, with names from Wikidata and licensed photos
+from Wikimedia Commons — see [`docs/data-sources.md`](docs/data-sources.md) for the licences and
+the derivation rules. `edition-fixture` is the fictional deck the visual-regression suites render.
 
 ```sh
-pnpm --filter @deckxi/data check           # schema validation + balance report
-pnpm --filter @deckxi/data update-edition  # apply weekly form drift (also runs on a Monday cron → PR)
-pnpm --filter @deckxi/data cli list        # admin CLI: list/show/set-stat/set-rarity/add-player/…
+pnpm --filter @deckxi/data check                     # schema validation + balance report
+pnpm --filter @deckxi/data import-cricsheet --photos # rebuild the shipped edition from source (Monday cron → PR)
+pnpm --filter @deckxi/data update-edition --edition edition-fixture  # synthetic form drift (fixture only)
+pnpm --filter @deckxi/data cli list                  # admin CLI: list/show/set-stat/set-rarity/add-player/…
 ```
 
 ### Environment variables

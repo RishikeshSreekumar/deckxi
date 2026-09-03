@@ -16,10 +16,12 @@
     "build": "tsc -b",
     "check": "tsx src/scripts/check.ts",
     "cli": "tsx src/scripts/cli.ts",
-    "update-edition": "tsx src/scripts/update-edition.ts"
+    "update-edition": "tsx src/scripts/update-edition.ts",
+    "import-cricsheet": "tsx src/scripts/import-cricsheet.ts"
   },
   "dependencies": {
     "@deckxi/shared": "workspace:*",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "sharp": "^0.35.2"
   }
 }

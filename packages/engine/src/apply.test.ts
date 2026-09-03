@@ -32,9 +32,12 @@ function makeState(
       id,
       hand: (hands[id] ?? []).map((c) => c.id),
       active: (hands[id] ?? []).length > 0,
+      powers: [],
     })),
     pot: potCards.map((c) => c.id),
     winner: null,
+    lastStat: null,
+    pending: null,
   };
 }
 
