@@ -67,6 +67,26 @@ export interface MatchListRow {
   playerNames: string[];
 }
 
+/** A player's standing in one mode and season (#80). */
+export interface RatingRow {
+  userId: string;
+  name: string | null;
+  gameMode: string;
+  seasonId: string;
+  rating: number;
+  games: number;
+  wins: number;
+}
+
+/** What a finished match does to one player's rating. */
+export interface RatingUpdate {
+  userId: string;
+  gameMode: string;
+  seasonId: string;
+  rating: number;
+  won: boolean;
+}
+
 export interface MatchStore {
   createMatch(record: MatchRecord): Promise<void>;
   appendEvents(matchId: string, events: readonly SeqEvent[]): Promise<void>;
@@ -82,6 +102,18 @@ export interface MatchStore {
   reassignUser(fromUserId: string, toUserId: string): Promise<void>;
   /** Account deletion: unlink and scrub the display name from match rows. */
   anonymizeUser(userId: string): Promise<void>;
+  /**
+   * Ratings for these users in one mode and season. Missing users are simply
+   * absent — the caller starts them at the default rather than the store
+   * inventing rows for players who have never finished a game.
+   */
+  getRatings(userIds: readonly string[], gameMode: string, seasonId: string): Promise<RatingRow[]>;
+  /** Write a finished match's rating changes; upserts each player's row. */
+  saveRatings(updates: readonly RatingUpdate[]): Promise<void>;
+  /** The ladder for one mode and season, best first. */
+  leaderboard(gameMode: string, seasonId: string, limit?: number): Promise<RatingRow[]>;
+  /** Every rating this user holds, for their profile. */
+  userRatings(userId: string): Promise<RatingRow[]>;
   /** Health probe; rejects when the backing store is unreachable. */
   ping(): Promise<void>;
   close(): Promise<void>;
@@ -95,9 +127,15 @@ export interface StoredMatch extends MatchRecord {
 export const DELETED_PLAYER_NAME = "Departed player";
 
 const HISTORY_LIMIT = 50;
+const LEADERBOARD_LIMIT = 50;
+
+const ratingKey = (userId: string, gameMode: string, seasonId: string): string =>
+  `${userId}|${gameMode}|${seasonId}`;
 
 export class InMemoryMatchStore implements MatchStore {
   readonly matches = new Map<string, StoredMatch>();
+  /** Keyed `userId|mode|season`, mirroring the Postgres primary key. */
+  readonly ratings = new Map<string, RatingRow>();
 
   createMatch(record: MatchRecord): Promise<void> {
     this.matches.set(record.matchId, {
@@ -201,6 +239,14 @@ export class InMemoryMatchStore implements MatchStore {
   }
 
   reassignUser(fromUserId: string, toUserId: string): Promise<void> {
+    for (const [key, row] of this.ratings) {
+      if (row.userId !== fromUserId) continue;
+      this.ratings.delete(key);
+      this.ratings.set(ratingKey(toUserId, row.gameMode, row.seasonId), {
+        ...row,
+        userId: toUserId,
+      });
+    }
     for (const match of this.matches.values()) {
       for (const player of match.players) {
         if (player.userId === fromUserId) player.userId = toUserId;
@@ -210,6 +256,11 @@ export class InMemoryMatchStore implements MatchStore {
   }
 
   anonymizeUser(userId: string): Promise<void> {
+    // A rating is personal data like any other: deleting the account deletes
+    // the ladder entry rather than leaving a nameless ghost on it.
+    for (const [key, row] of this.ratings) {
+      if (row.userId === userId) this.ratings.delete(key);
+    }
     for (const match of this.matches.values()) {
       for (const player of match.players) {
         if (player.userId === userId) {
@@ -219,6 +270,51 @@ export class InMemoryMatchStore implements MatchStore {
       }
     }
     return Promise.resolve();
+  }
+
+  getRatings(userIds: readonly string[], gameMode: string, seasonId: string): Promise<RatingRow[]> {
+    const rows = userIds
+      .map((userId) => this.ratings.get(ratingKey(userId, gameMode, seasonId)))
+      .filter((row): row is RatingRow => row !== undefined);
+    return Promise.resolve(rows);
+  }
+
+  saveRatings(updates: readonly RatingUpdate[]): Promise<void> {
+    for (const update of updates) {
+      const key = ratingKey(update.userId, update.gameMode, update.seasonId);
+      const existing = this.ratings.get(key);
+      this.ratings.set(key, {
+        userId: update.userId,
+        name: existing?.name ?? this.nameOf(update.userId),
+        gameMode: update.gameMode,
+        seasonId: update.seasonId,
+        rating: update.rating,
+        games: (existing?.games ?? 0) + 1,
+        wins: (existing?.wins ?? 0) + (update.won ? 1 : 0),
+      });
+    }
+    return Promise.resolve();
+  }
+
+  leaderboard(gameMode: string, seasonId: string, limit = LEADERBOARD_LIMIT): Promise<RatingRow[]> {
+    const rows = [...this.ratings.values()]
+      .filter((row) => row.gameMode === gameMode && row.seasonId === seasonId)
+      .sort((a, b) => b.rating - a.rating || b.games - a.games)
+      .slice(0, limit);
+    return Promise.resolve(rows);
+  }
+
+  userRatings(userId: string): Promise<RatingRow[]> {
+    return Promise.resolve([...this.ratings.values()].filter((row) => row.userId === userId));
+  }
+
+  /** Best-effort display name from the matches this user has played. */
+  private nameOf(userId: string): string | null {
+    for (const match of this.matches.values()) {
+      const seat = match.players.find((p) => p.userId === userId);
+      if (seat !== undefined) return seat.name;
+    }
+    return null;
   }
 
   ping(): Promise<void> {

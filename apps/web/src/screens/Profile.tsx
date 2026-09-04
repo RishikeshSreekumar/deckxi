@@ -250,6 +250,22 @@ export function ProfileScreen() {
             </ul>
           )}
 
+          {(profile.ratings ?? []).length > 0 && (
+            <ul className="mode-stats" aria-label="Ratings" data-testid="ratings">
+              {(profile.ratings ?? []).map((row) => (
+                <li key={`${row.gameMode}-${row.seasonId}`}>
+                  <strong>
+                    {GAME_MODE_INFO[row.gameMode as GameModeId]?.name ?? row.gameMode}
+                  </strong>
+                  <span className="hint">rating {row.rating}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <Link className="button" to="/leaderboard">
+            Leaderboard
+          </Link>
           <Link className="button" to="/history">
             Match history
           </Link>

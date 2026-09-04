@@ -14,11 +14,13 @@ import {
   type MatchResult,
   type MatchStore,
   type ModeStats,
+  type RatingRow,
+  type RatingUpdate,
   type StoredMatch,
   type UserMatchSummary,
   type UserStats,
 } from "../store.js";
-import { appConfig, matchEvents, matchPlayers, matches } from "./schema.js";
+import { appConfig, matchEvents, matchPlayers, matches, ratings, user } from "./schema.js";
 import { InMemoryConfigStore, type ConfigStore } from "../ops.js";
 
 export class PostgresMatchStore implements MatchStore {
@@ -261,13 +263,110 @@ export class PostgresMatchStore implements MatchStore {
       .update(matchPlayers)
       .set({ userId: toUserId })
       .where(eq(matchPlayers.userId, fromUserId));
+    // A guest who signs up keeps the rating they earned as a guest, unless
+    // the account already has one for that mode and season — then the
+    // account's own history wins and the guest row is dropped.
+    await this.db.execute(sql`
+      update ratings as r
+         set user_id = ${toUserId}
+       where r.user_id = ${fromUserId}
+         and not exists (
+           select 1 from ratings existing
+            where existing.user_id = ${toUserId}
+              and existing.game_mode = r.game_mode
+              and existing.season_id = r.season_id
+         )
+    `);
+    await this.db.delete(ratings).where(eq(ratings.userId, fromUserId));
   }
 
   async anonymizeUser(userId: string): Promise<void> {
+    // The ladder row goes with the account — a rating is personal data, and a
+    // nameless ghost on a leaderboard helps nobody.
+    await this.db.delete(ratings).where(eq(ratings.userId, userId));
     await this.db
       .update(matchPlayers)
       .set({ userId: null, name: DELETED_PLAYER_NAME })
       .where(eq(matchPlayers.userId, userId));
+  }
+
+  async getRatings(
+    userIds: readonly string[],
+    gameMode: string,
+    seasonId: string,
+  ): Promise<RatingRow[]> {
+    if (userIds.length === 0) return [];
+    return await this.ratingQuery(
+      and(
+        inArray(ratings.userId, [...userIds]),
+        eq(ratings.gameMode, gameMode),
+        eq(ratings.seasonId, seasonId),
+      ),
+    );
+  }
+
+  /**
+   * One upsert per player. `games`/`wins` are incremented in SQL rather than
+   * read-modify-written here: two games finishing at once would otherwise
+   * both write the count they read, and one of them would vanish.
+   */
+  async saveRatings(updates: readonly RatingUpdate[]): Promise<void> {
+    for (const update of updates) {
+      await this.db
+        .insert(ratings)
+        .values({
+          userId: update.userId,
+          gameMode: update.gameMode,
+          seasonId: update.seasonId,
+          rating: update.rating,
+          games: 1,
+          wins: update.won ? 1 : 0,
+          updatedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: [ratings.userId, ratings.gameMode, ratings.seasonId],
+          set: {
+            rating: update.rating,
+            games: sql`${ratings.games} + 1`,
+            wins: sql`${ratings.wins} + ${update.won ? 1 : 0}`,
+            updatedAt: new Date(),
+          },
+        });
+    }
+  }
+
+  async leaderboard(gameMode: string, seasonId: string, limit = 50): Promise<RatingRow[]> {
+    return await this.ratingQuery(
+      and(eq(ratings.gameMode, gameMode), eq(ratings.seasonId, seasonId)),
+      limit,
+    );
+  }
+
+  async userRatings(userId: string): Promise<RatingRow[]> {
+    return await this.ratingQuery(eq(ratings.userId, userId));
+  }
+
+  /** Ratings joined to their display name, best first. */
+  private async ratingQuery(
+    where: ReturnType<typeof eq> | undefined,
+    limit?: number,
+  ): Promise<RatingRow[]> {
+    const query = this.db
+      .select({
+        userId: ratings.userId,
+        name: user.name,
+        gameMode: ratings.gameMode,
+        seasonId: ratings.seasonId,
+        rating: ratings.rating,
+        games: ratings.games,
+        wins: ratings.wins,
+      })
+      .from(ratings)
+      .leftJoin(user, eq(user.id, ratings.userId))
+      .where(where)
+      .orderBy(desc(ratings.rating), desc(ratings.games));
+    const rows = limit === undefined ? await query : await query.limit(limit);
+    return rows.map((row) => ({ ...row, name: row.name ?? null }));
   }
 
   async ping(): Promise<void> {

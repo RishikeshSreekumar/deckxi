@@ -3514,3 +3514,76 @@ select:focus {
   border: var(--edge) solid var(--ink-line);
   border-radius: var(--radius-sm);
 }
+
+/* ---------------------------------------------------------------------------
+   Leaderboard (#80). Same rhythm as the match list — a rank on the left, the
+   rating hard right where the eye scans a table of numbers.
+   --------------------------------------------------------------------------- */
+
+.ladder-list {
+  list-style: none;
+  margin: 0 0 var(--space-6);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ladder-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-6);
+  border: var(--edge) solid var(--ink-line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-base);
+}
+
+/* Your own row, wherever it lands. */
+.ladder-row--self {
+  background: var(--surface-field);
+  color: var(--text-on-field);
+}
+
+.ladder-rank {
+  font-family: var(--font-display);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-lg);
+  min-width: 2.5ch;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.ladder-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  flex: 1;
+}
+
+.ladder-detail strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ladder-rating {
+  font-family: var(--font-display);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.mode-tabs {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+}
+
+.mode-tabs .is-active {
+  background: var(--surface-field);
+  color: var(--text-on-field);
+}

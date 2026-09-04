@@ -597,3 +597,27 @@ Rejections are visible as `deckxi_quota_rejections_total{quota=...}` and
 carrying the address. A player reporting "it says I've tried too much" is
 either sharing an IP with a script or has genuinely hit an hourly ceiling:
 check the counter labels before raising a limit.
+
+## Ratings and the ladder (#80)
+
+Ratings are Elo, generalised to a table: the winner is scored as beating every
+other seat and the losers as drawing with each other, with K divided by the
+number of pairs so a six-player game does not move ratings six times as far as
+a duel. Players under ten rated games move at double K — a placement period in
+all but name. The maths is in `apps/server/src/rating.ts` and is pure.
+
+Only decided games between **two or more distinct accounts** are rated; a table
+of cookie-less clients, or one account holding two seats, is skipped. Writes are
+fire-and-forget like every other persistence call — a database outage costs a
+rating update, never a game.
+
+A season is a data edition. A new edition changes what the cards are worth, so
+ratings do not carry across one: the `ratings` primary key is
+`(user_id, game_mode, season_id)`, and a leaderboard is always read for one mode
+and one season. `GET /api/leaderboard?mode=&season=&limit=` is public; a signed-
+in player's own standings ride along on `/api/me`.
+
+Deleting an account deletes its ladder rows (a rating is personal data, and a
+nameless ghost on a leaderboard helps nobody). A guest who signs up carries
+their rating onto the new account unless that account already has one for the
+same mode and season, in which case the account's own history wins.

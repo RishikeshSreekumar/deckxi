@@ -14,10 +14,12 @@ import Fastify, {
 import cors from "@fastify/cors";
 import { Server, type Socket } from "socket.io";
 import {
+  GAME_MODES,
   PROTOCOL_VERSION,
   type ClientToServerEvents,
   type ServerToClientEvents,
 } from "@deckxi/shared";
+import { CURRENT_EDITION_ID } from "@deckxi/data";
 import { originMatcher } from "./origins.js";
 import { requestId, type Logger } from "./logging.js";
 import { registerErrorTracking } from "./errors.js";
@@ -250,7 +252,15 @@ export function buildApp(options: AppOptions = {}): App {
     const user = await requireUser(request);
     if (user === null) return reply.status(401).send({ error: "not signed in" });
     const stats = await store.userStats(user.id);
+    const ratings = await store.userRatings(user.id);
     return {
+      ratings: ratings.map((row) => ({
+        gameMode: row.gameMode,
+        seasonId: row.seasonId,
+        rating: row.rating,
+        games: row.games,
+        wins: row.wins,
+      })),
       user: {
         id: user.id,
         name: user.name,
@@ -260,6 +270,34 @@ export function buildApp(options: AppOptions = {}): App {
         email: user.isAnonymous ? null : user.email,
       },
       stats,
+    };
+  });
+
+  /**
+   * The ladder (#80). Public: a leaderboard nobody can see is a private
+   * spreadsheet. Guests appear under whatever name they play as — they have
+   * accounts like everyone else, they just have not signed in yet.
+   */
+  fastify.get("/api/leaderboard", async (request, reply) => {
+    const query = request.query as { mode?: string; season?: string; limit?: string };
+    const mode = query.mode ?? "classic-trumps";
+    if (!GAME_MODES.includes(mode as (typeof GAME_MODES)[number])) {
+      return await reply.status(400).send({ error: "unknown game mode" });
+    }
+    const season = query.season ?? CURRENT_EDITION_ID;
+    const limit = Math.min(Math.max(Number(query.limit ?? 50) || 50, 1), 100);
+    const rows = await store.leaderboard(mode, season, limit);
+    return {
+      mode,
+      season,
+      rows: rows.map((row, index) => ({
+        rank: index + 1,
+        userId: row.userId,
+        name: row.name,
+        rating: row.rating,
+        games: row.games,
+        wins: row.wins,
+      })),
     };
   });
 

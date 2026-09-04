@@ -20,9 +20,35 @@ export interface ProfileStats {
   byMode: Record<string, { games: number; wins: number }>;
 }
 
+/** One standing on the ladder (#80): a mode, a season, and where you sit. */
+export interface RatingRow {
+  gameMode: string;
+  seasonId: string;
+  rating: number;
+  games: number;
+  wins: number;
+}
+
 export interface Profile {
   user: ProfileUser;
   stats: ProfileStats;
+  /** Absent on an account that has never finished a rated game. */
+  ratings?: RatingRow[];
+}
+
+export interface LeaderboardRow {
+  rank: number;
+  userId: string;
+  name: string | null;
+  rating: number;
+  games: number;
+  wins: number;
+}
+
+export interface Leaderboard {
+  mode: string;
+  season: string;
+  rows: LeaderboardRow[];
 }
 
 export interface MatchSummary {
@@ -45,6 +71,10 @@ async function get<T>(path: string): Promise<T> {
 }
 
 export const fetchProfile = (): Promise<Profile> => get<Profile>("/api/me");
+
+/** The ladder for one mode. Public — no session needed. */
+export const fetchLeaderboard = (mode: string): Promise<Leaderboard> =>
+  get<Leaderboard>(`/api/leaderboard?mode=${encodeURIComponent(mode)}`);
 
 export const fetchMatches = async (): Promise<MatchSummary[]> =>
   (await get<{ matches: MatchSummary[] }>("/api/me/matches")).matches;
