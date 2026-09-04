@@ -68,6 +68,8 @@ interface AppState {
   queue: QueueStatusView | null;
   /** Voice (#89): player ids with a live mic, and this device's own state. */
   voiceLive: string[];
+  /** Player ids in the call, muted ones included — who the mesh connects to. */
+  voiceInCall: string[];
   voice: "off" | "connecting" | "on" | "denied";
   voiceMuted: boolean;
   /** Set when the room we were in closed under us; shown on the landing page. */
@@ -203,6 +205,7 @@ export const useStore = create<AppState>((set, get) => {
     practice: false,
     queue: null,
     voiceLive: [],
+    voiceInCall: [],
     voice: "off",
     voiceMuted: false,
     roomClosedReason: null,
@@ -243,21 +246,21 @@ export const useStore = create<AppState>((set, get) => {
     async startVoice() {
       if (get().voice !== "off") return;
       set({ voice: "connecting" });
-      const { startVoice } = await import("../lib/voiceSession.js");
-      const started = await startVoice({
-        selfId: get().selfId,
-        peerIds: (get().room?.players ?? [])
-          .filter((p) => p.id !== get().selfId && p.bot !== true)
-          .map((p) => p.id),
-      });
+      const { startVoice, syncPeers } = await import("../lib/voiceSession.js");
+      const started = await startVoice({ selfId: get().selfId });
       // A denial is a normal answer: the table carries on without voice and
       // says so once, rather than asking again every round.
+      // Set before reconciling: a `voice:state` landing in between has to see
+      // a call that is on, or the peer it announced is never connected to.
       set({ voice: started ? "on" : "denied", voiceMuted: false });
+      // Anyone already in the call when we arrive; whoever joins after us
+      // arrives as a `voice:state`, which both sides reconcile the same way.
+      if (started) await syncPeers(get().voiceInCall.filter((id) => id !== get().selfId));
     },
 
     stopVoice() {
       void import("../lib/voiceSession.js").then(({ stopVoice }) => stopVoice());
-      set({ voice: "off", voiceMuted: false });
+      set({ voice: "off", voiceMuted: false, voiceInCall: [] });
     },
 
     setVoiceMuted(muted) {
@@ -586,7 +589,15 @@ export function initSocket(): void {
   });
 
   socket.on("voice:state", (state: VoiceStateView) => {
-    set({ voiceLive: state.live });
+    const inCall = state.inCall ?? [];
+    set({ voiceLive: state.live, voiceInCall: inCall });
+    // Someone joined or left the call: open connections to the ones we are
+    // missing and close the ones that have gone.
+    if (get().voice === "on") {
+      void import("../lib/voiceSession.js").then(({ syncPeers }) =>
+        syncPeers(inCall.filter((id) => id !== get().selfId)),
+      );
+    }
   });
 
   socket.on("voice:signal", (message: VoiceSignalView) => {

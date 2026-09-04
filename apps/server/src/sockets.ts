@@ -84,6 +84,12 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
   /** Who has a live mic, per room (#89). Presence only — never any audio. */
   const liveMics = new Map<string, Set<string>>();
   /**
+   * Who is in the call, per room — muted players included. The mesh is built
+   * from this rather than from `liveMics`: a peer you never offer to because
+   * they happen to be muted is a peer you will never hear.
+   */
+  const inCallMics = new Map<string, Set<string>>();
+  /**
    * Sessions in *our* rooms whose socket is connected to another instance
    * (#86). We know where to send their events; we never hold their socket.
    */
@@ -118,6 +124,32 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
     }
   };
 
+  /**
+   * Record one player's mic state and tell the table. Both sets are pruned to
+   * the room's current members: a player who left with a live mic must not
+   * leave a dot behind, and nobody should be offered a connection to a seat
+   * that is empty.
+   */
+  const setVoicePresence = (
+    room: Room,
+    sessionId: string,
+    live: boolean,
+    inCall: boolean,
+  ): void => {
+    const members = new Set([...room.players, ...room.spectators].map((s) => s.id));
+    const update = (map: Map<string, Set<string>>, on: boolean): string[] => {
+      const set = map.get(room.id) ?? new Set<string>();
+      if (on) set.add(sessionId);
+      else set.delete(sessionId);
+      for (const id of [...set]) if (!members.has(id)) set.delete(id);
+      map.set(room.id, set);
+      return [...set];
+    };
+    const liveIds = update(liveMics, live);
+    const inCallIds = update(inCallMics, inCall);
+    emitToRoom(room, "voice:state", { live: liveIds, inCall: inCallIds });
+  };
+
   const detachRoom = (room: Room): void => {
     for (const session of [...room.players, ...room.spectators]) {
       const socket = socketBySession.get(session.id);
@@ -130,6 +162,7 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       remoteSessions.delete(session.id);
     }
     liveMics.delete(room.id);
+    inCallMics.delete(room.id);
     void cluster.directory.unregister(room.id);
   };
 
@@ -943,7 +976,7 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
      * without the indicator, because the alternative is a game that can listen
      * to a room without telling anyone.
      */
-    on("voice:state", (payload: { live: boolean }) => {
+    on("voice:state", (payload: { live: boolean; inCall?: boolean }) => {
       const sessionId = requireSessionId();
       const session = manager.getSession(sessionId);
       if (session === undefined) throw new RoomError("not-in-room");
@@ -952,11 +985,9 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       if (room.matchmade) {
         throw new RoomError("bad-request", "voice is only for rooms you opened by invite");
       }
-      const live = liveMics.get(room.id) ?? new Set<string>();
-      if (payload.live) live.add(sessionId);
-      else live.delete(sessionId);
-      liveMics.set(room.id, live);
-      emitToRoom(room, "voice:state", { live: [...live] });
+      // A live mic means you are in the call; the reverse does not hold, which
+      // is the whole point of tracking the two separately.
+      setVoicePresence(room, sessionId, payload.live, payload.inCall ?? payload.live);
       return null;
     });
 
@@ -1006,6 +1037,10 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       // A resume may have superseded this socket already.
       if (socketBySession.get(sessionId) !== socket) return;
       socketBySession.delete(sessionId);
+      // Drop them out of the call before the seat goes: a mic dot that
+      // outlives its player says someone is listening when nobody is.
+      const voiceRoom = manager.getRoom(socket.data.roomId ?? "");
+      if (voiceRoom !== undefined) setVoicePresence(voiceRoom, sessionId, false, false);
       manager.handleDisconnect(sessionId);
     });
   });

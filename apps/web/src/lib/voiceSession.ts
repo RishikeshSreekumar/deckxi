@@ -11,8 +11,25 @@ import { API_URL, call } from "./socket.js";
 import { requestMicrophone, VoiceMesh, type VoiceSignal } from "./voice.js";
 
 let mesh: VoiceMesh | null = null;
-/** One <audio> per peer, kept out of the DOM tree the app renders. */
+/**
+ * One <audio> per peer. It has to be *in* the document: iOS Safari will not
+ * play a remote MediaStream from a detached element, which is the difference
+ * between a working call and a silent one on half our players' phones. They
+ * live in a hidden holder outside React's tree so a re-render cannot drop
+ * them mid-sentence.
+ */
 const players = new Map<string, HTMLAudioElement>();
+let holder: HTMLElement | null = null;
+
+function audioHolder(): HTMLElement {
+  if (holder !== null) return holder;
+  const element = document.createElement("div");
+  element.id = "voice-audio";
+  element.style.display = "none";
+  document.body.appendChild(element);
+  holder = element;
+  return element;
+}
 
 async function fetchIceServers(): Promise<RTCIceServer[]> {
   try {
@@ -31,8 +48,11 @@ async function fetchIceServers(): Promise<RTCIceServer[]> {
 function play(peerId: string, stream: MediaStream): void {
   let element = players.get(peerId);
   if (element === undefined) {
-    element = new Audio();
+    element = document.createElement("audio");
     element.autoplay = true;
+    // iOS refuses to play audio from an element it thinks wants fullscreen.
+    element.setAttribute("playsinline", "");
+    audioHolder().appendChild(element);
     players.set(peerId, element);
   }
   element.srcObject = stream;
@@ -42,10 +62,7 @@ function play(peerId: string, stream: MediaStream): void {
 }
 
 /** Returns false when the player refused the microphone. */
-export async function startVoice(options: {
-  selfId: string | null;
-  peerIds: string[];
-}): Promise<boolean> {
+export async function startVoice(options: { selfId: string | null }): Promise<boolean> {
   if (options.selfId === null) return false;
   const stream = await requestMicrophone();
   if (stream === null) return false;
@@ -65,8 +82,8 @@ export async function startVoice(options: {
           signal: signal as Parameters<typeof call<"voice:signal", null>>[1]["signal"],
         }).catch(() => undefined);
       },
-      announce(live) {
-        void call<"voice:state", null>("voice:state", { live }).catch(() => undefined);
+      announce(live, inCall) {
+        void call<"voice:state", null>("voice:state", { live, inCall }).catch(() => undefined);
       },
     },
     onRemoteStream: play,
@@ -74,16 +91,36 @@ export async function startVoice(options: {
       const element = players.get(peerId);
       if (element !== undefined) {
         element.srcObject = null;
+        element.remove();
         players.delete(peerId);
       }
     },
   });
 
   await mesh.start(stream);
-  // Offer to everyone already at the table. Whoever joins later offers to us,
-  // and the glare rule in VoiceMesh settles any overlap.
-  for (const peerId of options.peerIds) await mesh.connect(peerId);
+  // No offers here: starting announces us, the server tells the table who is
+  // in the call, and `syncPeers` builds the mesh from that. Offering to a
+  // player who has not joined voice yet only wedges the connection — they
+  // have no mesh to answer with, and the offer we are left holding makes us
+  // ignore theirs when they do join.
   return true;
+}
+
+/**
+ * Reconcile the mesh with who the server says is in the call. Both sides run
+ * this and may offer at once; that is ordinary glare, and `VoiceMesh` settles
+ * it by id order.
+ */
+export async function syncPeers(inCall: string[]): Promise<void> {
+  const current = mesh;
+  if (current === null) return;
+  const wanted = new Set(inCall);
+  for (const peerId of current.peerIds()) {
+    if (!wanted.has(peerId)) current.disconnect(peerId);
+  }
+  for (const peerId of wanted) {
+    if (!current.has(peerId)) await current.connect(peerId);
+  }
 }
 
 export function handleSignal(message: VoiceSignalView): void {
@@ -97,6 +134,9 @@ export function setMuted(muted: boolean): void {
 export function stopVoice(): void {
   mesh?.stop();
   mesh = null;
-  for (const element of players.values()) element.srcObject = null;
+  for (const element of players.values()) {
+    element.srcObject = null;
+    element.remove();
+  }
   players.clear();
 }

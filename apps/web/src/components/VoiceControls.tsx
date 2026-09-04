@@ -14,6 +14,7 @@
  * tables do not get a mic button.
  */
 import { useEffect } from "react";
+import { LeaveIcon, MicIcon, MicOffIcon } from "./Chrome.js";
 import { useStore } from "../store/store.js";
 
 export function VoiceControls() {
@@ -59,12 +60,18 @@ export function VoiceControls() {
   }
 
   const busy = voice === "connecting";
+  // The mic is an icon, not a word: it sits in a row of icon buttons at the
+  // bottom of the table, and "Mic live" spelled out crowded the row off the
+  // screen on a phone. The state is still said out loud in the label.
+  const micLabel = busy ? "Connecting to voice" : muted ? "Mic off — tap to talk" : "Mic live";
   return (
     <div className="voice-controls" data-testid="voice-controls">
       <button
         type="button"
-        className={`button button--sm voice-button${!muted ? " voice-button--live" : ""}`}
+        className={`icon-button voice-button${!muted && !busy ? " voice-button--live" : ""}`}
         aria-pressed={!muted}
+        aria-label={micLabel}
+        title={micLabel}
         disabled={busy}
         data-testid="voice-mute"
         onClick={() => setVoiceMuted(!muted)}
@@ -77,15 +84,17 @@ export function VoiceControls() {
           if (!muted) setVoiceMuted(true);
         }}
       >
-        {busy ? "Connecting…" : muted ? "Mic off" : "Mic live"}
+        {muted || busy ? <MicOffIcon /> : <MicIcon />}
       </button>
       <button
         type="button"
-        className="button button--ghost button--sm"
+        className="icon-button"
         onClick={stopVoice}
+        aria-label="Leave voice"
+        title="Leave voice"
         data-testid="voice-leave"
       >
-        Leave voice
+        <LeaveIcon />
       </button>
     </div>
   );

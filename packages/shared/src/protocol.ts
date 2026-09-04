@@ -192,8 +192,17 @@ export const voiceSignalSchema = z.object({
 });
 export type VoiceSignalPayload = z.infer<typeof voiceSignalSchema>;
 
-/** Announce that your mic went live (or stopped), so the table can show it. */
-export const voiceStateSchema = z.object({ live: z.boolean() });
+/**
+ * Announce that your mic went live (or stopped), so the table can show it —
+ * and, separately, whether you are in the call at all. Muting is not leaving:
+ * a muted player still holds peer connections, and everyone else has to keep
+ * offering to them. `inCall` is optional so an older client still works: a
+ * live mic implies a call.
+ */
+export const voiceStateSchema = z.object({
+  live: z.boolean(),
+  inCall: z.boolean().optional(),
+});
 
 export const queueJoinSchema = z.object({
   gameMode: z.enum(GAME_MODES),
@@ -543,6 +552,8 @@ export interface VoiceSignalView extends VoiceSignalPayload {
 export interface VoiceStateView {
   /** Player ids with a live mic right now. */
   live: string[];
+  /** Player ids in the call, muted or not — who to open a connection with. */
+  inCall: string[];
 }
 
 /** What the player waiting in the queue is told. */

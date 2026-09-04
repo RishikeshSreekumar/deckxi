@@ -20,8 +20,11 @@
 export interface VoiceTransport {
   /** Send a signalling blob to one peer. */
   signal(to: string, signal: VoiceSignal): void;
-  /** Tell the table whether this mic is live. */
-  announce(live: boolean): void;
+  /**
+   * Tell the table whether this mic is live, and whether we are in the call
+   * at all. Mute is not leave: a muted peer still has to be connected to.
+   */
+  announce(live: boolean, inCall: boolean): void;
 }
 
 export type VoiceSignal =
@@ -68,13 +71,18 @@ export class VoiceMesh {
   async start(stream: MediaStream): Promise<void> {
     this.local = stream;
     for (const [, peer] of this.peers) this.addLocalTracks(peer.connection);
-    this.options.transport.announce(this.micLive);
+    this.options.transport.announce(this.micLive, true);
   }
 
   /** Mute without tearing the mesh down — push-to-talk toggles this. */
   setMuted(muted: boolean): void {
     for (const track of this.local?.getAudioTracks() ?? []) track.enabled = !muted;
-    this.options.transport.announce(this.micLive);
+    this.options.transport.announce(this.micLive, true);
+  }
+
+  /** Whether we already hold a connection to this peer. */
+  has(peerId: string): boolean {
+    return this.peers.has(peerId);
   }
 
   /** Open (or reuse) a connection to a peer and offer. */
@@ -145,7 +153,7 @@ export class VoiceMesh {
     for (const peerId of [...this.peers.keys()]) this.disconnect(peerId);
     for (const track of this.local?.getTracks() ?? []) track.stop();
     this.local = null;
-    this.options.transport.announce(false);
+    this.options.transport.announce(false, false);
   }
 
   /** Peer ids currently connected — the UI reads this for its indicators. */

@@ -271,6 +271,30 @@ export function SmileIcon({ size }: { size?: number }) {
   );
 }
 
+/** A microphone: the voice button's whole label at the table (#89). */
+export function MicIcon({ size }: { size?: number }) {
+  return (
+    <Icon {...(size !== undefined ? { size } : {})}>
+      <path d="M12 4a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V7a3 3 0 0 1 3-3z" />
+      <path d="M5 11a7 7 0 0 0 14 0" />
+      <path d="M12 18v3" />
+    </Icon>
+  );
+}
+
+/** The same microphone with a stroke through it: off, and visibly so. */
+export function MicOffIcon({ size }: { size?: number }) {
+  return (
+    <Icon {...(size !== undefined ? { size } : {})}>
+      <path d="M9 9v3a3 3 0 0 0 4.6 2.5" />
+      <path d="M15 11.4V7a3 3 0 0 0-5.7-1.3" />
+      <path d="M5 11a7 7 0 0 0 10.9 5.8M19 11a6.9 6.9 0 0 1-.8 3.2" />
+      <path d="M12 18v3" />
+      <path d="M4 3l16 18" />
+    </Icon>
+  );
+}
+
 /** A chevron home: the one way back from every settings-side screen. */
 export function BackLink({ to = "/", label = "Back" }: { to?: string; label?: string }) {
   return (

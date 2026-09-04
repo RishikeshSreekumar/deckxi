@@ -68,13 +68,13 @@ function mesh(selfId: string) {
   const connections = new Map<number, FakeConnection>();
   let made = 0;
   const signals: { to: string; signal: VoiceSignal }[] = [];
-  const announced: boolean[] = [];
+  const announced: { live: boolean; inCall: boolean }[] = [];
   const instance = new VoiceMesh({
     selfId,
     iceServers: [],
     transport: {
       signal: (to, signal) => signals.push({ to, signal }),
-      announce: (live) => announced.push(live),
+      announce: (live, inCall) => announced.push({ live, inCall }),
     },
     createConnection: () => {
       const connection = new FakeConnection();
@@ -153,11 +153,24 @@ describe("VoiceMesh", () => {
     instance.setMuted(true);
     expect(track.enabled).toBe(false);
     expect(connections.get(0)?.closed).toBe(false);
-    // The table is told, because a live mic must always be visible.
-    expect(announced.at(-1)).toBe(false);
+    // The table is told, because a live mic must always be visible — and the
+    // call is not left, because mute is not leave: the others keep their
+    // connection to a muted player rather than dropping them.
+    expect(announced.at(-1)).toEqual({ live: false, inCall: true });
 
     instance.setMuted(false);
-    expect(announced.at(-1)).toBe(true);
+    expect(announced.at(-1)).toEqual({ live: true, inCall: true });
+  });
+
+  it("knows which peers it already holds, so a resync opens no duplicates", async () => {
+    const { instance, connections } = mesh("aaa");
+    await instance.connect("bbb");
+    expect(instance.has("bbb")).toBe(true);
+    expect(instance.has("ccc")).toBe(false);
+    // The reconnect path calls this on every table update; opening a second
+    // connection to a peer we already have would renegotiate for nothing.
+    if (!instance.has("bbb")) await instance.connect("bbb");
+    expect(connections.size).toBe(1);
   });
 
   it("relays ICE candidates out and in", async () => {
@@ -211,7 +224,8 @@ describe("VoiceMesh", () => {
     instance.stop();
     expect(connections.get(0)?.closed).toBe(true);
     expect(stopped).toHaveBeenCalled();
-    expect(announced.at(-1)).toBe(false);
+    // Out of the call, not merely quiet: nobody should keep offering to us.
+    expect(announced.at(-1)).toEqual({ live: false, inCall: false });
     expect(instance.peerIds()).toEqual([]);
   });
 });

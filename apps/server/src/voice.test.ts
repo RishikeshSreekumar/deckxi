@@ -113,6 +113,45 @@ describe("the signalling relay", () => {
     await expect.poll(() => states.at(-1)?.live).toEqual([]);
   });
 
+  it("keeps a muted player in the call, so the others still connect to them", async () => {
+    server = await startTestServer();
+    const { host, hostJoined, guest, guestJoined } = await tableOfTwo(server);
+    const states = guest.collect<VoiceStateView>("voice:state");
+
+    await host.call("voice:state", { live: true, inCall: true });
+    await guest.call("voice:state", { live: true, inCall: true });
+    await expect
+      .poll(() => states.at(-1)?.inCall?.slice().sort())
+      .toEqual([hostJoined.selfId, guestJoined.selfId].sort());
+
+    // Muting is not leaving: the dot goes out, the connection stays.
+    await host.call("voice:state", { live: false, inCall: true });
+    await expect.poll(() => states.at(-1)?.live).toEqual([guestJoined.selfId]);
+    expect(states.at(-1)?.inCall?.slice().sort()).toEqual(
+      [hostJoined.selfId, guestJoined.selfId].sort(),
+    );
+
+    // Leaving is.
+    await host.call("voice:state", { live: false, inCall: false });
+    await expect.poll(() => states.at(-1)?.inCall).toEqual([guestJoined.selfId]);
+  });
+
+  it("drops a player out of the call when their socket goes", async () => {
+    server = await startTestServer();
+    const { host, hostJoined, guest, guestJoined } = await tableOfTwo(server);
+    const states = host.collect<VoiceStateView>("voice:state");
+    await host.call("voice:state", { live: true, inCall: true });
+    await guest.call("voice:state", { live: true, inCall: true });
+    await expect.poll(() => states.at(-1)?.inCall?.length).toBe(2);
+
+    guest.disconnect();
+    // A mic dot that outlives its player says someone is listening when
+    // nobody is.
+    await expect.poll(() => states.at(-1)?.inCall).toEqual([hostJoined.selfId]);
+    expect(states.at(-1)?.live).toEqual([hostJoined.selfId]);
+    expect(guestJoined.selfId).not.toEqual(hostJoined.selfId);
+  });
+
   it("needs a session: you cannot signal into a room you are not in", async () => {
     server = await startTestServer();
     const stranger = server.client();

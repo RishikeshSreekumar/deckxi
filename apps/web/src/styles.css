@@ -1971,7 +1971,9 @@ select:focus {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-4) var(--tbl-inline) max(var(--space-5), env(safe-area-inset-bottom));
+  /* The bar sits on the bottom edge of the screen: the only space under it is
+     the phone's own home-indicator inset, never padding of ours. */
+  padding: var(--space-4) var(--tbl-inline) env(safe-area-inset-bottom, 0px);
   background: var(--surface-raised);
   border-top: var(--tbl-edge) solid var(--tbl-line);
 }
@@ -3711,7 +3713,11 @@ select:focus {
   align-items: center;
 }
 
+/* Wins over `.table-screen .icon-button`, which is where the icon buttons in
+   this row get their neutral fill. */
+.table-screen .voice-button--live,
 .voice-button--live {
+  border-color: var(--surface-field);
   background: var(--surface-field);
   color: var(--text-on-field);
 }
