@@ -4,6 +4,7 @@
 import { z } from "zod";
 import { parseOrigins } from "./origins.js";
 import { parseTurnUrls } from "./voice.js";
+import type { QuotaConfig } from "./quota.js";
 
 /** Which deployment this process is: local dev, staging, or production. */
 export type AppEnv = "development" | "staging" | "production";
@@ -57,6 +58,17 @@ const envSchema = z.object({
    * secret the provider signs credentials with. Unset means STUN only, which
    * connects most players and silently fails behind symmetric NAT.
    */
+  /**
+   * Abuse quota overrides (#87). The defaults are sized for one player per
+   * address and are nowhere near what a person does; these exist so that a
+   * ceiling which turns out to misfire — a shared office or campus NAT, a
+   * client that reconnects more than we expected — can be raised in a
+   * variable rather than in a release.
+   */
+  QUOTA_CONNECTIONS_PER_IP: z.coerce.number().int().min(1).max(10_000).optional(),
+  QUOTA_ROOMS_PER_HOUR: z.coerce.number().int().min(1).max(10_000).optional(),
+  QUOTA_FAILED_JOINS: z.coerce.number().int().min(1).max(10_000).optional(),
+  QUOTA_AUTH_REQUESTS: z.coerce.number().int().min(1).max(10_000).optional(),
   TURN_URLS: z.string().optional(),
   TURN_SECRET: z.string().min(8).optional(),
 });
@@ -78,6 +90,8 @@ export interface Env {
   captchaSecret: string | undefined;
   redisUrl: string | undefined;
   turn: { urls: string[]; secret: string } | null;
+  /** Only the ceilings an operator actually overrode; the rest keep their defaults. */
+  quotas: Partial<QuotaConfig>;
 }
 
 /**
@@ -123,6 +137,20 @@ export function parseEnv(source: NodeJS.ProcessEnv = process.env): Env {
     mail: { apiKey: parsed.MAIL_API_KEY, from: parsed.MAIL_FROM },
     captchaSecret: parsed.TURNSTILE_SECRET,
     redisUrl: parsed.REDIS_URL,
+    quotas: {
+      ...(parsed.QUOTA_CONNECTIONS_PER_IP !== undefined
+        ? { connectionsPerIp: parsed.QUOTA_CONNECTIONS_PER_IP }
+        : {}),
+      ...(parsed.QUOTA_ROOMS_PER_HOUR !== undefined
+        ? { createRooms: { limit: parsed.QUOTA_ROOMS_PER_HOUR, windowMs: 60 * 60 * 1000 } }
+        : {}),
+      ...(parsed.QUOTA_FAILED_JOINS !== undefined
+        ? { failedJoins: { limit: parsed.QUOTA_FAILED_JOINS, windowMs: 10 * 60 * 1000 } }
+        : {}),
+      ...(parsed.QUOTA_AUTH_REQUESTS !== undefined
+        ? { authRequests: { limit: parsed.QUOTA_AUTH_REQUESTS, windowMs: 10 * 60 * 1000 } }
+        : {}),
+    },
     turn:
       parsed.TURN_SECRET !== undefined && parseTurnUrls(parsed.TURN_URLS).length > 0
         ? { urls: parseTurnUrls(parsed.TURN_URLS), secret: parsed.TURN_SECRET }

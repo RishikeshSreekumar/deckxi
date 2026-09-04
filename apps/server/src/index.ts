@@ -57,6 +57,7 @@ if (isMain) {
     admin: { token: env.adminToken, emails: env.adminEmails },
     captchaSecret: env.captchaSecret,
     turn: env.turn,
+    quotas: env.quotas,
     ...(cluster !== null ? { cluster: cluster.cluster } : {}),
   });
   if (cluster !== null) app.io.adapter(cluster.adapter);
