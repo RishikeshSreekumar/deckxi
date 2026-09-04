@@ -60,6 +60,12 @@ export interface Session {
   connected: boolean;
   /** Opaque secret the client presents to room:resume. */
   resumeToken: string;
+  /**
+   * A seat the server plays itself (#81). Bots hold no socket, never
+   * disconnect, are always ready, and are moved by the mode's own bot hook —
+   * the same one the tests and the offline practice table use.
+   */
+  bot: boolean;
 }
 
 /**
@@ -236,6 +242,22 @@ export class RoomManager {
     );
     this.observer.roomState(room);
     return { room, session };
+  }
+
+  /**
+   * Seat a bot (#81). Used by quick match when nobody else turns up: a game
+   * against the house beats a queue that never resolves, and the bot is the
+   * engine's own baseline, so it plays by exactly the rules a human does.
+   */
+  addBot(roomId: string, name = "Bot"): Session {
+    const room = this.rooms.get(roomId);
+    if (room === undefined) throw new RoomError("room-not-found");
+    const session = this.addPlayer(room, name, null);
+    session.bot = true;
+    session.ready = true;
+    this.touch(room);
+    this.observer.roomState(room);
+    return session;
   }
 
   joinRoom(
@@ -458,7 +480,8 @@ export class RoomManager {
 
     this.observer.roomState(room);
     this.observer.gameEvents(room, game.log);
-    this.scheduleTurn(room);
+    // A bot may be the first leader.
+    if (!this.playBots(room)) this.scheduleTurn(room);
   }
 
   /**
@@ -543,6 +566,11 @@ export class RoomManager {
     this.touch(room);
     this.persist("appendEvents", () => this.store.appendEvents(game.matchId, appended));
     this.observer.gameEvents(room, appended);
+
+    // Bots answer as soon as the table waits on them. Synchronous and
+    // immediate: their "thinking time" would be a lie, and the reveal
+    // presenter is what paces the table for the human watching.
+    if (this.playBots(room)) return;
 
     const status = statusOf(game);
     if (status.finished) {
@@ -654,6 +682,36 @@ export class RoomManager {
       if (cards.length === 0) continue;
       await this.store.addCardWins(player.userId, game.editionId, cards);
     }
+  }
+
+  /**
+   * Play every bot the table is waiting on, one command at a time. Returns
+   * true when a bot moved — the caller has already been superseded by the
+   * recursive `applyEngineCommand`, which finishes the game, schedules the
+   * next turn and emits the events.
+   *
+   * The cap is the belt-and-braces guard the engine's own bot runner uses: a
+   * rule bug should fail the table, not spin the process.
+   */
+  private playBots(room: Room): boolean {
+    const game = room.game;
+    if (game === null || room.phase !== "playing") return false;
+    const bots = new Set(room.players.filter((p) => p.bot).map((p) => p.id));
+    if (bots.size === 0) return false;
+    for (let i = 0; i < 500; i++) {
+      if (room.game === null || room.phase !== "playing") return i > 0;
+      const status = statusOf(room.game);
+      if (status.finished) return i > 0;
+      const next = status.waitingOn.find((id) => bots.has(id));
+      if (next === undefined) return i > 0;
+      const command = room.game.mode.bot(room.game.state, next);
+      // A mode with no bot for this seat cannot be backfilled; the turn timer
+      // is the backstop, exactly as it is for a silent human.
+      if (command === null) return i > 0;
+      this.applyEngineCommand(room, command);
+      return true;
+    }
+    return true;
   }
 
   /** Persistence is fire-and-forget: a store outage must never stall play. */
@@ -832,6 +890,7 @@ export class RoomManager {
       ready: false,
       connected: true,
       resumeToken: randomUUID(),
+      bot: false,
     };
     room.players.push(session);
     this.sessions.set(session.id, session);
@@ -849,6 +908,7 @@ export class RoomManager {
       ready: false,
       connected: true,
       resumeToken: randomUUID(),
+      bot: false,
     };
     room.spectators.push(session);
     this.sessions.set(session.id, session);
@@ -906,6 +966,7 @@ export function toRoomView(room: Room): RoomView {
       seat: p.seat,
       ready: p.ready,
       connected: p.connected,
+      ...(p.bot ? { bot: true } : {}),
     })),
     spectators: room.spectators.map((s) => ({ id: s.id, name: s.name })),
   };

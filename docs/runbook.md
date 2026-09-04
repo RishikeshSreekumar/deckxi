@@ -682,3 +682,24 @@ rewrites the title and og tags. Two consequences worth knowing:
 
 **Kill switch:** drop `&& node scripts/build-worker.mjs` from the web build.
 With no `dist/_worker.js`, Pages serves the site exactly as it did before.
+
+## Quick match and bot backfill (#81)
+
+`queue:join` puts a socket in an in-memory queue per game mode. Two waiting
+players are paired immediately; a lone player waits `botWaitMs` (12s by
+default) and is then seated with enough bots to start. The backfill is the
+point — a queue that can leave someone waiting indefinitely is worse than no
+queue, and the promise the button makes is "you will be playing in a few
+seconds".
+
+Bots are ordinary room seats with `bot: true`: no socket, always ready, never
+disconnect, moved by the mode's own `bot` hook (the engine baseline the tests
+and offline practice already use). The room manager plays them the moment the
+table waits on them, which also means a bot on the lead in classic trumps can
+resolve whole rounds by itself — that is the game's rules, not a bug.
+
+The queue is per process and deliberately so: pairing players across instances
+needs the shared state #86 is about, and a queue that silently paired players
+on different machines would produce rooms nobody could reach. Counters:
+`deckxi_quickmatch_joins_total{mode}` and
+`deckxi_quickmatch_tables_total{bots}`.

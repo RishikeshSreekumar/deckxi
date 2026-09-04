@@ -6,6 +6,8 @@
 import { create } from "zustand";
 import type {
   ChatMessageView,
+  GameModeId,
+  QueueStatusView,
   ChatReactionView,
   GameCommandPayload,
   PowerPlayView,
@@ -60,6 +62,8 @@ interface AppState {
    * read the same room/game slices either way.
    */
   practice: boolean;
+  /** Quick match: what the queue is doing, or null when we are not in it. */
+  queue: QueueStatusView | null;
   /** Set when the room we were in closed under us; shown on the landing page. */
   roomClosedReason: RoomClosedReason | null;
   /** Operator maintenance notice, shown above every screen (#70). */
@@ -86,6 +90,10 @@ interface AppState {
   toast(text: string, kind?: Toast["kind"]): void;
   dismissToast(id: number): void;
   createRoom(name: string, captchaToken?: string): Promise<void>;
+  /** Join the quick-match queue for a mode (#81). */
+  quickMatch(gameMode: GameModeId, name: string): Promise<void>;
+  /** Leave the queue and go back to the landing page. */
+  cancelQueue(): Promise<void>;
   /** Start a local game against bots — no room, no socket, works offline. */
   practiceGame(options: PracticeOptions): Promise<void>;
   joinRoom(code: string, name: string, spectator?: boolean, captchaToken?: string): Promise<void>;
@@ -181,6 +189,7 @@ export const useStore = create<AppState>((set, get) => {
   return {
     connection: "connecting",
     practice: false,
+    queue: null,
     roomClosedReason: null,
     notice: null,
     selfId: null,
@@ -214,6 +223,23 @@ export const useStore = create<AppState>((set, get) => {
         });
         joined(set, data);
       });
+    },
+
+    async quickMatch(gameMode, name) {
+      await guarded(async () => {
+        savePlayerName(name);
+        const status = await call<"queue:join", QueueStatusView>("queue:join", { gameMode, name });
+        set({ queue: status });
+      });
+    },
+
+    async cancelQueue() {
+      set({ queue: null });
+      try {
+        await call<"queue:leave", null>("queue:leave", undefined);
+      } catch {
+        // Already out (matched, or disconnected) — leaving is best-effort.
+      }
     },
 
     async practiceGame(options) {
@@ -517,6 +543,17 @@ export function initSocket(): void {
 
   socket.on("game:timer", (timer: TurnTimerView | null) => {
     set({ timer });
+  });
+
+  socket.on("queue:status", (status: QueueStatusView) => {
+    // Only while we are actually waiting: a status arriving after we matched
+    // would put the waiting screen back over a live game.
+    if (get().queue !== null) set({ queue: status });
+  });
+
+  socket.on("queue:matched", (data: RoomJoined) => {
+    set({ queue: null });
+    joined(set, data);
   });
 
   socket.on("ops:notice", (notice: OpsNoticeView | null) => {

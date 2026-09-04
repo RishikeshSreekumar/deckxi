@@ -160,6 +160,15 @@ export const resumeRoomSchema = z.object({
 
 export const setReadySchema = z.object({ ready: z.boolean() });
 
+/**
+ * Quick match (#81): join the queue for one mode. The name travels with the
+ * request because a queued player has no room yet to be seated in.
+ */
+export const queueJoinSchema = z.object({
+  gameMode: z.enum(GAME_MODES),
+  name: playerNameSchema,
+});
+
 const statKeySchema = z.string().regex(/^[a-z][a-zA-Z0-9]*$/);
 
 export const powerPlaySchema = z.discriminatedUnion("kind", [
@@ -210,6 +219,8 @@ export const clientMessageSchemas = {
   "room:resume": resumeRoomSchema,
   "room:leave": emptySchema,
   "room:ready": setReadySchema,
+  "queue:join": queueJoinSchema,
+  "queue:leave": emptySchema,
   "room:settings": roomSettingsPatchSchema,
   "room:start": emptySchema,
   "room:rematch": emptySchema,
@@ -275,6 +286,8 @@ export type RoomClosedReason =
 export interface RoomPlayerView {
   id: string;
   name: string;
+  /** A seat the server plays itself (quick-match backfill, #81). */
+  bot?: boolean;
   /** Seat order; assigned on join, stable for the room's life. */
   seat: number;
   ready: boolean;
@@ -474,6 +487,22 @@ export interface ServerToClientEvents {
   "chat:message": (message: ChatMessageView) => void;
   "chat:reaction": (reaction: ChatReactionView) => void;
   "ops:notice": (notice: OpsNoticeView | null) => void;
+  /**
+   * Quick match found you a table (#81). Carries the same payload a
+   * `room:create` ack would, because from here on it is an ordinary room.
+   */
+  "queue:matched": (joined: RoomJoined) => void;
+  /** How the queue is going, so the waiting screen can say something true. */
+  "queue:status": (status: QueueStatusView) => void;
+}
+
+/** What the player waiting in the queue is told. */
+export interface QueueStatusView {
+  gameMode: GameModeId;
+  /** Players waiting in this mode's queue, including you. */
+  waiting: number;
+  /** Epoch ms after which the table is filled with bots and started. */
+  botsAt: number;
 }
 
 export interface ClientToServerEvents {
@@ -491,6 +520,11 @@ export interface ClientToServerEvents {
   ) => void;
   "room:leave": (payload: undefined, ack: (reply: Ack<null>) => void) => void;
   "room:ready": (payload: z.input<typeof setReadySchema>, ack: (reply: Ack<null>) => void) => void;
+  "queue:join": (
+    payload: z.input<typeof queueJoinSchema>,
+    ack: (reply: Ack<QueueStatusView>) => void,
+  ) => void;
+  "queue:leave": (payload: undefined, ack: (reply: Ack<null>) => void) => void;
   "room:settings": (
     payload: z.input<typeof roomSettingsPatchSchema>,
     ack: (reply: Ack<null>) => void,

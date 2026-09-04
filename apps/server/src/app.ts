@@ -99,6 +99,8 @@ export interface AppOptions {
   captchaSecret?: string | undefined;
   /** Injected by tests in place of a real Turnstile call. */
   captcha?: CaptchaVerifier;
+  /** Quick match (#81): how long to look for a human before seating bots. */
+  botWaitMs?: number;
 }
 
 export interface AdminOptions {
@@ -524,6 +526,7 @@ export function buildApp(options: AppOptions = {}): App {
     ops,
     quotas,
     captcha,
+    botWaitMs: options.botWaitMs,
     resolveName: async (socket) =>
       (await userFromHeaders(auth, socket.handshake.headers))?.name ?? null,
   });
