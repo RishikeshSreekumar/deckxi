@@ -13,6 +13,7 @@ export {
   type CardInfo,
 } from "./editions.js";
 export { TrumpCard, type TrumpCardProps, type CardSize } from "./TrumpCard.js";
+export { PowerCard, type PowerCardProps } from "./PowerCard.js";
 export { CardBackArt, RoleIcon, RolePortrait } from "./cardArt.js";
 export { Avatar } from "./Avatar.js";
 export { TimerRing } from "./TimerRing.js";

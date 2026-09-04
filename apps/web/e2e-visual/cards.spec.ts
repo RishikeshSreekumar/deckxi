@@ -29,6 +29,10 @@ test("sizes and states", async ({ page }) => {
   await expect(page.getByTestId("gallery-states")).toHaveScreenshot("states.png");
 });
 
+test("power cards", async ({ page }) => {
+  await expect(page.getByTestId("gallery-powers")).toHaveScreenshot("power-cards.png");
+});
+
 test("full edition grid", async ({ page }) => {
   await expect(page.getByTestId("gallery-all")).toHaveScreenshot("all-cards.png", {
     // 64 cards of text — allow a whisker more antialiasing noise.
