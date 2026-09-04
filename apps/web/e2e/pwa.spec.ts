@@ -84,3 +84,15 @@ test("gameplay traffic is never served from the cache", async ({ page }) => {
   const leaked = cached.filter((url) => /\/socket\.io\/|\/api\/|\/auth\//.test(url));
   expect(leaked, "no gameplay or auth request may be cached").toEqual([]);
 });
+
+test("the manifest's create-room shortcut hosts a table", async ({ page }) => {
+  // The shortcut is the one manifest entry that carries behaviour: `/?new=1`
+  // must actually seat you at a fresh table, not drop you on the landing page
+  // with the same two choices you took the shortcut to skip.
+  await page.goto("/");
+  await page.getByLabel(/name/i).first().fill("Shortcut Host");
+
+  await page.goto("/?new=1");
+  await expect(page.getByTestId("lobby-screen")).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+});

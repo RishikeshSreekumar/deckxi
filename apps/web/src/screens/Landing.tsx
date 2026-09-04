@@ -7,7 +7,7 @@
  * choose between hosting and joining.
  */
 import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { JOIN_CODE_LENGTH, MAX_NAME_LENGTH, type RoomClosedReason } from "@deckxi/shared";
 import { useStore } from "../store/store.js";
 import { AckError } from "../lib/socket.js";
@@ -29,6 +29,11 @@ const CLOSED_COPY: Record<RoomClosedReason, string> = {
 
 export function Landing() {
   const { code: linkCode } = useParams();
+  const [params] = useSearchParams();
+  // The manifest's "Create a room" shortcut lands here as `/?new=1`. A
+  // shortcut that only shows the same landing page is a lie, so it hosts a
+  // table for you.
+  const shortcutNewRoom = params.get("new") === "1";
   const createRoom = useStore((s) => s.createRoom);
   const joinRoom = useStore((s) => s.joinRoom);
   const roomClosedReason = useStore((s) => s.roomClosedReason);
@@ -45,6 +50,8 @@ export function Landing() {
     linkCode !== undefined && linkCode.length === JOIN_CODE_LENGTH,
   );
   const joinRef = useRef<HTMLButtonElement>(null);
+  const hostNameRef = useRef<HTMLInputElement>(null);
+  const shortcutFired = useRef(false);
   const inviteNameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -105,6 +112,39 @@ export function Landing() {
     }
     return trimmed;
   };
+
+  const hostTable = async () => {
+    setBusy("create");
+    try {
+      await createRoom(await commitName());
+      history.replaceState(null, "", "/");
+    } catch {
+      /* the store surfaces the connection state; the button comes back */
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /**
+   * Home-screen shortcut: host straight away. It waits for the socket and for
+   * a name — a fresh install has neither on the first frame — and fires once,
+   * so a failed attempt does not loop. With no name to use we focus the field
+   * instead of guessing one.
+   */
+  useEffect(() => {
+    if (!shortcutNewRoom || shortcutFired.current || invite) return;
+    if (name.trim() === "") {
+      hostNameRef.current?.focus();
+      return;
+    }
+    if (connection !== "online" || busy !== null) return;
+    shortcutFired.current = true;
+    void hostTable();
+    // hostTable closes over the current name; re-running on every keystroke is
+    // exactly what we want until it fires.
+    // hostTable is intentionally not a dependency: it is redefined every
+    // render, and the ref guard is what makes this fire once.
+  }, [shortcutNewRoom, invite, name, connection, busy]);
 
   const doJoin = async (spectator: boolean) => {
     setBusy("join");
@@ -176,19 +216,12 @@ export function Landing() {
                 Host a table
               </h2>
               <p className="sub">Pick the rules once you're in, then send the code.</p>
-              {nameField()}
+              {nameField(hostNameRef)}
               <button
                 type="button"
                 className="button button--primary button--block landing-cta"
                 disabled={!canSubmit}
-                onClick={() => {
-                  setBusy("create");
-                  void commitName()
-                    .then(createRoom)
-                    .then(() => history.replaceState(null, "", "/"))
-                    .catch(() => undefined)
-                    .finally(() => setBusy(null));
-                }}
+                onClick={() => void hostTable()}
               >
                 {busy === "create" ? "Creating…" : "Create table"}
               </button>
