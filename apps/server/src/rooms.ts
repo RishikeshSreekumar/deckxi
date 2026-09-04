@@ -204,6 +204,12 @@ export class RoomManager {
     return this.rooms.get(roomId);
   }
 
+  /** The room holding this join code on *this* instance, if any (#86). */
+  findByCode(code: string): Room | undefined {
+    const roomId = this.roomIdByCode.get(code);
+    return roomId === undefined ? undefined : this.rooms.get(roomId);
+  }
+
   getSession(sessionId: string): Session | undefined {
     return this.sessions.get(sessionId);
   }

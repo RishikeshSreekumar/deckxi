@@ -45,6 +45,12 @@ const envSchema = z.object({
    * abuse quotas are refused outright instead of being offered a challenge.
    */
   TURNSTILE_SECRET: z.string().min(8).optional(),
+  /**
+   * Redis for multi-instance operation (#86): the room directory and the
+   * instance-to-instance bus. Unset means a cluster of one, which is what a
+   * single Cloud Run instance is.
+   */
+  REDIS_URL: z.string().url().optional(),
 });
 
 export interface Env {
@@ -62,6 +68,7 @@ export interface Env {
   adminEmails: string[];
   mail: { apiKey: string | undefined; from: string | undefined };
   captchaSecret: string | undefined;
+  redisUrl: string | undefined;
 }
 
 /**
@@ -106,5 +113,6 @@ export function parseEnv(source: NodeJS.ProcessEnv = process.env): Env {
       .filter((email) => email.length > 0),
     mail: { apiKey: parsed.MAIL_API_KEY, from: parsed.MAIL_FROM },
     captchaSecret: parsed.TURNSTILE_SECRET,
+    redisUrl: parsed.REDIS_URL,
   };
 }
