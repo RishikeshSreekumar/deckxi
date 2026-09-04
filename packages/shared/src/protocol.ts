@@ -333,6 +333,8 @@ export interface SpectatorView {
 }
 
 export interface RoomView {
+  /** Opened by quick match: a table of strangers, so voice is off here (#89). */
+  matchmade?: boolean;
   roomId: string;
   code: string;
   phase: RoomPhase;

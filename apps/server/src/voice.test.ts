@@ -124,6 +124,26 @@ describe("the signalling relay", () => {
     expect(reply.ok === false && reply.code).toBe("not-in-room");
   });
 
+  it("refuses voice at a quick-match table, where the players are strangers", async () => {
+    server = await startTestServer({ botWaitMs: 5 });
+    const s = server;
+    const solo = s.client();
+    await solo.connected();
+    const matched = solo.next<RoomJoined>("queue:matched");
+    await solo.call("queue:join", { gameMode: "classic-trumps", name: "Solo" });
+    const joined = await matched;
+    expect(joined.room.matchmade).toBe(true);
+
+    // The UI hides the button; the server is what makes it a rule.
+    const signal = await solo.callRaw("voice:signal", {
+      to: joined.selfId,
+      signal: { kind: "description", description: { type: "offer", sdp: "v=0" } },
+    });
+    expect(signal.ok).toBe(false);
+    const state = await solo.callRaw("voice:state", { live: true });
+    expect(state.ok).toBe(false);
+  });
+
   it("requires a session for TURN credentials", async () => {
     server = await startTestServer();
     expect((await fetch(`${server.url}/api/voice/ice`)).status).toBe(401);

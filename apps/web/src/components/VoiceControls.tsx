@@ -32,7 +32,9 @@ export function VoiceControls() {
     if (room === null && voice !== "off") stopVoice();
   }, [room, voice, stopVoice]);
 
-  if (room === null || spectator || practice) return null;
+  // Quick-match tables are strangers: no mic button, and the server refuses
+  // signalling there too, so this is a convenience rather than the rule.
+  if (room === null || spectator || practice || room.matchmade === true) return null;
 
   if (voice === "denied") {
     return (

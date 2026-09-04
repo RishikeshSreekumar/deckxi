@@ -291,6 +291,7 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
         queuedNames.get(first) ?? "Player",
         { gameMode: pairing.mode },
         first.data.userId,
+        { matchmade: true },
       );
       room = created.room;
       hostSession = created.session;
@@ -922,6 +923,12 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       const session = manager.getSession(requireSessionId());
       if (session === undefined) throw new RoomError("not-in-room");
       const room = manager.getRoom(session.roomId);
+      // Quick-match tables are strangers, and public voice needs a moderation
+      // story we do not have. Enforced here rather than only in the UI: a
+      // rule that lives in a React component is not a rule.
+      if (room?.matchmade === true) {
+        throw new RoomError("bad-request", "voice is only for rooms you opened by invite");
+      }
       const target = room?.players.find((p) => p.id === payload.to);
       // Signalling a player who is not at your table is not a thing to
       // explain; it is a thing to refuse.
@@ -942,6 +949,9 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       if (session === undefined) throw new RoomError("not-in-room");
       const room = manager.getRoom(session.roomId);
       if (room === undefined) throw new RoomError("not-in-room");
+      if (room.matchmade) {
+        throw new RoomError("bad-request", "voice is only for rooms you opened by invite");
+      }
       const live = liveMics.get(room.id) ?? new Set<string>();
       if (payload.live) live.add(sessionId);
       else live.delete(sessionId);
