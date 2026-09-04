@@ -657,3 +657,28 @@ one and stays behind the admin role.
 The player-facing screen steps round by round rather than event by event, and
 the whole thing is folded through the ordinary client reducer — the same code
 that renders a live game.
+
+## Friends, recent players and invite previews (#82)
+
+Friends are **one-directional**: adding someone saves them to your own list.
+There is nothing to accept, nothing to decline, no notification, and saving
+someone grants them no access to anything — the invite link is still the only
+way into a room. `POST /api/me/friends` refuses anyone you have not actually
+shared a table with, so nobody can build a directory of strangers by guessing
+ids. Recent players come from `match_players` joined to your own matches.
+
+**Invite previews** need the share-card meta to name the table, and a crawler
+never runs the SPA's JavaScript. So the web build now ships a Pages _advanced
+mode_ worker (`dist/_worker.js`, built by `apps/web/scripts/build-worker.mjs`)
+which passes everything through to `ASSETS` except `/join/:code`, where it
+rewrites the title and og tags. Two consequences worth knowing:
+
+- The SPA fallback is **explicit in the worker** (404 on a GET → `index.html`)
+  rather than inherited from `_redirects`, because deep links are how most
+  players arrive and they must not depend on that assumption holding.
+- `public/_headers` may not be applied to requests that pass through a worker,
+  so the worker sets the same policy itself from `src/lib/edgeHeaders.ts`. A
+  test asserts the two do not drift.
+
+**Kill switch:** drop `&& node scripts/build-worker.mjs` from the web build.
+With no `dist/_worker.js`, Pages serves the site exactly as it did before.

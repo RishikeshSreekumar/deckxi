@@ -274,6 +274,9 @@ export function ProfileScreen() {
             </div>
           )}
 
+          <Link className="button" to="/friends">
+            Players
+          </Link>
           <Link className="button" to="/collection">
             Collection
           </Link>

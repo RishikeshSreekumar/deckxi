@@ -126,6 +126,27 @@ export const matchShares = pgTable("match_shares", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Friends (#82). Deliberately one-directional: adding someone is saving them
+ * to your own list, not asking their permission. There is nothing to accept,
+ * nothing to decline, and no notification to send — the list exists so you
+ * can find the people you play with, and the invite link is still the only
+ * way into a room.
+ */
+export const friends = pgTable(
+  "friends",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    friendId: text("friend_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.friendId] })],
+);
+
 export const appConfig = pgTable("app_config", {
   key: text("key").primaryKey(),
   value: jsonb("value").notNull(),

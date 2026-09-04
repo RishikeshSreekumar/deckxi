@@ -16,6 +16,7 @@ import {
   type ModeStats,
   type CollectionRow,
   type MatchShare,
+  type PlayerSummary,
   type RatingRow,
   type RatingUpdate,
   type ShowcaseCard,
@@ -28,6 +29,7 @@ import {
   cardCollection,
   matchEvents,
   matchPlayers,
+  friends,
   matchShares,
   matches,
   profileShowcase,
@@ -498,6 +500,75 @@ export class PostgresMatchStore implements MatchStore {
     await this.db
       .delete(matchShares)
       .where(and(eq(matchShares.token, token), eq(matchShares.createdBy, userId)));
+  }
+
+  async listFriends(userId: string): Promise<PlayerSummary[]> {
+    const rows = await this.db
+      .select({ userId: friends.friendId, name: user.name, image: user.image })
+      .from(friends)
+      .innerJoin(user, eq(user.id, friends.friendId))
+      .where(eq(friends.userId, userId))
+      .orderBy(user.name);
+    return rows.map((row) => ({
+      userId: row.userId,
+      name: row.name,
+      image: row.image ?? null,
+      isFriend: true,
+    }));
+  }
+
+  async addFriend(userId: string, friendId: string): Promise<void> {
+    await this.db
+      .insert(friends)
+      .values({ userId, friendId, createdAt: new Date() })
+      .onConflictDoNothing();
+  }
+
+  async removeFriend(userId: string, friendId: string): Promise<void> {
+    await this.db
+      .delete(friends)
+      .where(and(eq(friends.userId, userId), eq(friends.friendId, friendId)));
+  }
+
+  /**
+   * Who you have shared a table with, newest first. One query rather than
+   * "my matches, then their players": the join is the same work and the
+   * round trip is not.
+   */
+  async recentPlayers(userId: string, limit = 20): Promise<PlayerSummary[]> {
+    const rows = await this.db.execute<{
+      user_id: string;
+      name: string;
+      image: string | null;
+      last_played_at: Date;
+      is_friend: boolean;
+    }>(sql`
+      select them.user_id,
+             u.name,
+             u.image,
+             max(m.started_at) as last_played_at,
+             exists (
+               select 1 from friends f
+                where f.user_id = ${userId} and f.friend_id = them.user_id
+             ) as is_friend
+        from match_players me
+        join match_players them
+          on them.match_id = me.match_id and them.user_id <> me.user_id
+        join matches m on m.id = me.match_id
+        join "user" u on u.id = them.user_id
+       where me.user_id = ${userId}
+         and them.user_id is not null
+       group by them.user_id, u.name, u.image
+       order by last_played_at desc
+       limit ${limit}
+    `);
+    return rows.rows.map((row) => ({
+      userId: row.user_id,
+      name: row.name,
+      image: row.image,
+      lastPlayedAt: new Date(row.last_played_at),
+      isFriend: row.is_friend,
+    }));
   }
 
   async ping(): Promise<void> {

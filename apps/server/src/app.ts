@@ -369,6 +369,57 @@ export function buildApp(options: AppOptions = {}): App {
     };
   });
 
+  /**
+   * Friends and recent players (#82). A friend is someone you saved to your
+   * own list — one-directional on purpose: there is nothing to accept, nothing
+   * to decline, and no notification to send. The list exists so you can find
+   * the people you play with; the invite link is still the only way into a
+   * room, so saving someone gives them no access to anything.
+   */
+  fastify.get("/api/me/friends", async (request, reply) => {
+    const user = await requireUser(request);
+    if (user === null) return await reply.status(401).send({ error: "not signed in" });
+    const [friends, recent] = await Promise.all([
+      store.listFriends(user.id),
+      store.recentPlayers(user.id),
+    ]);
+    return {
+      friends,
+      recent: recent.map((player) => ({
+        ...player,
+        lastPlayedAt: player.lastPlayedAt?.toISOString() ?? null,
+      })),
+    };
+  });
+
+  fastify.post("/api/me/friends", async (request, reply) => {
+    const user = await requireUser(request);
+    if (user === null) return await reply.status(401).send({ error: "not signed in" });
+    const body = (request.body ?? {}) as { userId?: unknown };
+    if (typeof body.userId !== "string") {
+      return await reply.status(400).send({ error: "userId is required" });
+    }
+    if (body.userId === user.id) {
+      return await reply.status(400).send({ error: "you are already with you" });
+    }
+    // Only someone you have actually played with: a friends list built from
+    // guessed ids is a directory of strangers.
+    const recent = await store.recentPlayers(user.id, 200);
+    if (!recent.some((player) => player.userId === body.userId)) {
+      return await reply.status(403).send({ error: "you haven't played with them" });
+    }
+    await store.addFriend(user.id, body.userId);
+    return await reply.status(204).send();
+  });
+
+  fastify.delete("/api/me/friends/:userId", async (request, reply) => {
+    const user = await requireUser(request);
+    if (user === null) return await reply.status(401).send({ error: "not signed in" });
+    const { userId } = request.params as { userId: string };
+    await store.removeFriend(user.id, userId);
+    return await reply.status(204).send();
+  });
+
   fastify.get("/api/me/collection", async (request, reply) => {
     const user = await requireUser(request);
     if (user === null) return await reply.status(401).send({ error: "not signed in" });

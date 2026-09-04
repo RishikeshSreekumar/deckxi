@@ -133,5 +133,34 @@ export async function shareMatch(matchId: string): Promise<string> {
   return `${location.origin}/replay/${token}`;
 }
 
+export interface PlayerSummary {
+  userId: string;
+  name: string;
+  image: string | null;
+  lastPlayedAt?: string | null;
+  isFriend: boolean;
+}
+
+export const fetchFriends = (): Promise<{ friends: PlayerSummary[]; recent: PlayerSummary[] }> =>
+  get<{ friends: PlayerSummary[]; recent: PlayerSummary[] }>("/api/me/friends");
+
+export async function addFriend(userId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/me/friends`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId }),
+  });
+  if (!response.ok) throw new Error(`add friend failed (${response.status})`);
+}
+
+export async function removeFriend(userId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/me/friends/${encodeURIComponent(userId)}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error(`remove friend failed (${response.status})`);
+}
+
 export const fetchMatches = async (): Promise<MatchSummary[]> =>
   (await get<{ matches: MatchSummary[] }>("/api/me/matches")).matches;
