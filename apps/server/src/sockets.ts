@@ -28,6 +28,8 @@ import {
 } from "./rooms.js";
 import { redactEvent, redactLog, type SeqEvent } from "./redact.js";
 import { DEFAULT_LIMITS, TokenBucket, type RateLimits } from "./rateLimit.js";
+import { clientIp, quotaKeys, Quotas } from "./quota.js";
+import type { CaptchaVerifier } from "./captcha.js";
 import { nullLogger, type Logger } from "./logging.js";
 import { createMetrics, type Metrics } from "./metrics.js";
 import type { OpsConfig } from "./ops.js";
@@ -52,12 +54,18 @@ export interface SocketOptions {
    * after the handshake snapshot was taken. Null when there is no account.
    */
   resolveName?: ((socket: GameSocket) => Promise<string | null>) | undefined;
+  /** Per-source abuse quotas (#87). Shared with the HTTP layer. */
+  quotas?: Quotas | undefined;
+  /** Turnstile, when this deployment has it configured (#87). */
+  captcha?: CaptchaVerifier | undefined;
 }
 
 export function registerSockets(io: GameServer, options: SocketOptions = {}): RoomManager {
   const limits: RateLimits = { ...DEFAULT_LIMITS, ...options.limits };
   const log = options.logger ?? nullLogger;
   const metrics = options.metrics ?? createMetrics();
+  const quotas = options.quotas ?? new Quotas();
+  const captcha = options.captcha ?? null;
   const socketBySession = new Map<string, GameSocket>();
 
   const detachRoom = (room: Room): void => {
@@ -138,6 +146,18 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
     // Every line from this connection carries who and where, so one player's
     // whole session can be pulled out of the stream by socketId (#65).
     let socketLog = log.child({ socketId: socket.id, userId: socket.data.userId });
+    const ip = clientIp(socket.handshake.headers, socket.handshake.address);
+    // One IP holding dozens of sockets is a script, not a household. Refused
+    // at the door: nothing this connection could ask for is worth the memory.
+    if (!quotas.connections.add(ip)) {
+      metrics.increment("deckxi_quota_rejections_total", { quota: "connections" });
+      socketLog.warn({ event: "quota.connections", ip }, "too many connections from one address");
+      socket.disconnect(true);
+      return;
+    }
+    socket.on("disconnect", () => {
+      quotas.connections.remove(ip);
+    });
     socketLog.debug({ event: "socket.connected" }, "socket connected");
     metrics.increment("deckxi_socket_connections_total");
     const notice = options.ops?.current.notice ?? null;
@@ -250,26 +270,103 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       return trimmed.slice(0, MAX_NAME_LENGTH);
     };
 
-    on("room:create", async (payload: { name: string; settings?: Partial<RoomSettings> }) => {
-      if (socket.data.sessionId !== null) throw new RoomError("already-in-room");
-      const { room, session } = manager.createRoom(
-        await tableName(payload.name),
-        payload.settings ?? {},
-        socket.data.userId,
-      );
-      return attach(room, session);
-    });
+    /** This socket's quota identity: the account when signed in, plus the IP. */
+    const keys = (): string[] => quotaKeys(socket.data.userId, ip);
 
-    on("room:join", async (payload: { code: string; name: string; spectator?: boolean }) => {
-      if (socket.data.sessionId !== null) throw new RoomError("already-in-room");
-      const { room, session } = manager.joinRoom(
-        payload.code,
-        await tableName(payload.name),
-        payload.spectator,
-        socket.data.userId,
-      );
-      return attach(room, session);
-    });
+    /**
+     * Spend one unit of a quota, or refuse. Both keys are charged so that
+     * signing up a fresh guest per room buys nothing.
+     */
+    const spend = (
+      counter: { take(key: string): boolean },
+      quota: string,
+      message: string,
+    ): void => {
+      let allowed = true;
+      for (const key of keys()) if (!counter.take(key)) allowed = false;
+      if (allowed) return;
+      metrics.increment("deckxi_quota_rejections_total", { quota });
+      socketLog.warn({ event: "quota.exceeded", quota, ip }, message);
+      throw new RoomError("quota-exceeded", message);
+    };
+
+    /**
+     * A source that has been guessing join codes is asked to prove it is a
+     * person — but only where a CAPTCHA is configured. Without one there is
+     * nothing to ask, so the quota refusal (above) is the whole answer.
+     */
+    const checkCaptcha = async (token: string | undefined): Promise<void> => {
+      if (captcha === null) return;
+      if (!keys().some((key) => quotas.suspicious(key))) return;
+      if (token !== undefined && (await captcha.verify(token, ip))) {
+        metrics.increment("deckxi_captcha_total", { result: "passed" });
+        return;
+      }
+      metrics.increment("deckxi_captcha_total", {
+        result: token === undefined ? "asked" : "failed",
+      });
+      throw new RoomError("captcha-required", "please confirm you're a person");
+    };
+
+    on(
+      "room:create",
+      async (payload: {
+        name: string;
+        settings?: Partial<RoomSettings>;
+        captchaToken?: string;
+      }) => {
+        if (socket.data.sessionId !== null) throw new RoomError("already-in-room");
+        await checkCaptcha(payload.captchaToken);
+        spend(
+          quotas.createRooms,
+          "create-rooms",
+          "you've opened a lot of tables — try again later",
+        );
+        const { room, session } = manager.createRoom(
+          await tableName(payload.name),
+          payload.settings ?? {},
+          socket.data.userId,
+        );
+        return attach(room, session);
+      },
+    );
+
+    on(
+      "room:join",
+      async (payload: {
+        code: string;
+        name: string;
+        spectator?: boolean;
+        captchaToken?: string;
+      }) => {
+        if (socket.data.sessionId !== null) throw new RoomError("already-in-room");
+        await checkCaptcha(payload.captchaToken);
+        const name = await tableName(payload.name);
+        try {
+          const { room, session } = manager.joinRoom(
+            payload.code,
+            name,
+            payload.spectator,
+            socket.data.userId,
+          );
+          return attach(room, session);
+        } catch (error) {
+          // A wrong code is the code-sweeping signal. Only "no such room"
+          // counts: a full room or a game in progress means the guess was
+          // right, and those have their own answers.
+          if (error instanceof RoomError && error.code === "room-not-found") {
+            let over = false;
+            for (const key of keys()) if (!quotas.failedJoins.take(key)) over = true;
+            if (over) {
+              metrics.increment("deckxi_quota_rejections_total", { quota: "failed-joins" });
+              socketLog.warn({ event: "quota.failedJoins", ip }, "join-code sweeping");
+              throw new RoomError("quota-exceeded", "too many wrong codes — try again later");
+            }
+          }
+          throw error;
+        }
+      },
+    );
 
     on("room:resume", (payload: { roomId: string; resumeToken: string }) => {
       if (socket.data.sessionId !== null) throw new RoomError("already-in-room");

@@ -85,10 +85,10 @@ interface AppState {
   // -- actions ------------------------------------------------------------
   toast(text: string, kind?: Toast["kind"]): void;
   dismissToast(id: number): void;
-  createRoom(name: string): Promise<void>;
+  createRoom(name: string, captchaToken?: string): Promise<void>;
   /** Start a local game against bots — no room, no socket, works offline. */
   practiceGame(options: PracticeOptions): Promise<void>;
-  joinRoom(code: string, name: string, spectator?: boolean): Promise<void>;
+  joinRoom(code: string, name: string, spectator?: boolean, captchaToken?: string): Promise<void>;
   leaveRoom(): Promise<void>;
   setReady(ready: boolean): Promise<void>;
   updateSettings(patch: Partial<RoomSettings>): Promise<void>;
@@ -205,10 +205,13 @@ export const useStore = create<AppState>((set, get) => {
       set({ toasts: get().toasts.filter((t) => t.id !== id) });
     },
 
-    async createRoom(name) {
+    async createRoom(name, captchaToken) {
       await guarded(async () => {
         savePlayerName(name);
-        const data = await call<"room:create", RoomJoined>("room:create", { name });
+        const data = await call<"room:create", RoomJoined>("room:create", {
+          name,
+          ...(captchaToken !== undefined ? { captchaToken } : {}),
+        });
         joined(set, data);
       });
     },
@@ -238,13 +241,14 @@ export const useStore = create<AppState>((set, get) => {
       settlePractice(set, get);
     },
 
-    async joinRoom(code, name, spectator) {
+    async joinRoom(code, name, spectator, captchaToken) {
       await guarded(async () => {
         savePlayerName(name);
         const data = await call<"room:join", RoomJoined>("room:join", {
           code,
           name,
           ...(spectator !== undefined ? { spectator } : {}),
+          ...(captchaToken !== undefined ? { captchaToken } : {}),
         });
         joined(set, data);
       });

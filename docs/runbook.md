@@ -85,15 +85,16 @@ gcloud artifacts repositories set-cleanup-policies deckxi \
 Secret that the running server needs → Secret Manager. Secret that CI needs →
 GitHub. Not secret → the workflow, where it shows up in a diff.
 
-| Value                                        | Lives in                                                                                                                   |
-| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `BETTER_AUTH_SECRET`                         | Secret Manager `deckxi-<env>-auth-secret`                                                                                  |
-| `GOOGLE_CLIENT_ID`                           | Secret Manager `deckxi-<env>-google-client-id`                                                                             |
-| `GOOGLE_CLIENT_SECRET`                       | Secret Manager `deckxi-<env>-google-client-secret`                                                                         |
-| `DATABASE_URL`                               | Secret Manager `deckxi-<env>-database-url` **and** the GitHub environment (the migrate job runs in Actions, not Cloud Run) |
-| `MAIL_API_KEY`                               | Secret Manager `deckxi-<env>-mail-api-key` (only referenced when the `MAIL_ENABLED` variable is `true`)                    |
-| `APP_ENV`, `CORS_ORIGINS`, `BETTER_AUTH_URL` | `deploy.yml` inputs                                                                                                        |
-| `ADMIN_EMAILS`, `MAIL_FROM`, `MAIL_ENABLED`  | GitHub repository/environment **variables** — not secret, and each one is safe to read in a build log                      |
+| Value                                        | Lives in                                                                                                                     |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `BETTER_AUTH_SECRET`                         | Secret Manager `deckxi-<env>-auth-secret`                                                                                    |
+| `GOOGLE_CLIENT_ID`                           | Secret Manager `deckxi-<env>-google-client-id`                                                                               |
+| `GOOGLE_CLIENT_SECRET`                       | Secret Manager `deckxi-<env>-google-client-secret`                                                                           |
+| `DATABASE_URL`                               | Secret Manager `deckxi-<env>-database-url` **and** the GitHub environment (the migrate job runs in Actions, not Cloud Run)   |
+| `MAIL_API_KEY`                               | Secret Manager `deckxi-<env>-mail-api-key` (only referenced when the `MAIL_ENABLED` variable is `true`)                      |
+| `TURNSTILE_SECRET`                           | Secret Manager `deckxi-<env>-turnstile-secret` (optional; unset means over-quota sources are refused rather than challenged) |
+| `APP_ENV`, `CORS_ORIGINS`, `BETTER_AUTH_URL` | `deploy.yml` inputs                                                                                                          |
+| `ADMIN_EMAILS`, `MAIL_FROM`, `MAIL_ENABLED`  | GitHub repository/environment **variables** — not secret, and each one is safe to read in a build log                        |
 
 `deploy-api-cloudrun.yml` references those secret names literally, so a typo
 surfaces as a container that won't boot rather than a warning.
@@ -564,3 +565,35 @@ so this stays a config change rather than a rewrite — it's the same image.
 
 Both platforms read the same `DATABASE_URL` and run a single instance, so the
 only real cutover moment is the DNS flip.
+
+## Abuse and cost quotas (#87)
+
+Three ceilings run per _source_ — the account id when a socket carries one, and
+the client IP alongside it, so signing up a guest per request buys nothing.
+Defaults live in `apps/server/src/quota.ts`:
+
+| Quota          | Default       | What it stops                                          |
+| -------------- | ------------- | ------------------------------------------------------ |
+| connections/IP | 24 concurrent | a script holding open hundreds of sockets              |
+| rooms created  | 30 per hour   | filling the process with empty rooms                   |
+| failed joins   | 20 per 10 min | sweeping the six-character join-code space             |
+| auth POSTs/IP  | 20 per 10 min | magic-link floods, where every request is a paid email |
+
+Loopback is never counted against the connection ceiling: it is health checks,
+the dev client and the test suite. A real client behind the proxy arrives with
+`x-forwarded-for`, and only its **first** entry is trusted.
+
+Halfway through the failed-join budget a source is "suspicious". If
+`TURNSTILE_SECRET` is set, its next create/join is answered `captcha-required`
+and the client shows a Turnstile challenge (`VITE_TURNSTILE_SITE_KEY` on the
+web app); a solved token lets the request through. With no secret configured
+there is nothing to offer, so the request is refused with `quota-exceeded` —
+the same answer, one step blunter. Verification fails closed if Cloudflare is
+unreachable: this path is only reached by a client we already believe is a
+script.
+
+Rejections are visible as `deckxi_quota_rejections_total{quota=...}` and
+`deckxi_captcha_total{result=...}` on `/metrics`, and each one logs a `warn`
+carrying the address. A player reporting "it says I've tried too much" is
+either sharing an IP with a script or has genuinely hit an hourly ceiling:
+check the counter labels before raising a limit.

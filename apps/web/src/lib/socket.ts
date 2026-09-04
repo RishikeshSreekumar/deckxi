@@ -88,6 +88,8 @@ export function errorMessage(error: unknown): string {
       "resume-failed": "Couldn't rejoin your game.",
       "server-full": "The server is at capacity right now. Try again shortly.",
       "protocol-mismatch": "Your game is out of date — refresh the page.",
+      "quota-exceeded": "That's a lot of tries — give it a few minutes.",
+      "captcha-required": "Confirm you're a person to carry on.",
     };
     return copy[error.code] ?? error.message;
   }

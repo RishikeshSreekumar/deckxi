@@ -13,6 +13,7 @@ import { useStore } from "../store/store.js";
 import { AckError } from "../lib/socket.js";
 import { loadPlayerName } from "../lib/session.js";
 import { fetchProfile, type ProfileUser } from "../lib/api.js";
+import { solveCaptcha } from "../lib/captcha.js";
 import { authClient, ensureSession } from "../lib/auth.js";
 import { Avatar, Dialog, RoomCode } from "@deckxi/ui";
 import { AppBar, CodeSlots } from "../components/Chrome.js";
@@ -51,6 +52,11 @@ export function Landing() {
     linkCode !== undefined && linkCode.length === JOIN_CODE_LENGTH,
   );
   const joinRef = useRef<HTMLButtonElement>(null);
+  // The challenge sheet (#87): open only when the server has asked for one.
+  // `retry` is the action that was refused, resumed with a solved token.
+  const [challenge, setChallenge] = useState<((token: string) => Promise<void>) | null>(null);
+  const [challengeError, setChallengeError] = useState<string | null>(null);
+  const challengeRef = useRef<HTMLDivElement>(null);
   const hostNameRef = useRef<HTMLInputElement>(null);
   const shortcutFired = useRef(false);
   const inviteNameRef = useRef<HTMLInputElement>(null);
@@ -62,6 +68,26 @@ export function Landing() {
     if (loadPlayerName() !== "") joinRef.current?.focus();
     else inviteNameRef.current?.focus();
   }, [invite]);
+
+  // Turnstile renders into a real element, so it waits for the sheet to mount.
+  useEffect(() => {
+    const container = challengeRef.current;
+    if (challenge === null || container === null) return;
+    let cancelled = false;
+    void solveCaptcha(container)
+      .then(async (token) => {
+        if (cancelled) return;
+        setChallenge(null);
+        await challenge(token);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setChallengeError(error instanceof Error ? error.message : "The challenge failed.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [challenge]);
 
   const declineInvite = () => {
     setInvite(false);
@@ -114,13 +140,31 @@ export function Landing() {
     return trimmed;
   };
 
-  const hostTable = async () => {
+  /**
+   * A refused-for-CAPTCHA action is not an error the player can act on by
+   * reading a toast, so it opens the challenge instead and replays itself
+   * with the token. Anything else is already reported by the store.
+   */
+  const withChallenge = async (run: (token?: string) => Promise<void>): Promise<void> => {
+    try {
+      await run();
+    } catch (error) {
+      if (error instanceof AckError && error.code === "captcha-required") {
+        setChallengeError(null);
+        setChallenge(() => async (token: string) => {
+          await run(token);
+        });
+        return;
+      }
+      /* every other failure is already a toast from the store */
+    }
+  };
+
+  const hostTable = async (captchaToken?: string) => {
     setBusy("create");
     try {
-      await createRoom(await commitName());
+      await createRoom(await commitName(), captchaToken);
       history.replaceState(null, "", "/");
-    } catch {
-      /* the store surfaces the connection state; the button comes back */
     } finally {
       setBusy(null);
     }
@@ -140,21 +184,22 @@ export function Landing() {
     }
     if (connection !== "online" || busy !== null) return;
     shortcutFired.current = true;
-    void hostTable();
+    void withChallenge((token) => hostTable(token));
     // hostTable closes over the current name; re-running on every keystroke is
     // exactly what we want until it fires.
     // hostTable is intentionally not a dependency: it is redefined every
     // render, and the ref guard is what makes this fire once.
   }, [shortcutNewRoom, invite, name, connection, busy]);
 
-  const doJoin = async (spectator: boolean) => {
+  const doJoin = async (spectator: boolean, captchaToken?: string) => {
     setBusy("join");
     setOfferSpectate(false);
     try {
-      await joinRoom(code.trim().toUpperCase(), await commitName(), spectator);
+      await joinRoom(code.trim().toUpperCase(), await commitName(), spectator, captchaToken);
       history.replaceState(null, "", "/");
     } catch (error) {
       if (error instanceof AckError && error.code === "room-full") setOfferSpectate(true);
+      throw error;
     } finally {
       setBusy(null);
     }
@@ -171,14 +216,19 @@ export function Landing() {
         autoComplete="nickname"
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && invite && canSubmit && codeComplete) void doJoin(false);
+          if (e.key === "Enter" && invite && canSubmit && codeComplete)
+            void withChallenge((token) => doJoin(false, token));
         }}
       />
     </label>
   );
 
   const spectateOffer = offerSpectate && (
-    <button type="button" className="button button--ghost" onClick={() => void doJoin(true)}>
+    <button
+      type="button"
+      className="button button--ghost"
+      onClick={() => void withChallenge((token) => doJoin(true, token))}
+    >
       Table is full — watch as a spectator
     </button>
   );
@@ -222,7 +272,7 @@ export function Landing() {
                 type="button"
                 className="button button--primary button--block landing-cta"
                 disabled={!canSubmit}
-                onClick={() => void hostTable()}
+                onClick={() => void withChallenge((token) => hostTable(token))}
               >
                 {busy === "create" ? "Creating…" : "Create table"}
               </button>
@@ -236,7 +286,8 @@ export function Landing() {
                 value={code}
                 onChange={setCode}
                 onSubmit={() => {
-                  if (canSubmit && codeComplete) void doJoin(false);
+                  if (canSubmit && codeComplete)
+                    void withChallenge((token) => doJoin(false, token));
                 }}
               />
               <p className="sub">Six characters, from whoever invited you.</p>
@@ -244,7 +295,7 @@ export function Landing() {
                 type="button"
                 className="button button--block landing-cta"
                 disabled={!canSubmit || !codeComplete}
-                onClick={() => void doJoin(false)}
+                onClick={() => void withChallenge((token) => doJoin(false, token))}
               >
                 {busy === "join" ? "Joining…" : "Join table"}
               </button>
@@ -289,7 +340,7 @@ export function Landing() {
                 type="button"
                 className="button button--primary button--block landing-cta"
                 disabled={!canSubmit || !codeComplete}
-                onClick={() => void doJoin(false)}
+                onClick={() => void withChallenge((token) => doJoin(false, token))}
               >
                 {busy === "join"
                   ? "Joining…"
@@ -300,6 +351,30 @@ export function Landing() {
               {spectateOffer}
               <button type="button" className="button button--ghost" onClick={declineInvite}>
                 Not now
+              </button>
+            </div>
+          </Dialog>
+        )}
+
+        {challenge !== null && (
+          <Dialog title="Quick check" onClose={() => setChallenge(null)}>
+            <div className="invite-sheet" data-testid="captcha-sheet">
+              <p className="sub">
+                A lot of wrong codes have come from this connection, so we need to know you're a
+                person. This takes a second and only happens once.
+              </p>
+              <div ref={challengeRef} />
+              {challengeError !== null && (
+                <p className="notice" role="alert">
+                  {challengeError}
+                </p>
+              )}
+              <button
+                type="button"
+                className="button button--ghost"
+                onClick={() => setChallenge(null)}
+              >
+                Cancel
               </button>
             </div>
           </Dialog>

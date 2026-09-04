@@ -26,6 +26,8 @@ import { registerAdminRoutes } from "./admin.js";
 import { EventFeed, teeLogger } from "./feed.js";
 import { InMemoryConfigStore, OpsConfig, type ConfigStore } from "./ops.js";
 import { registerSockets, type SocketOptions } from "./sockets.js";
+import { clientIp, DEFAULT_QUOTAS, Quotas, type QuotaConfig } from "./quota.js";
+import { turnstileVerifier, type CaptchaVerifier } from "./captcha.js";
 import type { RoomManager, RoomManagerOptions } from "./rooms.js";
 import { InMemoryMatchStore, type MatchStore } from "./store.js";
 import {
@@ -86,6 +88,12 @@ export interface AppOptions {
   admin?: AdminOptions;
   /** Where live ops flags persist; defaults to memory (#70). */
   config?: ConfigStore;
+  /** Abuse quota overrides (#87); defaults are in `quota.ts`. */
+  quotas?: Partial<QuotaConfig>;
+  /** Turnstile secret. Unset means over-quota sources are refused outright. */
+  captchaSecret?: string | undefined;
+  /** Injected by tests in place of a real Turnstile call. */
+  captcha?: CaptchaVerifier;
 }
 
 export interface AdminOptions {
@@ -161,6 +169,31 @@ export function buildApp(options: AppOptions = {}): App {
   // Route errors, the browser's error intake, and a 500 shape that doesn't
   // leak internals (#64).
   registerErrorTracking(fastify, log, metrics);
+
+  // Abuse quotas are per source, not per connection, so the socket layer and
+  // the HTTP layer share one instance (#87).
+  const quotas = new Quotas({ ...DEFAULT_QUOTAS, ...options.quotas });
+  quotas.startSweeper();
+  const captcha: CaptchaVerifier | undefined =
+    options.captcha ??
+    (options.captchaSecret !== undefined
+      ? turnstileVerifier({ secret: options.captchaSecret })
+      : undefined);
+
+  /**
+   * The auth endpoints are the ones that cost money: every magic-link request
+   * is an email we pay to send, and better-auth has no per-IP ceiling of its
+   * own. Reads (session lookups, OAuth callbacks) are left alone — only the
+   * POSTs that do work are counted.
+   */
+  fastify.addHook("onRequest", async (request, reply) => {
+    if (request.method !== "POST" || !request.url.startsWith("/api/auth/")) return;
+    const ip = clientIp(request.headers, request.ip);
+    if (quotas.authRequests.take(`ip:${ip}`)) return;
+    metrics.increment("deckxi_quota_rejections_total", { quota: "auth-requests" });
+    log.warn({ event: "quota.authRequests", ip, url: request.url }, "auth endpoint flooded");
+    await reply.status(429).send({ error: "too many requests — try again in a few minutes" });
+  });
 
   const health = async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -292,6 +325,8 @@ export function buildApp(options: AppOptions = {}): App {
     logger: log,
     metrics,
     ops,
+    quotas,
+    captcha,
     resolveName: async (socket) =>
       (await userFromHeaders(auth, socket.handshake.headers))?.name ?? null,
   });
