@@ -29,6 +29,14 @@ const CLOSED_COPY: Record<RoomClosedReason, string> = {
 };
 
 /**
+ * Quick match pairs you with strangers, which is a different product from
+ * "play with your friends" and needs the moderation and population to make
+ * sense. Off unless a build turns it on; the server keeps the queue either
+ * way, so switching it on is one variable.
+ */
+const QUICK_MATCH_ENABLED = import.meta.env["VITE_QUICK_MATCH"] === "1";
+
+/**
  * What the queue is about to do, counted down. A waiting screen that says
  * nothing but "looking…" is where people give up; saying when the bots arrive
  * turns an open-ended wait into a short one.
@@ -322,7 +330,7 @@ export function Landing() {
           </div>
         )}
 
-        {!invite && queue === null && (
+        {!invite && queue === null && QUICK_MATCH_ENABLED && (
           <section className="panel landing-quick" aria-labelledby="quick-title">
             <h2 className="panel-title" id="quick-title">
               Quick match

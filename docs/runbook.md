@@ -767,3 +767,27 @@ Product rules that are not negotiable without a new decision:
   asks again.
 - `Permissions-Policy` now allows `microphone=(self)` (it banned it outright
   before); geolocation and camera stay banned.
+
+## Beta configuration
+
+Three things ship switched off. Each is a feature whose operational cost is out
+of proportion to what it gives a small, invited group of players, and each is a
+variable rather than a revert — turning one on is a config change and a deploy,
+not a code change.
+
+| Switch                                   | Default | Turn on with                          | What you lose while it is off                                                                                                                                               |
+| ---------------------------------------- | ------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pages edge worker (#82)                  | off     | `WEB_EDGE_WORKER=1` on the web build  | Invite links preview as the generic app card instead of naming the table. Deep links, headers and the SPA fallback all work the plain way, via `_redirects` and `_headers`. |
+| Quick match (#81)                        | off     | `VITE_QUICK_MATCH=1` on the web build | No queue button. Rooms are opened by code, which is how a group of friends plays anyway. The server keeps the queue endpoints either way.                                   |
+| Turnstile (#87), Redis (#86), TURN (#89) | unset   | the env vars above                    | No CAPTCHA (over-quota clients are refused outright), one instance, and voice that fails behind symmetric NAT.                                                              |
+
+The edge worker is the one to be deliberate about: it sits in front of every
+request on the site and the only thing it buys is a nicer link preview. Turn it
+on when there is a reason to, and check a deep link and the response headers on
+a preview deploy before it reaches production.
+
+Quota ceilings (`QUOTA_*`) are sized for one player per address and are nowhere
+near what a person does. They exist as a lever for the day one misfires — a
+shared office or campus NAT, say — not as something to tune up front. Every
+rejection logs the address and increments
+`deckxi_quota_rejections_total{quota=...}`.
