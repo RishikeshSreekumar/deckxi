@@ -6,6 +6,7 @@ import { APP_NAME, PROTOCOL_VERSION } from "@deckxi/shared";
 import { buildApp } from "./app.js";
 import { parseEnv } from "./env.js";
 import { loggerOptions, type Logger } from "./logging.js";
+import { connectCluster } from "./redis.js";
 import { installProcessHandlers } from "./errors.js";
 import { createMagicLinkSender } from "./mail.js";
 import pino from "pino";
@@ -35,6 +36,11 @@ if (isMain) {
     isDeployment: env.appEnv !== "development",
     log,
   });
+  // Multi-instance (#86): one Redis connection backs both the room directory
+  // and the instance bus, and a duplicate pair drives the Socket.IO adapter so
+  // process-wide broadcasts (the maintenance banner) reach every instance.
+  const cluster = await connectCluster(env.redisUrl, log);
+
   const app = buildApp({
     corsOrigins: env.corsOrigins,
     // Fastify 5 accepts a pre-built pino instance only as `loggerInstance`.
@@ -50,7 +56,9 @@ if (isMain) {
     },
     admin: { token: env.adminToken, emails: env.adminEmails },
     captchaSecret: env.captchaSecret,
+    ...(cluster !== null ? { cluster: cluster.cluster } : {}),
   });
+  if (cluster !== null) app.io.adapter(cluster.adapter);
   installProcessHandlers(app.fastify.log as unknown as Logger);
   const port = await app.listen(env.port, env.host);
   app.fastify.log.info(

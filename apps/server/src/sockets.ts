@@ -30,6 +30,7 @@ import { redactEvent, redactLog, type SeqEvent } from "./redact.js";
 import { DEFAULT_LIMITS, TokenBucket, type RateLimits } from "./rateLimit.js";
 import { clientIp, quotaKeys, Quotas } from "./quota.js";
 import { DEFAULT_BOT_WAIT_MS, Matchmaker } from "./matchmaking.js";
+import { localCluster, type BusMessage, type BusReply, type Cluster } from "./cluster.js";
 import { getMode } from "@deckxi/engine";
 import type { CaptchaVerifier } from "./captcha.js";
 import { nullLogger, type Logger } from "./logging.js";
@@ -65,6 +66,11 @@ export interface SocketOptions {
   captcha?: CaptchaVerifier | undefined;
   /** Quick match (#81): how long to look for a human before seating bots. */
   botWaitMs?: number | undefined;
+  /**
+   * The cluster this instance belongs to (#86). Defaults to a cluster of one,
+   * where every lookup is local and the bus never leaves the process.
+   */
+  cluster?: Cluster | undefined;
 }
 
 export function registerSockets(io: GameServer, options: SocketOptions = {}): RoomManager {
@@ -73,7 +79,42 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
   const metrics = options.metrics ?? createMetrics();
   const quotas = options.quotas ?? new Quotas();
   const captcha = options.captcha ?? null;
+  const cluster = options.cluster ?? localCluster();
   const socketBySession = new Map<string, GameSocket>();
+  /**
+   * Sessions in *our* rooms whose socket is connected to another instance
+   * (#86). We know where to send their events; we never hold their socket.
+   */
+  const remoteSessions = new Map<string, { socketId: string; instanceId: string }>();
+
+  /**
+   * Deliver to one session wherever its socket is. Room-wide events fan out
+   * one session at a time rather than through `io.to(room)`: a room's members
+   * may be spread across instances, and a broadcast only reaches the sockets
+   * this process holds. Rooms cap at six seats plus spectators, so the cost of
+   * being correct here is a handful of emits.
+   */
+  const emitTo = (sessionId: string, event: string, ...args: unknown[]): void => {
+    const socket = socketBySession.get(sessionId);
+    if (socket !== undefined) {
+      (socket as unknown as { emit(e: string, ...a: unknown[]): void }).emit(event, ...args);
+      return;
+    }
+    const remote = remoteSessions.get(sessionId);
+    if (remote === undefined) return;
+    void cluster.bus
+      .request(remote.instanceId, { kind: "emit", socketId: remote.socketId, event, args })
+      .catch(() => {
+        // The instance holding that socket has gone. Its player will be
+        // reaped by the disconnect it never got to send; nothing to do here.
+      });
+  };
+
+  const emitToRoom = (room: Room, event: string, ...args: unknown[]): void => {
+    for (const session of [...room.players, ...room.spectators]) {
+      emitTo(session.id, event, ...args);
+    }
+  };
 
   const detachRoom = (room: Room): void => {
     for (const session of [...room.players, ...room.spectators]) {
@@ -84,15 +125,17 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
         void socket.leave(roomKey(room.id));
         socketBySession.delete(session.id);
       }
+      remoteSessions.delete(session.id);
     }
+    void cluster.directory.unregister(room.id);
   };
 
   const observer: RoomsObserver = {
     roomState(room) {
-      io.to(roomKey(room.id)).emit("room:state", toRoomView(room));
+      emitToRoom(room, "room:state", toRoomView(room));
     },
     roomClosed(room, reason) {
-      io.to(roomKey(room.id)).emit("room:closed", { reason });
+      emitToRoom(room, "room:closed", { reason });
       detachRoom(room);
     },
     gameEvents(room, events: SeqEvent[]) {
@@ -115,28 +158,30 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
         );
       }
       for (const session of [...room.players, ...room.spectators]) {
-        const socket = socketBySession.get(session.id);
-        if (socket === undefined) continue;
+        if (session.bot) continue;
         const viewerId = session.spectator ? null : session.id;
-        socket.emit(
+        emitTo(
+          session.id,
           "game:events",
           events.map((e) => redactEvent(game.mode, e, viewerId, editionId)),
         );
       }
     },
     timer(room, timer) {
-      io.to(roomKey(room.id)).emit("game:timer", timer);
+      emitToRoom(room, "game:timer", timer);
     },
     sessionKicked(room, session) {
       // Told before they are removed, so the client can say why rather than
       // silently finding itself back on the landing page (#70).
+      emitTo(session.id, "room:closed", { reason: "kicked" });
       const socket = socketBySession.get(session.id);
-      if (socket === undefined) return;
-      socket.emit("room:closed", { reason: "kicked" });
-      socket.data.sessionId = null;
-      socket.data.roomId = null;
-      void socket.leave(roomKey(room.id));
-      socketBySession.delete(session.id);
+      if (socket !== undefined) {
+        socket.data.sessionId = null;
+        socket.data.roomId = null;
+        void socket.leave(roomKey(room.id));
+        socketBySession.delete(session.id);
+      }
+      remoteSessions.delete(session.id);
     },
   };
 
@@ -163,6 +208,45 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
   };
 
   const botName = (index: number): string => BOT_NAMES[index % BOT_NAMES.length] as string;
+
+  /** Publish a locally-created room so other instances can find its owner. */
+  const announce = (room: Room): void => {
+    void cluster.directory
+      .register({ roomId: room.id, code: room.code, instanceId: cluster.id })
+      .then((ok) => {
+        if (!ok) {
+          // Two instances minted the same code. Vanishingly unlikely with a
+          // 32-character alphabet, and survivable: the room still works for
+          // whoever is in it, but a stranger typing the code may reach the
+          // other one. Loud in the logs rather than silent.
+          log.error(
+            { event: "cluster.codeCollision", roomId: room.id, code: room.code },
+            "join code already claimed by another instance",
+          );
+        }
+      })
+      .catch((error: unknown) => {
+        log.error({ event: "cluster.registerFailed", err: error }, "directory unavailable");
+      });
+  };
+
+  /**
+   * Everything a socket needs to talk to a room owned elsewhere (#86). The
+   * owner does the deciding; this instance is a wire with a socket on it.
+   */
+  const forward = async (socket: GameSocket, event: string, payload: unknown): Promise<unknown> => {
+    const owner = socket.data.ownerInstance;
+    const sessionId = socket.data.sessionId;
+    if (owner === null || sessionId === null) throw new RoomError("not-in-room");
+    const reply = await cluster.bus.request(owner, {
+      kind: "command",
+      sessionId,
+      event,
+      payload,
+    });
+    if (!reply.ok) throw new RoomError((reply.code ?? "bad-request") as ErrorCode, reply.message);
+    return reply.data ?? null;
+  };
 
   // -------------------------------------------------------------------------
   // Quick match (#81). The queue holds sockets; seating one is creating a room
@@ -207,6 +291,7 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       );
       room = created.room;
       hostSession = created.session;
+      announce(room);
     } catch (error) {
       // Server full, or the mode was killed while they waited. Say so rather
       // than leaving them staring at a spinner.
@@ -259,6 +344,176 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       );
     }
   };
+
+  /**
+   * The other side of the wire (#86): messages from instances whose sockets
+   * are in our rooms, and events for sockets of ours in theirs.
+   *
+   * Deliberately narrow. Only the message kinds below cross an instance
+   * boundary, and each one maps onto something a local socket could already
+   * ask for — nothing here is a new power, only a longer arm.
+   */
+  const handleBus = async (message: BusMessage): Promise<BusReply> => {
+    try {
+      switch (message.kind) {
+        case "emit": {
+          const socket = io.sockets.sockets.get(message.socketId);
+          if (socket !== undefined) {
+            (socket as unknown as { emit(e: string, ...a: unknown[]): void }).emit(
+              message.event,
+              ...message.args,
+            );
+          }
+          return { ok: true };
+        }
+        case "join": {
+          const { room, session } = manager.joinRoom(
+            message.code,
+            message.name,
+            message.spectator,
+            message.userId,
+          );
+          remoteSessions.set(session.id, {
+            socketId: message.socketId,
+            instanceId: message.originInstance,
+          });
+          return {
+            ok: true,
+            data: {
+              protocolVersion: PROTOCOL_VERSION,
+              roomId: room.id,
+              selfId: session.id,
+              spectator: session.spectator,
+              resumeToken: session.resumeToken,
+              room: toRoomView(room),
+            } satisfies RoomJoined,
+          };
+        }
+        case "resume": {
+          const { room, session } = manager.resume(message.roomId, message.resumeToken);
+          remoteSessions.set(session.id, {
+            socketId: message.socketId,
+            instanceId: message.originInstance,
+          });
+          const game = room.game;
+          const viewerId = session.spectator ? null : session.id;
+          return {
+            ok: true,
+            data: {
+              protocolVersion: PROTOCOL_VERSION,
+              roomId: room.id,
+              selfId: session.id,
+              spectator: session.spectator,
+              resumeToken: session.resumeToken,
+              room: toRoomView(room),
+              events: game !== null ? redactLog(game.mode, game.log, viewerId, game.editionId) : [],
+              timer: game !== null && room.phase === "playing" ? manager.timerView(game) : null,
+            },
+          };
+        }
+        case "disconnect": {
+          remoteSessions.delete(message.sessionId);
+          manager.handleDisconnect(message.sessionId);
+          return { ok: true };
+        }
+        case "command":
+          return { ok: true, data: applyRemoteCommand(message) ?? null };
+      }
+    } catch (error) {
+      if (error instanceof RoomError) {
+        return { ok: false, code: error.code, message: error.message };
+      }
+      log.error({ event: "cluster.handlerFailed", err: error }, "bus handler threw");
+      return { ok: false, code: "bad-request", message: "internal error" };
+    }
+  };
+
+  /**
+   * One forwarded message from a player seated in one of our rooms. The
+   * session id is the authority: it was minted here, by us, when they joined,
+   * and nothing else the sender says is trusted.
+   */
+  const applyRemoteCommand = (message: BusMessage & { kind: "command" }): unknown => {
+    const sessionId = message.sessionId;
+    const payload = message.payload;
+    switch (message.event) {
+      case "room:leave":
+        manager.leave(sessionId);
+        remoteSessions.delete(sessionId);
+        return null;
+      case "room:ready":
+        manager.setReady(sessionId, (payload as { ready: boolean }).ready);
+        return null;
+      case "room:settings":
+        manager.updateSettings(sessionId, payload as Partial<RoomSettings>);
+        return null;
+      case "room:start":
+        manager.startGame(sessionId);
+        return null;
+      case "room:rematch":
+        manager.rematch(sessionId);
+        return null;
+      case "game:selectStat": {
+        const { stat, cardIndex, power } = payload as {
+          stat: string;
+          cardIndex?: number;
+          power?: PowerPlayView | null;
+        };
+        manager.selectStat(sessionId, stat, { cardIndex, power });
+        return null;
+      }
+      case "game:playCard": {
+        const { cardIndex, power } = payload as {
+          cardIndex: number;
+          power?: PowerPlayView | null;
+        };
+        manager.playCard(sessionId, cardIndex, power ?? null);
+        return null;
+      }
+      case "game:command":
+        manager.command(sessionId, payload as GameCommandPayload);
+        return null;
+      case "game:forfeit":
+        manager.forfeit(sessionId);
+        return null;
+      case "chat:send": {
+        const session = manager.getSession(sessionId);
+        if (session === undefined) throw new RoomError("not-in-room");
+        metrics.increment("deckxi_chat_messages_total");
+        chatToRoom(session.roomId, "chat:message", {
+          from: { id: session.id, name: session.name },
+          text: (payload as { text: string }).text,
+          at: Date.now(),
+        });
+        return null;
+      }
+      case "chat:react": {
+        const session = manager.getSession(sessionId);
+        if (session === undefined) throw new RoomError("not-in-room");
+        chatToRoom(session.roomId, "chat:reaction", {
+          from: { id: session.id, name: session.name },
+          emote: (payload as { emote: string }).emote,
+          at: Date.now(),
+        });
+        return null;
+      }
+      default:
+        throw new RoomError("bad-request", `cannot forward ${message.event}`);
+    }
+  };
+
+  /**
+   * Chat reaches everyone in the room, wherever their socket is — the same
+   * per-session fan-out the game events use. It is the manager that knows who
+   * is in the room, so this runs on the owner.
+   */
+  const chatToRoom = (roomId: string, event: string, payload: unknown): void => {
+    const room = manager.getRoom(roomId);
+    if (room === undefined) return;
+    emitToRoom(room, event, payload);
+  };
+
+  cluster.bus.handle(cluster.id, handleBus);
 
   const sweep = setInterval(() => {
     for (const pairing of matchmaker.takeAll()) seat(pairing);
@@ -324,7 +579,17 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
             return;
           }
           try {
-            ack({ ok: true, data: (await handler(parsed.data as never)) ?? null });
+            // A socket whose room lives on another instance is a wire: the
+            // owner decides, and its reply is this ack. Everything except the
+            // messages that *find* a room goes straight through (#86).
+            const remote =
+              socket.data.ownerInstance !== null &&
+              !event.startsWith("queue:") &&
+              event !== "room:join";
+            const data = remote
+              ? await forward(socket, event, parsed.data)
+              : ((await handler(parsed.data as never)) ?? null);
+            ack({ ok: true, data: (data as never) ?? null });
             metrics.increment("deckxi_commands_total", { command: event });
           } catch (error) {
             if (error instanceof RoomError) {
@@ -362,6 +627,7 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       if (socket.data.roomId !== null) void socket.leave(roomKey(socket.data.roomId));
       socket.data.sessionId = null;
       socket.data.roomId = null;
+      socket.data.ownerInstance = null;
     };
 
     const requireSessionId = (): string => {
@@ -446,6 +712,7 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
           payload.settings ?? {},
           socket.data.userId,
         );
+        announce(room);
         return attach(room, session);
       },
     );
@@ -461,9 +728,38 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
         if (socket.data.sessionId !== null) throw new RoomError("already-in-room");
         await checkCaptcha(payload.captchaToken);
         const name = await tableName(payload.name);
+        const code = payload.code;
+
+        // The room may belong to another instance (#86). Ask the directory
+        // before deciding the code is unknown — "no such room" and "not on
+        // this machine" look identical from here, and only one is true.
+        if (manager.findByCode(code) === undefined) {
+          const location = await cluster.directory.lookupByCode(code);
+          if (location !== null && location.instanceId !== cluster.id) {
+            const reply = await cluster.bus.request(location.instanceId, {
+              kind: "join",
+              code,
+              name,
+              spectator: payload.spectator ?? false,
+              userId: socket.data.userId,
+              socketId: socket.id,
+              originInstance: cluster.id,
+            });
+            if (!reply.ok) {
+              throw new RoomError((reply.code ?? "room-not-found") as ErrorCode, reply.message);
+            }
+            const joined = reply.data as RoomJoined;
+            socket.data.sessionId = joined.selfId;
+            socket.data.roomId = joined.roomId;
+            socket.data.ownerInstance = location.instanceId;
+            metrics.increment("deckxi_cluster_remote_joins_total");
+            return joined;
+          }
+        }
+
         try {
           const { room, session } = manager.joinRoom(
-            payload.code,
+            code,
             name,
             payload.spectator,
             socket.data.userId,
@@ -487,8 +783,34 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       },
     );
 
-    on("room:resume", (payload: { roomId: string; resumeToken: string }) => {
+    on("room:resume", async (payload: { roomId: string; resumeToken: string }) => {
       if (socket.data.sessionId !== null) throw new RoomError("already-in-room");
+
+      // The room may live on another instance (#86): a reconnect can land on
+      // a different machine from the one that seated you, and "resume-failed"
+      // would be a lie about a game that is still running.
+      if (manager.getRoom(payload.roomId) === undefined) {
+        const location = await cluster.directory.lookupByRoom(payload.roomId);
+        if (location !== null && location.instanceId !== cluster.id) {
+          const reply = await cluster.bus.request(location.instanceId, {
+            kind: "resume",
+            roomId: payload.roomId,
+            resumeToken: payload.resumeToken,
+            socketId: socket.id,
+            originInstance: cluster.id,
+          });
+          if (!reply.ok) {
+            throw new RoomError((reply.code ?? "resume-failed") as ErrorCode, reply.message);
+          }
+          const resumed = reply.data as RoomJoined;
+          socket.data.sessionId = resumed.selfId;
+          socket.data.roomId = resumed.roomId;
+          socket.data.ownerInstance = location.instanceId;
+          metrics.increment("deckxi_cluster_remote_resumes_total");
+          return resumed;
+        }
+      }
+
       const { room, session } = manager.resume(payload.roomId, payload.resumeToken);
 
       // A zombie socket for the same session (e.g. a half-dead tab) is
@@ -598,14 +920,14 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       const { roomId, from } = chatContext();
       if (!chatBucket.tryTake()) throw new RoomError("rate-limited", "chat too fast");
       metrics.increment("deckxi_chat_messages_total");
-      io.to(roomKey(roomId)).emit("chat:message", { from, text: payload.text, at: Date.now() });
+      chatToRoom(roomId, "chat:message", { from, text: payload.text, at: Date.now() });
       return null;
     });
 
     on("chat:react", (payload: { emote: (typeof EMOTES)[number] }) => {
       const { roomId, from } = chatContext();
       if (!reactionBucket.tryTake()) throw new RoomError("rate-limited", "reactions too fast");
-      io.to(roomKey(roomId)).emit("chat:reaction", { from, emote: payload.emote, at: Date.now() });
+      chatToRoom(roomId, "chat:reaction", { from, emote: payload.emote, at: Date.now() });
       return null;
     });
 
@@ -614,6 +936,20 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       // Leaving the queue by closing the tab is the common case, not an edge.
       matchmaker.leave(socket);
       queuedNames.delete(socket);
+      // A room on another instance has no way to notice this socket dying,
+      // so we tell it — otherwise the seat sits there until the room reaps it.
+      if (socket.data.ownerInstance !== null && socket.data.sessionId !== null) {
+        void cluster.bus
+          .request(socket.data.ownerInstance, {
+            kind: "disconnect",
+            sessionId: socket.data.sessionId,
+          })
+          .catch(() => undefined);
+        socket.data.ownerInstance = null;
+        socket.data.sessionId = null;
+        socket.data.roomId = null;
+        return;
+      }
       const sessionId = socket.data.sessionId;
       if (sessionId === null) return;
       // A resume may have superseded this socket already.

@@ -33,6 +33,7 @@ import { registerSockets, type SocketOptions } from "./sockets.js";
 import { redactLog } from "./redact.js";
 import { clientIp, DEFAULT_QUOTAS, Quotas, type QuotaConfig } from "./quota.js";
 import { turnstileVerifier, type CaptchaVerifier } from "./captcha.js";
+import type { Cluster } from "./cluster.js";
 import type { RoomManager, RoomManagerOptions } from "./rooms.js";
 import { InMemoryMatchStore, type MatchStore } from "./store.js";
 import {
@@ -53,6 +54,11 @@ export interface SocketData {
   /** Room-scoped session this socket is attached to, once joined. */
   sessionId: string | null;
   roomId: string | null;
+  /**
+   * The instance that owns this socket's room, when it is not this one (#86).
+   * Null for the ordinary single-instance case, where every room is local.
+   */
+  ownerInstance: string | null;
 }
 
 export type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents, never, SocketData>;
@@ -101,6 +107,12 @@ export interface AppOptions {
   captcha?: CaptchaVerifier;
   /** Quick match (#81): how long to look for a human before seating bots. */
   botWaitMs?: number;
+  /**
+   * The cluster this instance belongs to (#86). Omitted means a cluster of
+   * one — the single-instance default, and what every test uses unless it is
+   * specifically about two of them.
+   */
+  cluster?: Cluster;
 }
 
 export interface AdminOptions {
@@ -498,6 +510,7 @@ export function buildApp(options: AppOptions = {}): App {
     socket.data.userName = null;
     socket.data.sessionId = null;
     socket.data.roomId = null;
+    socket.data.ownerInstance = null;
     userFromHeaders(auth, socket.handshake.headers)
       .then((user) => {
         if (user !== null) {
@@ -527,6 +540,7 @@ export function buildApp(options: AppOptions = {}): App {
     quotas,
     captcha,
     botWaitMs: options.botWaitMs,
+    cluster: options.cluster,
     resolveName: async (socket) =>
       (await userFromHeaders(auth, socket.handshake.headers))?.name ?? null,
   });

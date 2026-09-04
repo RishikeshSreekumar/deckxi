@@ -703,3 +703,36 @@ needs the shared state #86 is about, and a queue that silently paired players
 on different machines would produce rooms nobody could reach. Counters:
 `deckxi_quickmatch_joins_total{mode}` and
 `deckxi_quickmatch_tables_total{bots}`.
+
+## Running more than one instance (#86)
+
+Set `REDIS_URL` and the server joins a cluster; leave it unset and it is a
+cluster of one, byte-for-byte as before. See ADR 0002 for why a room stays
+owned by one instance rather than having its state externalised.
+
+What Redis carries:
+
+| Keys / channels            | What for                                              |
+| -------------------------- | ----------------------------------------------------- |
+| `deckxi:room:code:*`       | join code → owning instance (`SET NX`, 6h TTL)        |
+| `deckxi:room:id:*`         | room id → owning instance, for resumes                |
+| `deckxi:bus:<instance>`    | forwarded joins, resumes, commands, chat, disconnects |
+| Socket.IO adapter channels | process-wide broadcasts only (the maintenance banner) |
+
+A failure to reach a **configured** Redis is fatal at boot. That is deliberate:
+running multi-instance without the directory would let two instances mint the
+same join code and send players to the wrong table, which is worse than
+refusing to start.
+
+Operational notes:
+
+- Room events fan out per session, not via `io.to(room)`, because a room's
+  members may be on different instances. Rooms cap at six seats, so this is a
+  handful of emits.
+- An instance dying takes its rooms with it — that was always true; the TTL is
+  what stops a dead instance's codes pointing at a machine that would only deny
+  them.
+- Quick match queues stay per instance. Two players tapping "find a game" on
+  different instances will not be paired; with the traffic that justifies a
+  second instance, each queue fills on its own.
+- Counters: `deckxi_cluster_remote_joins_total`, `deckxi_cluster_remote_resumes_total`.
