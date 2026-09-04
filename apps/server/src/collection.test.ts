@@ -160,44 +160,55 @@ describe("over the wire", () => {
   it("fills a collection from a played game and pins a card to the profile", async () => {
     server = await startTestServer();
     const s = server;
-    const cookie = await signInGuest(s.url);
-    const host = s.client({ cookie });
+    // Both seats are signed in: a round has exactly one winner, and which
+    // seat that is depends on the deal, so a test that watched only one
+    // account would be a coin toss (it was, in CI).
+    const hostCookie = await signInGuest(s.url);
+    const guestCookie = await signInGuest(s.url);
+    const host = s.client({ cookie: hostCookie });
     await host.connected();
     const joined = await host.call<RoomJoined>("room:create", {
       name: "Host",
       settings: { cardsPerPlayer: 3 },
     });
-    const guest = s.client();
+    const guest = s.client({ cookie: guestCookie });
     await guest.connected();
     await guest.call<RoomJoined>("room:join", { code: joined.room.code, name: "Guest" });
     await guest.call("room:ready", { ready: true });
     await host.call("room:start");
 
-    // Play the host's calls until someone runs out of cards. Whatever they
-    // won rounds with is what should land in the collection.
+    const collectionOf = async (cookie: string) =>
+      (await (await fetch(`${s.url}/api/me/collection`, { headers: { cookie } })).json()) as {
+        cards: { editionId: string; cardId: string; wins: number }[];
+      };
+
+    // Play the leader's call until the game ends; whoever took rounds should
+    // have those exact cards in their collection.
     const room = s.app.rooms.getRoom(joined.roomId);
-    for (let i = 0; i < 60 && room?.phase === "playing"; i++) {
+    for (let i = 0; i < 200 && room?.phase === "playing"; i++) {
       const state = room.game?.state as { leader: string; config: { stats: { key: string }[] } };
-      const leader = state.leader;
       const stat = state.config.stats[i % state.config.stats.length]?.key ?? "runs";
-      const client = leader === joined.selfId ? host : guest;
+      const client = state.leader === joined.selfId ? host : guest;
       await client.callRaw("game:selectStat", { stat });
     }
+    expect(room?.phase).toBe("results");
 
-    const collection = await expect
+    // The write is fire-and-forget, so wait for it rather than assuming.
+    await expect
       .poll(async () => {
-        const response = await fetch(`${s.url}/api/me/collection`, { headers: { cookie } });
-        return ((await response.json()) as { cards: unknown[] }).cards.length;
+        const [mine, theirs] = await Promise.all([
+          collectionOf(hostCookie),
+          collectionOf(guestCookie),
+        ]);
+        return mine.cards.length + theirs.cards.length;
       })
-      .toBeGreaterThan(0)
-      .then(async () => {
-        const response = await fetch(`${s.url}/api/me/collection`, { headers: { cookie } });
-        return (await response.json()) as {
-          cards: { editionId: string; cardId: string; wins: number }[];
-        };
-      });
+      .toBeGreaterThan(0);
 
-    const first = collection.cards[0];
+    const mine = await collectionOf(hostCookie);
+    const winner = mine.cards.length > 0 ? { cookie: hostCookie, cards: mine.cards } : null;
+    const cards = winner?.cards ?? (await collectionOf(guestCookie)).cards;
+    const cookie = winner?.cookie ?? guestCookie;
+    const first = cards[0];
     expect(first?.wins).toBeGreaterThan(0);
 
     const pinned = await fetch(`${s.url}/api/me/showcase`, {
