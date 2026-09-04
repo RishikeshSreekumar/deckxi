@@ -3,7 +3,7 @@
  * schema, maps sessions ↔ sockets, and relays RoomManager callbacks to the
  * right rooms. All game rules live in the manager; this file is transport.
  */
-import type { EMOTES } from "@deckxi/shared";
+import type { EMOTES, GameModeId, QueueStatusView } from "@deckxi/shared";
 import {
   clientMessageSchemas,
   type Ack,
@@ -29,12 +29,17 @@ import {
 import { redactEvent, redactLog, type SeqEvent } from "./redact.js";
 import { DEFAULT_LIMITS, TokenBucket, type RateLimits } from "./rateLimit.js";
 import { clientIp, quotaKeys, Quotas } from "./quota.js";
+import { DEFAULT_BOT_WAIT_MS, Matchmaker } from "./matchmaking.js";
+import { getMode } from "@deckxi/engine";
 import type { CaptchaVerifier } from "./captcha.js";
 import { nullLogger, type Logger } from "./logging.js";
 import { createMetrics, type Metrics } from "./metrics.js";
 import type { OpsConfig } from "./ops.js";
 
 const roomKey = (roomId: string): string => `room:${roomId}`;
+
+/** Names for backfilled seats — a bot at the table should read as one. */
+const BOT_NAMES = ["Nightwatch (bot)", "Googly (bot)", "Yorker (bot)", "Slip (bot)"] as const;
 
 function toAckError(error: unknown): { ok: false; code: ErrorCode; message: string } {
   if (error instanceof RoomError) return { ok: false, code: error.code, message: error.message };
@@ -58,6 +63,8 @@ export interface SocketOptions {
   quotas?: Quotas | undefined;
   /** Turnstile, when this deployment has it configured (#87). */
   captcha?: CaptchaVerifier | undefined;
+  /** Quick match (#81): how long to look for a human before seating bots. */
+  botWaitMs?: number | undefined;
 }
 
 export function registerSockets(io: GameServer, options: SocketOptions = {}): RoomManager {
@@ -134,6 +141,129 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
   };
 
   const manager = new RoomManager(observer, options.rooms);
+
+  /**
+   * Bind a socket to a room session. Shared by the ordinary create/join
+   * handlers and by quick match, which seats sockets that are not the one
+   * currently handling a message.
+   */
+  const attachTo = (socket: GameSocket, room: Room, session: Session): RoomJoined => {
+    socket.data.sessionId = session.id;
+    socket.data.roomId = room.id;
+    socketBySession.set(session.id, socket);
+    void socket.join(roomKey(room.id));
+    return {
+      protocolVersion: PROTOCOL_VERSION,
+      roomId: room.id,
+      selfId: session.id,
+      spectator: session.spectator,
+      resumeToken: session.resumeToken,
+      room: toRoomView(room),
+    };
+  };
+
+  const botName = (index: number): string => BOT_NAMES[index % BOT_NAMES.length] as string;
+
+  // -------------------------------------------------------------------------
+  // Quick match (#81). The queue holds sockets; seating one is creating a room
+  // for the first and joining the rest to it, so from the moment a table is
+  // made it is an ordinary room and nothing downstream knows the difference.
+  // -------------------------------------------------------------------------
+  const botWaitMs = options.botWaitMs ?? DEFAULT_BOT_WAIT_MS;
+  const queuedNames = new Map<GameSocket, string>();
+  const matchmaker = new Matchmaker<GameSocket>({
+    minPlayers: (mode) => getMode(mode).players.min,
+    botWaitMs,
+    now: () => Date.now(),
+  });
+
+  const queueStatus = (mode: GameModeId): QueueStatusView => {
+    const waiting = matchmaker.waiting(mode);
+    const oldest = waiting[0]?.joinedAt ?? Date.now();
+    return { gameMode: mode, waiting: waiting.length, botsAt: oldest + botWaitMs };
+  };
+
+  const broadcastQueue = (mode: GameModeId): void => {
+    const status = queueStatus(mode);
+    for (const entry of matchmaker.waiting(mode)) entry.client.emit("queue:status", status);
+  };
+
+  /**
+   * Seat one pairing. A socket that vanished between queueing and seating is
+   * skipped rather than allowed to hold up the table; if that leaves nobody,
+   * the room is closed again rather than left as litter.
+   */
+  const seat = (pairing: { mode: GameModeId; clients: GameSocket[]; bots: number }): void => {
+    const live = pairing.clients.filter((socket) => socket.connected);
+    if (live.length === 0) return;
+    const [first, ...rest] = live as [GameSocket, ...GameSocket[]];
+    let room: Room;
+    let hostSession: Session;
+    try {
+      const created = manager.createRoom(
+        queuedNames.get(first) ?? "Player",
+        { gameMode: pairing.mode },
+        first.data.userId,
+      );
+      room = created.room;
+      hostSession = created.session;
+    } catch (error) {
+      // Server full, or the mode was killed while they waited. Say so rather
+      // than leaving them staring at a spinner.
+      for (const socket of live)
+        socket.emit("queue:status", { ...queueStatus(pairing.mode), waiting: 0 });
+      log.warn({ event: "queue.seatFailed", err: error }, "could not seat a queue");
+      return;
+    }
+    // Everyone is bound first and told afterwards: the payload carries a room
+    // snapshot, and a player who learned about the table before the rest of it
+    // existed would open on a lobby missing their opponents.
+    const seated: { socket: GameSocket; joined: RoomJoined }[] = [
+      { socket: first, joined: attachTo(first, room, hostSession) },
+    ];
+    for (const socket of rest) {
+      const joined = manager.joinRoom(
+        room.code,
+        queuedNames.get(socket) ?? "Player",
+        false,
+        socket.data.userId,
+      );
+      manager.setReady(joined.session.id, true);
+      seated.push({ socket, joined: attachTo(socket, room, joined.session) });
+    }
+    for (let i = 0; i < pairing.bots; i++) manager.addBot(room.id, botName(i));
+    for (const socket of live) queuedNames.delete(socket);
+    const view = toRoomView(room);
+    for (const { socket, joined } of seated)
+      socket.emit("queue:matched", { ...joined, room: view });
+
+    metrics.increment("deckxi_quickmatch_tables_total", { bots: String(pairing.bots) });
+    log.info(
+      {
+        event: "queue.matched",
+        roomId: room.id,
+        mode: pairing.mode,
+        players: live.length,
+        bots: pairing.bots,
+      },
+      "quick match seated a table",
+    );
+    // The host starts it: everyone here asked for a game, and the lobby has
+    // nothing left to decide.
+    try {
+      manager.startGame(hostSession.id);
+    } catch (error) {
+      log.warn(
+        { event: "queue.startFailed", roomId: room.id, err: error },
+        "quick match could not start",
+      );
+    }
+  };
+
+  const sweep = setInterval(() => {
+    for (const pairing of matchmaker.takeAll()) seat(pairing);
+  }, 1000);
+  sweep.unref();
 
   // Maintenance notice: pushed to everyone the moment it changes, and to each
   // new connection below, so a player who arrives mid-incident is told the
@@ -218,24 +348,13 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
     };
 
     const attach = (room: Room, session: Session): RoomJoined => {
-      socket.data.sessionId = session.id;
-      socket.data.roomId = room.id;
-      socketBySession.set(session.id, socket);
       socketLog = log.child({
         socketId: socket.id,
         userId: socket.data.userId,
         roomId: room.id,
         sessionId: session.id,
       });
-      void socket.join(roomKey(room.id));
-      return {
-        protocolVersion: PROTOCOL_VERSION,
-        roomId: room.id,
-        selfId: session.id,
-        spectator: session.spectator,
-        resumeToken: session.resumeToken,
-        room: toRoomView(room),
-      };
+      return attachTo(socket, room, session);
     };
 
     const detachSelf = (): void => {
@@ -392,6 +511,29 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       };
     });
 
+    on("queue:join", (payload: { gameMode: GameModeId; name: string }) => {
+      if (socket.data.sessionId !== null) throw new RoomError("already-in-room");
+      if (!(options.ops?.isModeEnabled(payload.gameMode) ?? true)) {
+        throw new RoomError("mode-disabled", `${payload.gameMode} is switched off right now`);
+      }
+      queuedNames.set(socket, payload.name);
+      matchmaker.join(payload.gameMode, socket);
+      metrics.increment("deckxi_quickmatch_joins_total", { mode: payload.gameMode });
+      // Check straight away: two people tapping at once should not wait for
+      // the next tick, and the tick is what handles the bot deadline.
+      const pairing = matchmaker.take(payload.gameMode);
+      const status = queueStatus(payload.gameMode);
+      if (pairing !== null) seat(pairing);
+      else broadcastQueue(payload.gameMode);
+      return status;
+    });
+
+    on("queue:leave", () => {
+      matchmaker.leave(socket);
+      queuedNames.delete(socket);
+      return null;
+    });
+
     on("room:leave", () => {
       manager.leave(requireSessionId());
       detachSelf();
@@ -469,6 +611,9 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
 
     socket.on("disconnect", (reason) => {
       socketLog.debug({ event: "socket.disconnected", reason }, "socket disconnected");
+      // Leaving the queue by closing the tab is the common case, not an edge.
+      matchmaker.leave(socket);
+      queuedNames.delete(socket);
       const sessionId = socket.data.sessionId;
       if (sessionId === null) return;
       // A resume may have superseded this socket already.

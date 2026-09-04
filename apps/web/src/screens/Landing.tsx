@@ -28,6 +28,21 @@ const CLOSED_COPY: Record<RoomClosedReason, string> = {
   kicked: "You were removed from that table by a moderator.",
 };
 
+/**
+ * What the queue is about to do, counted down. A waiting screen that says
+ * nothing but "looking…" is where people give up; saying when the bots arrive
+ * turns an open-ended wait into a short one.
+ */
+function QueueCountdown({ botsAt }: { botsAt: number }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(timer);
+  }, []);
+  const seconds = Math.max(0, Math.ceil((botsAt - now) / 1000));
+  return <span>{seconds > 0 ? `bots join in ${seconds}s` : "dealing you in"}</span>;
+}
+
 export function Landing() {
   const { code: linkCode } = useParams();
   const [params] = useSearchParams();
@@ -37,6 +52,9 @@ export function Landing() {
   const shortcutNewRoom = params.get("new") === "1";
   const createRoom = useStore((s) => s.createRoom);
   const practiceGame = useStore((s) => s.practiceGame);
+  const quickMatch = useStore((s) => s.quickMatch);
+  const cancelQueue = useStore((s) => s.cancelQueue);
+  const queue = useStore((s) => s.queue);
   const joinRoom = useStore((s) => s.joinRoom);
   const roomClosedReason = useStore((s) => s.roomClosedReason);
   const connection = useStore((s) => s.connection);
@@ -304,7 +322,44 @@ export function Landing() {
           </div>
         )}
 
-        {!invite && (
+        {!invite && queue === null && (
+          <section className="panel landing-quick" aria-labelledby="quick-title">
+            <h2 className="panel-title" id="quick-title">
+              Quick match
+            </h2>
+            <p className="sub">
+              No code needed — we'll find you someone, or deal you in against bots.
+            </p>
+            <button
+              type="button"
+              className="button button--block"
+              data-testid="quick-match"
+              disabled={!canSubmit}
+              onClick={() => void quickMatch("classic-trumps", name.trim())}
+            >
+              Find a game
+            </button>
+          </section>
+        )}
+
+        {queue !== null && (
+          <section className="panel landing-queue" data-testid="queue-panel">
+            <h2 className="panel-title">Looking for a game…</h2>
+            <p className="sub">
+              {queue.waiting > 1 ? `${queue.waiting} players waiting` : "You're first in the queue"}{" "}
+              · <QueueCountdown botsAt={queue.botsAt} />
+            </p>
+            <button
+              type="button"
+              className="button button--ghost"
+              onClick={() => void cancelQueue()}
+            >
+              Cancel
+            </button>
+          </section>
+        )}
+
+        {!invite && queue === null && (
           <section className="panel landing-practice" aria-labelledby="practice-title">
             <h2 className="panel-title" id="practice-title">
               Practice on your own

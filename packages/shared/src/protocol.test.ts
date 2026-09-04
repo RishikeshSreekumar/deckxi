@@ -69,6 +69,8 @@ describe("protocol schemas", () => {
         "game:forfeit",
         "game:playCard",
         "game:selectStat",
+        "queue:join",
+        "queue:leave",
         "room:create",
         "room:join",
         "room:leave",
