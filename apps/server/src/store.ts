@@ -87,6 +87,21 @@ export interface RatingUpdate {
   won: boolean;
 }
 
+/** One card in a player's collection (#84). */
+export interface CollectionRow {
+  editionId: string;
+  cardId: string;
+  wins: number;
+  firstWonAt: Date;
+  lastWonAt: Date;
+}
+
+/** The card a player shows on their profile; null once they clear it. */
+export interface ShowcaseCard {
+  editionId: string;
+  cardId: string;
+}
+
 export interface MatchStore {
   createMatch(record: MatchRecord): Promise<void>;
   appendEvents(matchId: string, events: readonly SeqEvent[]): Promise<void>;
@@ -114,6 +129,18 @@ export interface MatchStore {
   leaderboard(gameMode: string, seasonId: string, limit?: number): Promise<RatingRow[]>;
   /** Every rating this user holds, for their profile. */
   userRatings(userId: string): Promise<RatingRow[]>;
+  /** Add rounds won with these cards; upserts and accumulates. */
+  addCardWins(
+    userId: string,
+    editionId: string,
+    cards: readonly { cardId: string; wins: number }[],
+  ): Promise<void>;
+  /** Everything this user has won a round with, most-won first. */
+  collection(userId: string): Promise<CollectionRow[]>;
+  /** The card on this user's profile, or null. */
+  getShowcase(userId: string): Promise<ShowcaseCard | null>;
+  /** Set (or, with null, clear) the profile card. */
+  setShowcase(userId: string, card: ShowcaseCard | null): Promise<void>;
   /** Health probe; rejects when the backing store is unreachable. */
   ping(): Promise<void>;
   close(): Promise<void>;
@@ -136,6 +163,9 @@ export class InMemoryMatchStore implements MatchStore {
   readonly matches = new Map<string, StoredMatch>();
   /** Keyed `userId|mode|season`, mirroring the Postgres primary key. */
   readonly ratings = new Map<string, RatingRow>();
+  /** Keyed `userId|editionId|cardId`, mirroring the Postgres primary key. */
+  readonly cards = new Map<string, CollectionRow & { userId: string }>();
+  readonly showcases = new Map<string, ShowcaseCard>();
 
   createMatch(record: MatchRecord): Promise<void> {
     this.matches.set(record.matchId, {
@@ -239,6 +269,16 @@ export class InMemoryMatchStore implements MatchStore {
   }
 
   reassignUser(fromUserId: string, toUserId: string): Promise<void> {
+    for (const [key, row] of this.cards) {
+      if (row.userId !== fromUserId) continue;
+      this.cards.delete(key);
+      this.cards.set(`${toUserId}|${row.editionId}|${row.cardId}`, { ...row, userId: toUserId });
+    }
+    const showcase = this.showcases.get(fromUserId);
+    if (showcase !== undefined && !this.showcases.has(toUserId)) {
+      this.showcases.set(toUserId, showcase);
+    }
+    this.showcases.delete(fromUserId);
     for (const [key, row] of this.ratings) {
       if (row.userId !== fromUserId) continue;
       this.ratings.delete(key);
@@ -257,10 +297,15 @@ export class InMemoryMatchStore implements MatchStore {
 
   anonymizeUser(userId: string): Promise<void> {
     // A rating is personal data like any other: deleting the account deletes
-    // the ladder entry rather than leaving a nameless ghost on it.
+    // the ladder entry rather than leaving a nameless ghost on it. The same
+    // goes for a collection, which is a record of what someone played.
     for (const [key, row] of this.ratings) {
       if (row.userId === userId) this.ratings.delete(key);
     }
+    for (const [key, row] of this.cards) {
+      if (row.userId === userId) this.cards.delete(key);
+    }
+    this.showcases.delete(userId);
     for (const match of this.matches.values()) {
       for (const player of match.players) {
         if (player.userId === userId) {
@@ -315,6 +360,51 @@ export class InMemoryMatchStore implements MatchStore {
       if (seat !== undefined) return seat.name;
     }
     return null;
+  }
+
+  addCardWins(
+    userId: string,
+    editionId: string,
+    cards: readonly { cardId: string; wins: number }[],
+  ): Promise<void> {
+    const now = new Date();
+    for (const card of cards) {
+      const key = `${userId}|${editionId}|${card.cardId}`;
+      const existing = this.cards.get(key);
+      this.cards.set(key, {
+        userId,
+        editionId,
+        cardId: card.cardId,
+        wins: (existing?.wins ?? 0) + card.wins,
+        firstWonAt: existing?.firstWonAt ?? now,
+        lastWonAt: now,
+      });
+    }
+    return Promise.resolve();
+  }
+
+  collection(userId: string): Promise<CollectionRow[]> {
+    const rows = [...this.cards.values()]
+      .filter((row) => row.userId === userId)
+      .sort((a, b) => b.wins - a.wins || a.cardId.localeCompare(b.cardId))
+      .map(({ editionId, cardId, wins, firstWonAt, lastWonAt }) => ({
+        editionId,
+        cardId,
+        wins,
+        firstWonAt,
+        lastWonAt,
+      }));
+    return Promise.resolve(rows);
+  }
+
+  getShowcase(userId: string): Promise<ShowcaseCard | null> {
+    return Promise.resolve(this.showcases.get(userId) ?? null);
+  }
+
+  setShowcase(userId: string, card: ShowcaseCard | null): Promise<void> {
+    if (card === null) this.showcases.delete(userId);
+    else this.showcases.set(userId, card);
+    return Promise.resolve();
   }
 
   ping(): Promise<void> {

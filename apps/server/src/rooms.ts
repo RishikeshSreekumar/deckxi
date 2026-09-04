@@ -33,6 +33,7 @@ import { createMetrics, type Metrics } from "./metrics.js";
 import type { SeqEvent } from "./redact.js";
 import { InMemoryMatchStore, type MatchStore } from "./store.js";
 import { DEFAULT_RATING, rateMatch, seasonOf } from "./rating.js";
+import { cardWinsByPlayer, toCardWins } from "./collection.js";
 
 export class RoomError extends Error {
   constructor(
@@ -574,6 +575,7 @@ export class RoomManager {
         }),
       );
       this.persist("saveRatings", () => this.updateRatings(room, game, status.winner));
+      this.persist("addCardWins", () => this.updateCollections(room, game));
       this.observer.timer(room, null);
       this.observer.roomState(room);
     } else {
@@ -636,6 +638,22 @@ export class RoomManager {
       },
       "ratings updated",
     );
+  }
+
+  /**
+   * Record what each account won rounds with (#84). Derived from the log
+   * rather than tracked during play: the log is server truth, so a card in
+   * someone's collection can always be traced back to the round that put it
+   * there.
+   */
+  private async updateCollections(room: Room, game: GameInstance): Promise<void> {
+    const bySeat = cardWinsByPlayer(game.log.map((entry) => entry.event));
+    for (const player of room.players) {
+      if (player.userId === null) continue;
+      const cards = toCardWins(bySeat.get(player.id));
+      if (cards.length === 0) continue;
+      await this.store.addCardWins(player.userId, game.editionId, cards);
+    }
   }
 
   /** Persistence is fire-and-forget: a store outage must never stall play. */

@@ -9,7 +9,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AVATARS, GAME_MODE_INFO, MAX_NAME_LENGTH, type GameModeId } from "@deckxi/shared";
 import { authClient, ensureSession } from "../lib/auth.js";
 import { fetchProfile, type Profile } from "../lib/api.js";
-import { Avatar, DEFAULT_EDITION_ID, statName } from "@deckxi/ui";
+import { Avatar, DEFAULT_EDITION_ID, TrumpCard, statName } from "@deckxi/ui";
 import { savePlayerName } from "../lib/session.js";
 import { AppBar } from "../components/Chrome.js";
 import { isMuted, setMuted } from "../lib/sounds.js";
@@ -263,6 +263,20 @@ export function ProfileScreen() {
             </ul>
           )}
 
+          {profile.showcase != null && (
+            <div className="profile-showcase" data-testid="showcase">
+              <span className="label">Card of the season</span>
+              <TrumpCard
+                editionId={profile.showcase.editionId}
+                cardId={profile.showcase.cardId}
+                size="hand"
+              />
+            </div>
+          )}
+
+          <Link className="button" to="/collection">
+            Collection
+          </Link>
           <Link className="button" to="/leaderboard">
             Leaderboard
           </Link>

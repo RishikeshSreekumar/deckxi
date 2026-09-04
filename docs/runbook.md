@@ -621,3 +621,21 @@ Deleting an account deletes its ladder rows (a rating is personal data, and a
 nameless ghost on a leaderboard helps nobody). A guest who signs up carries
 their rating onto the new account unless that account already has one for the
 same mode and season, in which case the account's own history wins.
+
+## Collection and showcase (#84)
+
+A card joins your collection when **it took a round for you** — your card, face
+up, best number on the called stat. Cards you merely held, or swept out of the
+pot without playing, do not count: the collection is a record of something you
+did. A Super Over is credited to the card that actually won it, not to the one
+the first reveal named.
+
+The tally is derived from the engine log at match finish (`collection.ts` is a
+pure function over events), so any past match can be recomputed if the
+definition changes. Rows are keyed `(user_id, edition_id, card_id)` — a card id
+is only unique inside an edition, and a card you won with in an old edition is
+a different card now.
+
+`POST /api/me/showcase` refuses a card the account has not won with; the
+showcase is meant to be earned. Deleting an account deletes both the collection
+and the showcase, and a guest who signs up carries both across.

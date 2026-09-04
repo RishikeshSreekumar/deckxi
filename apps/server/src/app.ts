@@ -253,7 +253,9 @@ export function buildApp(options: AppOptions = {}): App {
     if (user === null) return reply.status(401).send({ error: "not signed in" });
     const stats = await store.userStats(user.id);
     const ratings = await store.userRatings(user.id);
+    const showcase = await store.getShowcase(user.id);
     return {
+      showcase,
       ratings: ratings.map((row) => ({
         gameMode: row.gameMode,
         seasonId: row.seasonId,
@@ -299,6 +301,50 @@ export function buildApp(options: AppOptions = {}): App {
         wins: row.wins,
       })),
     };
+  });
+
+  /**
+   * Your collection (#84) and the card on your profile. Signed-in only: a
+   * collection is a record of games this account played.
+   */
+  fastify.get("/api/me/collection", async (request, reply) => {
+    const user = await requireUser(request);
+    if (user === null) return await reply.status(401).send({ error: "not signed in" });
+    const [cards, showcase] = await Promise.all([
+      store.collection(user.id),
+      store.getShowcase(user.id),
+    ]);
+    return {
+      showcase,
+      cards: cards.map((row) => ({
+        editionId: row.editionId,
+        cardId: row.cardId,
+        wins: row.wins,
+        firstWonAt: row.firstWonAt.toISOString(),
+        lastWonAt: row.lastWonAt.toISOString(),
+      })),
+    };
+  });
+
+  fastify.post("/api/me/showcase", async (request, reply) => {
+    const user = await requireUser(request);
+    if (user === null) return await reply.status(401).send({ error: "not signed in" });
+    const body = (request.body ?? {}) as { editionId?: unknown; cardId?: unknown };
+    if (body.cardId === null) {
+      await store.setShowcase(user.id, null);
+      return { showcase: null };
+    }
+    if (typeof body.cardId !== "string" || typeof body.editionId !== "string") {
+      return await reply.status(400).send({ error: "editionId and cardId are required" });
+    }
+    // You may only show a card you have actually won with — the whole point
+    // of the showcase is that it is earned.
+    const owned = await store.collection(user.id);
+    const has = owned.some((row) => row.cardId === body.cardId && row.editionId === body.editionId);
+    if (!has) return await reply.status(403).send({ error: "you haven't won with that card" });
+    const showcase = { editionId: body.editionId, cardId: body.cardId };
+    await store.setShowcase(user.id, showcase);
+    return { showcase };
   });
 
   fastify.get("/api/me/matches", async (request, reply) => {
