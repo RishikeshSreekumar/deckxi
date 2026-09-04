@@ -3702,3 +3702,26 @@ select:focus {
   gap: var(--space-4);
   align-items: flex-start;
 }
+
+/* Voice (#89). The live dot is the promise the feature makes: if a mic is
+   open, you can see it. */
+.voice-controls {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.voice-button--live {
+  background: var(--surface-field);
+  color: var(--text-on-field);
+}
+
+.seat-mic {
+  margin-left: var(--space-2);
+  color: var(--status-danger);
+  font-size: var(--text-xs);
+}
+
+.voice-hint {
+  max-width: 34ch;
+}

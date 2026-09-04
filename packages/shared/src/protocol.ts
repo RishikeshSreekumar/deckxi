@@ -164,6 +164,37 @@ export const setReadySchema = z.object({ ready: z.boolean() });
  * Quick match (#81): join the queue for one mode. The name travels with the
  * request because a queued player has no room yet to be seated in.
  */
+/**
+ * Voice signalling (#89). WebRTC's offer/answer/ICE payloads are opaque blobs
+ * defined by the browser, so the schema constrains their size and shape rather
+ * than their contents — the server is a relay, not a party to the call.
+ */
+const sdpSchema = z.object({
+  type: z.enum(["offer", "answer"]),
+  sdp: z.string().max(64_000),
+});
+
+export const voiceSignalSchema = z.object({
+  /** The player in this room to relay to. */
+  to: z.string().min(1).max(64),
+  signal: z.union([
+    z.object({ kind: z.literal("description"), description: sdpSchema }),
+    z.object({
+      kind: z.literal("candidate"),
+      candidate: z.object({
+        candidate: z.string().max(2048),
+        sdpMid: z.string().max(64).nullable().optional(),
+        sdpMLineIndex: z.number().int().min(0).max(64).nullable().optional(),
+        usernameFragment: z.string().max(256).nullable().optional(),
+      }),
+    }),
+  ]),
+});
+export type VoiceSignalPayload = z.infer<typeof voiceSignalSchema>;
+
+/** Announce that your mic went live (or stopped), so the table can show it. */
+export const voiceStateSchema = z.object({ live: z.boolean() });
+
 export const queueJoinSchema = z.object({
   gameMode: z.enum(GAME_MODES),
   name: playerNameSchema,
@@ -221,6 +252,8 @@ export const clientMessageSchemas = {
   "room:ready": setReadySchema,
   "queue:join": queueJoinSchema,
   "queue:leave": emptySchema,
+  "voice:signal": voiceSignalSchema,
+  "voice:state": voiceStateSchema,
   "room:settings": roomSettingsPatchSchema,
   "room:start": emptySchema,
   "room:rematch": emptySchema,
@@ -494,6 +527,20 @@ export interface ServerToClientEvents {
   "queue:matched": (joined: RoomJoined) => void;
   /** How the queue is going, so the waiting screen can say something true. */
   "queue:status": (status: QueueStatusView) => void;
+  /** Relayed signalling from another player in your room (#89). */
+  "voice:signal": (message: VoiceSignalView) => void;
+  /** Who at this table currently has a live mic. */
+  "voice:state": (state: VoiceStateView) => void;
+}
+
+/** A signalling message, stamped with who sent it. */
+export interface VoiceSignalView extends VoiceSignalPayload {
+  from: string;
+}
+
+export interface VoiceStateView {
+  /** Player ids with a live mic right now. */
+  live: string[];
 }
 
 /** What the player waiting in the queue is told. */
@@ -525,6 +572,14 @@ export interface ClientToServerEvents {
     ack: (reply: Ack<QueueStatusView>) => void,
   ) => void;
   "queue:leave": (payload: undefined, ack: (reply: Ack<null>) => void) => void;
+  "voice:signal": (
+    payload: z.input<typeof voiceSignalSchema>,
+    ack: (reply: Ack<null>) => void,
+  ) => void;
+  "voice:state": (
+    payload: z.input<typeof voiceStateSchema>,
+    ack: (reply: Ack<null>) => void,
+  ) => void;
   "room:settings": (
     payload: z.input<typeof roomSettingsPatchSchema>,
     ack: (reply: Ack<null>) => void,

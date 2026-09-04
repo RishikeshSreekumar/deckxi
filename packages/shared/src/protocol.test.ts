@@ -71,6 +71,8 @@ describe("protocol schemas", () => {
         "game:selectStat",
         "queue:join",
         "queue:leave",
+        "voice:signal",
+        "voice:state",
         "room:create",
         "room:join",
         "room:leave",

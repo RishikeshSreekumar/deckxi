@@ -3,7 +3,7 @@
  * schema, maps sessions ↔ sockets, and relays RoomManager callbacks to the
  * right rooms. All game rules live in the manager; this file is transport.
  */
-import type { EMOTES, GameModeId, QueueStatusView } from "@deckxi/shared";
+import type { EMOTES, GameModeId, QueueStatusView, VoiceSignalPayload } from "@deckxi/shared";
 import {
   clientMessageSchemas,
   type Ack,
@@ -81,6 +81,8 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
   const captcha = options.captcha ?? null;
   const cluster = options.cluster ?? localCluster();
   const socketBySession = new Map<string, GameSocket>();
+  /** Who has a live mic, per room (#89). Presence only — never any audio. */
+  const liveMics = new Map<string, Set<string>>();
   /**
    * Sessions in *our* rooms whose socket is connected to another instance
    * (#86). We know where to send their events; we never hold their socket.
@@ -127,6 +129,7 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       }
       remoteSessions.delete(session.id);
     }
+    liveMics.delete(room.id);
     void cluster.directory.unregister(room.id);
   };
 
@@ -906,6 +909,44 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
     /** Any mode's move; the mode decides whether it is one it speaks. */
     on("game:command", (payload: GameCommandPayload) => {
       manager.command(requireSessionId(), payload);
+      return null;
+    });
+
+    /**
+     * Voice signalling (#89). The server is a relay and nothing more: it
+     * checks that both ends are in the same room and passes the blob along.
+     * Audio itself never touches us — the mesh is peer to peer, which is good
+     * for privacy and means there is no recording to hand anyone.
+     */
+    on("voice:signal", (payload: VoiceSignalPayload) => {
+      const session = manager.getSession(requireSessionId());
+      if (session === undefined) throw new RoomError("not-in-room");
+      const room = manager.getRoom(session.roomId);
+      const target = room?.players.find((p) => p.id === payload.to);
+      // Signalling a player who is not at your table is not a thing to
+      // explain; it is a thing to refuse.
+      if (room === undefined || target === undefined) throw new RoomError("not-in-room");
+      if (!globalBucket.tryTake()) throw new RoomError("rate-limited", "signalling too fast");
+      emitTo(target.id, "voice:signal", { ...payload, from: session.id });
+      return null;
+    });
+
+    /**
+     * A live mic is always visible at the table. There is no way to be heard
+     * without the indicator, because the alternative is a game that can listen
+     * to a room without telling anyone.
+     */
+    on("voice:state", (payload: { live: boolean }) => {
+      const sessionId = requireSessionId();
+      const session = manager.getSession(sessionId);
+      if (session === undefined) throw new RoomError("not-in-room");
+      const room = manager.getRoom(session.roomId);
+      if (room === undefined) throw new RoomError("not-in-room");
+      const live = liveMics.get(room.id) ?? new Set<string>();
+      if (payload.live) live.add(sessionId);
+      else live.delete(sessionId);
+      liveMics.set(room.id, live);
+      emitToRoom(room, "voice:state", { live: [...live] });
       return null;
     });
 

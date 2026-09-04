@@ -8,6 +8,8 @@ import type {
   ChatMessageView,
   GameModeId,
   QueueStatusView,
+  VoiceSignalView,
+  VoiceStateView,
   ChatReactionView,
   GameCommandPayload,
   PowerPlayView,
@@ -64,6 +66,10 @@ interface AppState {
   practice: boolean;
   /** Quick match: what the queue is doing, or null when we are not in it. */
   queue: QueueStatusView | null;
+  /** Voice (#89): player ids with a live mic, and this device's own state. */
+  voiceLive: string[];
+  voice: "off" | "connecting" | "on" | "denied";
+  voiceMuted: boolean;
   /** Set when the room we were in closed under us; shown on the landing page. */
   roomClosedReason: RoomClosedReason | null;
   /** Operator maintenance notice, shown above every screen (#70). */
@@ -90,6 +96,12 @@ interface AppState {
   toast(text: string, kind?: Toast["kind"]): void;
   dismissToast(id: number): void;
   createRoom(name: string, captchaToken?: string): Promise<void>;
+  /** Turn voice on for this room, asking for the mic (#89). */
+  startVoice(): Promise<void>;
+  /** Leave the call; the table plays on. */
+  stopVoice(): void;
+  /** Push-to-talk and the mute toggle both land here. */
+  setVoiceMuted(muted: boolean): void;
   /** Join the quick-match queue for a mode (#81). */
   quickMatch(gameMode: GameModeId, name: string): Promise<void>;
   /** Leave the queue and go back to the landing page. */
@@ -190,6 +202,9 @@ export const useStore = create<AppState>((set, get) => {
     connection: "connecting",
     practice: false,
     queue: null,
+    voiceLive: [],
+    voice: "off",
+    voiceMuted: false,
     roomClosedReason: null,
     notice: null,
     selfId: null,
@@ -223,6 +238,31 @@ export const useStore = create<AppState>((set, get) => {
         });
         joined(set, data);
       });
+    },
+
+    async startVoice() {
+      if (get().voice !== "off") return;
+      set({ voice: "connecting" });
+      const { startVoice } = await import("../lib/voiceSession.js");
+      const started = await startVoice({
+        selfId: get().selfId,
+        peerIds: (get().room?.players ?? [])
+          .filter((p) => p.id !== get().selfId && p.bot !== true)
+          .map((p) => p.id),
+      });
+      // A denial is a normal answer: the table carries on without voice and
+      // says so once, rather than asking again every round.
+      set({ voice: started ? "on" : "denied", voiceMuted: false });
+    },
+
+    stopVoice() {
+      void import("../lib/voiceSession.js").then(({ stopVoice }) => stopVoice());
+      set({ voice: "off", voiceMuted: false });
+    },
+
+    setVoiceMuted(muted) {
+      set({ voiceMuted: muted });
+      void import("../lib/voiceSession.js").then(({ setMuted }) => setMuted(muted));
     },
 
     async quickMatch(gameMode, name) {
@@ -543,6 +583,14 @@ export function initSocket(): void {
 
   socket.on("game:timer", (timer: TurnTimerView | null) => {
     set({ timer });
+  });
+
+  socket.on("voice:state", (state: VoiceStateView) => {
+    set({ voiceLive: state.live });
+  });
+
+  socket.on("voice:signal", (message: VoiceSignalView) => {
+    void import("../lib/voiceSession.js").then(({ handleSignal }) => handleSignal(message));
   });
 
   socket.on("queue:status", (status: QueueStatusView) => {
