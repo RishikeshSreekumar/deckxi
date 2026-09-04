@@ -16,7 +16,11 @@ interface Seat {
 }
 
 async function lobby(playerCount: number): Promise<{ s: TestServer; seats: Seat[]; code: string }> {
-  server = await startTestServer();
+  // A test that plays a whole game sends commands as fast as the event loop
+  // allows, which is nothing like a person and trips the per-socket abuse
+  // bucket on a fast machine (it did, in CI). The limiter has its own tests;
+  // this one is about the rules. Same seam power.test.ts already uses.
+  server = await startTestServer({ limits: { global: { capacity: 1000, refillPerSec: 1000 } } });
   const s = server;
   const seats: Seat[] = [];
   const host = s.client();
