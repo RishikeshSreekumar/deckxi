@@ -32,6 +32,7 @@ import { nullLogger, type Logger } from "./logging.js";
 import { createMetrics, type Metrics } from "./metrics.js";
 import type { SeqEvent } from "./redact.js";
 import { InMemoryMatchStore, type MatchStore } from "./store.js";
+import { DEFAULT_RATING, rateMatch, seasonOf } from "./rating.js";
 
 export class RoomError extends Error {
   constructor(
@@ -572,11 +573,69 @@ export class RoomManager {
           rounds,
         }),
       );
+      this.persist("saveRatings", () => this.updateRatings(room, game, status.winner));
       this.observer.timer(room, null);
       this.observer.roomState(room);
     } else {
       this.scheduleTurn(room);
     }
+  }
+
+  /**
+   * Rate a finished game (#80). Only seats with an account count, and only a
+   * decided game: a table that ran out of rounds, or where everyone else
+   * walked, says nothing about who is better. Fire-and-forget like every
+   * other write — a rating is not worth stalling the results screen for.
+   */
+  private async updateRatings(
+    room: Room,
+    game: GameInstance,
+    winnerSessionId: string | null,
+  ): Promise<void> {
+    if (winnerSessionId === null) return;
+    const seats = room.players.filter((p) => p.userId !== null);
+    // One account may hold several seats only in tests; the ladder would be
+    // playing itself, so leave it alone.
+    const userIds = [...new Set(seats.map((p) => p.userId as string))];
+    if (userIds.length !== seats.length || userIds.length < 2) return;
+    const winner = seats.find((p) => p.id === winnerSessionId);
+    if (winner?.userId == null) return;
+
+    const seasonId = seasonOf(game.editionId);
+    const existing = await this.store.getRatings(userIds, game.mode.id, seasonId);
+    const byUser = new Map(existing.map((row) => [row.userId, row]));
+    const changes = rateMatch(
+      seats.map((seat) => {
+        const row = byUser.get(seat.userId as string);
+        return {
+          userId: seat.userId as string,
+          rating: row?.rating ?? DEFAULT_RATING,
+          games: row?.games ?? 0,
+        };
+      }),
+      winner.userId,
+    );
+    if (changes.length === 0) return;
+
+    await this.store.saveRatings(
+      changes.map((change) => ({
+        userId: change.userId,
+        gameMode: game.mode.id,
+        seasonId,
+        rating: change.after,
+        won: change.userId === winner.userId,
+      })),
+    );
+    this.log.info(
+      {
+        event: "match.rated",
+        matchId: game.matchId,
+        mode: game.mode.id,
+        seasonId,
+        changes: changes.map((c) => ({ userId: c.userId, delta: c.delta })),
+      },
+      "ratings updated",
+    );
   }
 
   /** Persistence is fire-and-forget: a store outage must never stall play. */

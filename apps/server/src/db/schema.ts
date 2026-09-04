@@ -55,6 +55,28 @@ export const matchEvents = pgTable(
   (table) => [primaryKey({ columns: [table.matchId, table.seq] })],
 );
 
+/**
+ * Player ratings (#80). One row per player per mode per season, where a
+ * season is a data edition: a new edition changes what the cards are worth,
+ * so carrying ratings across one would score two different games on one
+ * ladder.
+ */
+export const ratings = pgTable(
+  "ratings",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    gameMode: text("game_mode").notNull(),
+    seasonId: text("season_id").notNull(),
+    rating: integer("rating").notNull(),
+    games: integer("games").notNull().default(0),
+    wins: integer("wins").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.gameMode, table.seasonId] })],
+);
+
 export const appConfig = pgTable("app_config", {
   key: text("key").primaryKey(),
   value: jsonb("value").notNull(),
