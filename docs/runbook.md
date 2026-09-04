@@ -2,29 +2,27 @@
 
 ## Where things run
 
-Pre-launch, only **staging** exists, and every piece of it sits on a free tier —
-not on GCP trial credits, which expire. Domain: `deckxi.rishikeshs.dev`.
+Every piece sits on a free tier — not on GCP trial credits, which expire.
+Domain: `deckxi.rishikeshs.dev`. Production is staging with the names changed:
+same Cloud Run workflow, its own service, secrets, Neon branch and origins.
 
-| Piece    | Staging (live now)                                         | Cost   |
-| -------- | ---------------------------------------------------------- | ------ |
-| Web      | Cloudflare Pages `deckxi-web`, branch `main`               | free   |
-|          | `https://staging.deckxi.rishikeshs.dev`                    |        |
-| API      | Cloud Run `deckxi-api-staging` (`deploy-api-cloudrun.yml`) | free\* |
-|          | `https://api-staging.deckxi.rishikeshs.dev`                |        |
-| Database | Neon branch `staging`                                      | free   |
+| Piece    | Staging (`main`)                                           | Production (`v*` tags)                 | Cost   |
+| -------- | ---------------------------------------------------------- | -------------------------------------- | ------ |
+| Web      | Cloudflare Pages `deckxi-web`, branch `main`               | same project, branch `production`      | free   |
+|          | `https://staging.deckxi.rishikeshs.dev`                    | `https://deckxi.rishikeshs.dev`        |        |
+| API      | Cloud Run `deckxi-api-staging` (`deploy-api-cloudrun.yml`) | Cloud Run `deckxi-api` (same workflow) | free\* |
+|          | `https://api-staging.deckxi.rishikeshs.dev`                | `https://api.deckxi.rishikeshs.dev`    |        |
+| Database | Neon branch `staging`                                      | Neon default branch (`main`)           | free   |
 
 \* Cloud Run's always-free tier is 2M requests, 180k vCPU-seconds and 360k
-GiB-seconds per month. One instance capped at 1 vCPU covers roughly 50 hours of
-active play per month before anything is billable, and it scales to zero when
-idle. Artifact Registry gives 0.5 GB free, which is why the repo has a cleanup
-policy keeping the last few images.
+GiB-seconds per month **per project**, shared by both services. One instance
+capped at 1 vCPU covers roughly 50 hours of active play per month before
+anything is billable, and it scales to zero when idle. Artifact Registry gives
+0.5 GB free, which is why the repo has a cleanup policy keeping the last few
+images.
 
-**Production is not provisioned.** At launch, pick a target and provision it:
-
-- **Stay on Cloud Run** — nothing to do but create a `production` service and
-  point `deploy.yml`'s production job at `deploy-api-cloudrun.yml`.
-- **Move to Fly** — `fly.production.toml` and `deploy-api.yml` are already
-  written and kept current; see "Migrating the API to Fly" below.
+Fly is the fallback for the Mumbai-latency move: `fly.production.toml` and
+`deploy-api.yml` are kept current; see "Migrating the API to Fly" below.
 
 The API is deliberately **one instance per environment** (`--max-instances 1` on
 Cloud Run, `max_machines_running = 1` on Fly): rooms live in process memory, so
@@ -45,12 +43,12 @@ because the server already has reconnect grace and turn timers:
 
 ## Pipelines
 
-| Trigger         | What runs                                                            |
-| --------------- | -------------------------------------------------------------------- |
-| Any PR          | `ci.yml` (lint/typecheck/test, image build) + Pages preview deploy   |
-| Merge to `main` | `deploy.yml` → migrate staging DB → deploy staging API; web → `main` |
-| Tag `v*`        | production jobs — dormant until production is provisioned            |
-| Manual          | `deploy.yml` → _Run workflow_ → pick an environment                  |
+| Trigger         | What runs                                                                |
+| --------------- | ------------------------------------------------------------------------ |
+| Any PR          | `ci.yml` (lint/typecheck/test, image build) + Pages preview deploy       |
+| Merge to `main` | `deploy.yml` → migrate staging DB → deploy staging API; web → `main`     |
+| Tag `v*`        | `deploy.yml` → migrate prod DB → deploy `deckxi-api`; web → `production` |
+| Manual          | `deploy.yml` → _Run workflow_ → pick an environment                      |
 
 Migrations always run **before** the new image goes live, as a separate job, so
 a failed migration aborts the deploy rather than leaving new code on an old
@@ -188,7 +186,7 @@ today's behaviour when that lands.
 
 ### GitHub
 
-Environment `staging` (add `production` at launch) holding `DATABASE_URL`.
+Environments `staging` and `production`, each holding its own `DATABASE_URL`.
 
 Repository **variables**: `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_WIF_PROVIDER`
 (the full provider resource name), `GCP_SERVICE_ACCOUNT`.
@@ -205,8 +203,44 @@ passes the account ID explicitly. Note it is account-scoped, not project-scoped.
 
 Project `deckxi-web`, production branch set to **`production`** (so `main`
 deploys land on the staging alias, and nothing reaches the public domain until
-you tag). Custom domains: `deckxi.rishikeshs.dev` on the project at launch,
-`staging.deckxi.rishikeshs.dev` CNAME'd to `main.deckxi-web.pages.dev` now.
+you tag). Custom domains: `deckxi.rishikeshs.dev` on the project (Pages adds
+the CNAME itself when the zone is on Cloudflare), `staging.deckxi.rishikeshs.dev`
+CNAME'd to `main.deckxi-web.pages.dev`.
+
+### Provisioning production (Cloud Run)
+
+Everything below is the staging recipe with `staging` → `production`; the
+workflow derives every name from the environment, so nothing else changes.
+
+1. Neon: the default branch is production. Take its pooled connection string
+   with `?sslmode=verify-full`.
+2. Secret Manager, one per value, then grant `github-deployer@…` and the Cloud
+   Run runtime service account `roles/secretmanager.secretAccessor` on each:
+   `deckxi-production-database-url`, `deckxi-production-auth-secret`
+   (fresh `openssl rand -base64 32` — never reuse staging's),
+   `deckxi-production-google-client-id`, `deckxi-production-google-client-secret`,
+   and `deckxi-production-mail-api-key` if mail is on.
+3. Google OAuth: add `https://api.deckxi.rishikeshs.dev/api/auth/callback/google`
+   as a redirect URI on the existing client (or make a production client and
+   store that pair in the secrets above).
+4. GitHub: environment `production` with `DATABASE_URL`; optionally a
+   `MAIL_ENABLED`/`MAIL_FROM` pair on the environment if production's sender
+   differs.
+5. Cut the first release: `git tag -a v1.0.0 -m "Launch" && git push origin v1.0.0`.
+   The first deploy creates the `deckxi-api` service.
+6. Domain mapping, once the service exists (needs the region to support
+   mappings — see DNS / TLS):
+
+   ```sh
+   gcloud beta run domain-mappings create --service deckxi-api \
+     --domain api.deckxi.rishikeshs.dev --region "$REGION"
+   ```
+
+   Add the records it prints to Cloudflare DNS as **DNS-only** (grey cloud).
+
+7. Cloudflare Pages → `deckxi-web` → Custom domains → add `deckxi.rishikeshs.dev`.
+8. Re-run the smoke test from "Deploying" against the production hostnames,
+   then play a round from two browsers.
 
 ### DNS / TLS
 

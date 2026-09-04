@@ -38,9 +38,9 @@ jobs:
       - name: Test
         run: pnpm test
 
-  # Pre-launch, staging runs on Cloud Run: its always-free tier costs nothing
-  # and, unlike the GCP trial credits, doesn't expire. Production is not
-  # provisioned yet — see docs/runbook.md → "Where things run".
+  # Both environments run on Cloud Run: its always-free tier costs nothing
+  # and, unlike the GCP trial credits, doesn't expire. See docs/runbook.md →
+  # "Where things run".
   staging:
     needs: verify
     if: github.ref == 'refs/heads/main' || inputs.environment == 'staging'
@@ -53,16 +53,17 @@ jobs:
     secrets:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-  # Dormant until launch: nothing tags `v*` yet, and no Fly app exists. Swap
-  # `uses:` for deploy-api-cloudrun.yml to launch on Cloud Run instead.
+  # Production runs on Cloud Run too — same reusable workflow as staging, its
+  # own service, secrets and origins. Fly (deploy-api.yml, fly.production.toml)
+  # stays available for the Mumbai-latency move later.
   production:
     needs: verify
     if: startsWith(github.ref, 'refs/tags/v') || inputs.environment == 'production'
-    uses: ./.github/workflows/deploy-api.yml
+    uses: ./.github/workflows/deploy-api-cloudrun.yml
     with:
       environment: production
-      fly_config: fly.production.toml
+      service: deckxi-api
       api_url: https://api.deckxi.rishikeshs.dev
+      cors_origins: https://deckxi.rishikeshs.dev
     secrets:
-      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
