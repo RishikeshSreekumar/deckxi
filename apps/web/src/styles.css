@@ -3651,3 +3651,45 @@ select:focus {
   flex-wrap: wrap;
   margin: var(--space-5) 0;
 }
+
+/* ---------------------------------------------------------------------------
+   Friends and recent players (#82).
+   --------------------------------------------------------------------------- */
+
+.friend-list {
+  list-style: none;
+  margin: 0 0 var(--space-6);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.friend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+}
+
+.friend-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  flex: 1;
+}
+
+.friend-detail strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Inside the invite sheet the rows sit on the dialog, not on their own panel. */
+.invite-friends {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}

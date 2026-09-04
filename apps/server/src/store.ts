@@ -110,6 +110,17 @@ export interface MatchShare {
   createdAt: Date;
 }
 
+/** Someone you play with — a friend, or a face from a recent table (#82). */
+export interface PlayerSummary {
+  userId: string;
+  name: string;
+  image: string | null;
+  /** Recent players only: when you last shared a table. */
+  lastPlayedAt?: Date;
+  /** True when this player is already on your friends list. */
+  isFriend: boolean;
+}
+
 export interface MatchStore {
   createMatch(record: MatchRecord): Promise<void>;
   appendEvents(matchId: string, events: readonly SeqEvent[]): Promise<void>;
@@ -155,6 +166,13 @@ export interface MatchStore {
   getShare(token: string): Promise<MatchShare | null>;
   /** Revoke a share. Only the player who made it may call this. */
   revokeShare(token: string, userId: string): Promise<void>;
+  /** Your friends list, alphabetical. */
+  listFriends(userId: string): Promise<PlayerSummary[]>;
+  /** Save someone to your list. Adding twice is a no-op, not an error. */
+  addFriend(userId: string, friendId: string): Promise<void>;
+  removeFriend(userId: string, friendId: string): Promise<void>;
+  /** Accounts you have shared a table with, most recent first. */
+  recentPlayers(userId: string, limit?: number): Promise<PlayerSummary[]>;
   /** Health probe; rejects when the backing store is unreachable. */
   ping(): Promise<void>;
   close(): Promise<void>;
@@ -181,6 +199,8 @@ export class InMemoryMatchStore implements MatchStore {
   readonly cards = new Map<string, CollectionRow & { userId: string }>();
   readonly showcases = new Map<string, ShowcaseCard>();
   readonly shares = new Map<string, MatchShare>();
+  /** `userId` → the accounts they saved. */
+  readonly friendships = new Map<string, Set<string>>();
 
   createMatch(record: MatchRecord): Promise<void> {
     this.matches.set(record.matchId, {
@@ -321,6 +341,9 @@ export class InMemoryMatchStore implements MatchStore {
       if (row.userId === userId) this.cards.delete(key);
     }
     this.showcases.delete(userId);
+    // Both directions: your list goes, and you leave everyone else's.
+    this.friendships.delete(userId);
+    for (const set of this.friendships.values()) set.delete(userId);
     for (const match of this.matches.values()) {
       for (const player of match.players) {
         if (player.userId === userId) {
@@ -441,6 +464,56 @@ export class InMemoryMatchStore implements MatchStore {
     const share = this.shares.get(token);
     if (share?.createdBy === userId) this.shares.delete(token);
     return Promise.resolve();
+  }
+
+  listFriends(userId: string): Promise<PlayerSummary[]> {
+    const ids = [...(this.friendships.get(userId) ?? [])];
+    const rows = ids
+      .map((friendId) => ({
+        userId: friendId,
+        name: this.nameOf(friendId) ?? "Someone",
+        image: null,
+        isFriend: true,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return Promise.resolve(rows);
+  }
+
+  addFriend(userId: string, friendId: string): Promise<void> {
+    const set = this.friendships.get(userId) ?? new Set<string>();
+    set.add(friendId);
+    this.friendships.set(userId, set);
+    return Promise.resolve();
+  }
+
+  removeFriend(userId: string, friendId: string): Promise<void> {
+    this.friendships.get(userId)?.delete(friendId);
+    return Promise.resolve();
+  }
+
+  recentPlayers(userId: string, limit = 20): Promise<PlayerSummary[]> {
+    const friends = this.friendships.get(userId) ?? new Set<string>();
+    const seen = new Map<string, { name: string; lastPlayedAt: Date }>();
+    const matches = [...this.matches.values()].sort(
+      (a, b) => b.startedAt.getTime() - a.startedAt.getTime(),
+    );
+    for (const match of matches) {
+      if (!match.players.some((p) => p.userId === userId)) continue;
+      for (const player of match.players) {
+        if (player.userId === null || player.userId === userId) continue;
+        if (!seen.has(player.userId)) {
+          seen.set(player.userId, { name: player.name, lastPlayedAt: match.startedAt });
+        }
+      }
+    }
+    const rows = [...seen].slice(0, limit).map(([id, { name, lastPlayedAt }]) => ({
+      userId: id,
+      name,
+      image: null,
+      lastPlayedAt,
+      isFriend: friends.has(id),
+    }));
+    return Promise.resolve(rows);
   }
 
   ping(): Promise<void> {
