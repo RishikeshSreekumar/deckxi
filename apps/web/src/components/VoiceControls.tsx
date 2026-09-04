@@ -14,8 +14,38 @@
  * tables do not get a mic button.
  */
 import { useEffect } from "react";
-import { LeaveIcon, MicIcon, MicOffIcon } from "./Chrome.js";
+import { Icon, LeaveIcon } from "./Chrome.js";
 import { useStore } from "../store/store.js";
+
+/**
+ * The mic icons live here rather than in `Chrome.tsx`: that file is in the
+ * initial bundle, this component is not, and the initial bundle has a budget
+ * measured in tenths of a kilobyte.
+ *
+ * A microphone: the voice button's whole label at the table (#89).
+ */
+function MicIcon({ size }: { size?: number }) {
+  return (
+    <Icon {...(size !== undefined ? { size } : {})}>
+      <path d="M12 4a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V7a3 3 0 0 1 3-3z" />
+      <path d="M5 11a7 7 0 0 0 14 0" />
+      <path d="M12 18v3" />
+    </Icon>
+  );
+}
+
+/** The same microphone with a stroke through it: off, and visibly so. */
+function MicOffIcon({ size }: { size?: number }) {
+  return (
+    <Icon {...(size !== undefined ? { size } : {})}>
+      <path d="M9 9v3a3 3 0 0 0 4.6 2.5" />
+      <path d="M15 11.4V7a3 3 0 0 0-5.7-1.3" />
+      <path d="M5 11a7 7 0 0 0 10.9 5.8M19 11a6.9 6.9 0 0 1-.8 3.2" />
+      <path d="M12 18v3" />
+      <path d="M4 3l16 18" />
+    </Icon>
+  );
+}
 
 export function VoiceControls() {
   const voice = useStore((s) => s.voice);

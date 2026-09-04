@@ -223,7 +223,7 @@ export function FloatingReactions() {
 }
 
 /** Line icons for the chrome: one stroke weight, currentColor, 20px box. */
-function Icon({ children, size = 20 }: { children: ReactNode; size?: number }) {
+export function Icon({ children, size = 20 }: { children: ReactNode; size?: number }) {
   return (
     <svg
       width={size}
@@ -267,30 +267,6 @@ export function SmileIcon({ size }: { size?: number }) {
       <circle cx="12" cy="12" r="9" />
       <path d="M8.5 14.5c.9 1.2 2.1 1.8 3.5 1.8s2.6-.6 3.5-1.8" />
       <path d="M9 10h.01M15 10h.01" />
-    </Icon>
-  );
-}
-
-/** A microphone: the voice button's whole label at the table (#89). */
-export function MicIcon({ size }: { size?: number }) {
-  return (
-    <Icon {...(size !== undefined ? { size } : {})}>
-      <path d="M12 4a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V7a3 3 0 0 1 3-3z" />
-      <path d="M5 11a7 7 0 0 0 14 0" />
-      <path d="M12 18v3" />
-    </Icon>
-  );
-}
-
-/** The same microphone with a stroke through it: off, and visibly so. */
-export function MicOffIcon({ size }: { size?: number }) {
-  return (
-    <Icon {...(size !== undefined ? { size } : {})}>
-      <path d="M9 9v3a3 3 0 0 0 4.6 2.5" />
-      <path d="M15 11.4V7a3 3 0 0 0-5.7-1.3" />
-      <path d="M5 11a7 7 0 0 0 10.9 5.8M19 11a6.9 6.9 0 0 1-.8 3.2" />
-      <path d="M12 18v3" />
-      <path d="M4 3l16 18" />
     </Icon>
   );
 }
