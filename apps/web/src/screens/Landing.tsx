@@ -35,6 +35,7 @@ export function Landing() {
   // table for you.
   const shortcutNewRoom = params.get("new") === "1";
   const createRoom = useStore((s) => s.createRoom);
+  const practiceGame = useStore((s) => s.practiceGame);
   const joinRoom = useStore((s) => s.joinRoom);
   const roomClosedReason = useStore((s) => s.roomClosedReason);
   const connection = useStore((s) => s.connection);
@@ -250,6 +251,31 @@ export function Landing() {
               {spectateOffer}
             </section>
           </div>
+        )}
+
+        {!invite && (
+          <section className="panel landing-practice" aria-labelledby="practice-title">
+            <h2 className="panel-title" id="practice-title">
+              Practice on your own
+            </h2>
+            <p className="sub">
+              Two bots, no room, no connection needed — good for a train tunnel.
+            </p>
+            <button
+              type="button"
+              className="button button--block"
+              data-testid="practice"
+              disabled={name.trim().length === 0 || busy !== null}
+              onClick={() => {
+                setBusy("create");
+                void practiceGame({ gameMode: "classic-trumps", name: name.trim() }).finally(() =>
+                  setBusy(null),
+                );
+              }}
+            >
+              Play against bots
+            </button>
+          </section>
         )}
 
         {invite && (

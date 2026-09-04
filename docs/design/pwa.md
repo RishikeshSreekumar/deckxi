@@ -97,3 +97,33 @@ splash regardless. The default is acceptable; the maintenance is not.
 a room has an in-app route back to `/` in its header, and no flow depends on browser
 chrome. `orientation: "any"` — the game table has a real landscape layout, so we never
 lock the player out of turning the phone.
+
+## Offline practice
+
+Installing an app that does nothing without a network is a worse experience than not
+installing it, so `#85` gives an offline player something to do: a full game against bots,
+hosted on the device.
+
+`apps/web/src/game/practice.ts` is that host. It does what the room manager does — draw a
+deck from the bundled edition, `mode.init`, apply commands, fold events, redact them for
+the single viewer — and the store folds the result through exactly the same
+`ingestGameEvents` path as the socket. One folding path is the point: the table cannot
+behave differently depending on who hosted the game, and the bots' hands stay hidden from
+you because `mode.redact` does not know it is running in a browser.
+
+Narrower than the server, on purpose:
+
+- **No clock.** Nothing is waiting on you, and a countdown you cannot lose to is theatre.
+- **No chat, no persistence, no rating.** Nothing here leaves the device.
+- **Trumps only.** Squad Draft is a game about drafting against opponents whose picks are
+  the point; the baseline bot would make it solitaire.
+
+The module is loaded on demand (`await import`) because it pulls the whole engine with it
+— about 10 kB gzipped that a player joining a friend's table never needs, and the initial
+payload has a budget (#107). Workbox precaches the built chunk along with everything else,
+so the download happens while you still have a network and the button works after you do
+not.
+
+The connection banner is suppressed while a practice game is running. Telling someone
+mid-round that we are reconnecting is true of the socket and irrelevant to the game in
+front of them.

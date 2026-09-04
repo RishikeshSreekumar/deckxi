@@ -27,6 +27,8 @@ import {
 } from "../game/clientGame.js";
 import { applySquadEvents, type SquadClientState } from "../game/squadClient.js";
 import { call, errorMessage, getSocket } from "../lib/socket.js";
+import type * as PracticeModule from "../game/practice.js";
+import type { PracticeOptions } from "../game/practice.js";
 import { clearSession, loadSession, saveSession, savePlayerName } from "../lib/session.js";
 import { sounds } from "../lib/sounds.js";
 
@@ -52,6 +54,12 @@ export interface FloatingReaction {
 
 interface AppState {
   connection: ConnectionStatus;
+  /**
+   * True while this table is a local practice game (#85). Everything the
+   * server would decide is decided in `game/practice.ts` instead; the screens
+   * read the same room/game slices either way.
+   */
+  practice: boolean;
   /** Set when the room we were in closed under us; shown on the landing page. */
   roomClosedReason: RoomClosedReason | null;
   /** Operator maintenance notice, shown above every screen (#70). */
@@ -78,6 +86,8 @@ interface AppState {
   toast(text: string, kind?: Toast["kind"]): void;
   dismissToast(id: number): void;
   createRoom(name: string): Promise<void>;
+  /** Start a local game against bots — no room, no socket, works offline. */
+  practiceGame(options: PracticeOptions): Promise<void>;
   joinRoom(code: string, name: string, spectator?: boolean): Promise<void>;
   leaveRoom(): Promise<void>;
   setReady(ready: boolean): Promise<void>;
@@ -121,6 +131,43 @@ function joined(set: SetState, data: RoomJoined): void {
 
 type SetState = (partial: Partial<AppState>) => void;
 
+/**
+ * The practice host, loaded on demand. It drags the whole engine in with it —
+ * ~10 kB gzipped that a player joining a friend's table never needs, and the
+ * initial payload has a budget (#107) — so nothing imports it until someone
+ * asks to practise.
+ */
+let practiceApi: typeof PracticeModule | null = null;
+
+/** The options the current practice table was started with, for a rematch. */
+let lastPractice: PracticeOptions | null = null;
+
+/**
+ * Practice has no server to flip the room to results, so the store does what
+ * the room manager would: once the engine says the game is finished, the room
+ * moves on. Everything else about the results screen is unchanged.
+ */
+function settlePractice(set: SetState, get: () => AppState): void {
+  const room = get().room;
+  if (room === null || practiceApi === null || !practiceApi.practiceFinished()) return;
+  if (room.phase === "results") return;
+  set({ room: { ...room, phase: "results" } });
+}
+
+/** Apply one of your moves locally, then fold the bots' answers. */
+function localMove(set: SetState, get: () => AppState, payload: GameCommandPayload): void {
+  if (practiceApi === null || !practiceApi.practiceRunning()) return;
+  try {
+    ingestGameEvents(set, get, practiceApi.practiceCommand(payload));
+    settlePractice(set, get);
+  } catch (error) {
+    // The engine rejects the same moves the server would; the toast is the
+    // only difference, since there is no ack to unwrap.
+    set({ pendingStat: null });
+    get().toast(error instanceof Error ? error.message : "That move isn't allowed.", "error");
+  }
+}
+
 export const useStore = create<AppState>((set, get) => {
   const guarded = async (action: () => Promise<unknown>): Promise<void> => {
     try {
@@ -133,6 +180,7 @@ export const useStore = create<AppState>((set, get) => {
 
   return {
     connection: "connecting",
+    practice: false,
     roomClosedReason: null,
     notice: null,
     selfId: null,
@@ -165,6 +213,31 @@ export const useStore = create<AppState>((set, get) => {
       });
     },
 
+    async practiceGame(options) {
+      savePlayerName(options.name);
+      clearSession();
+      practiceApi ??= await import("../game/practice.js");
+      const table = practiceApi.startPractice(options);
+      set({
+        practice: true,
+        selfId: table.selfId,
+        spectator: false,
+        room: table.room,
+        game: null,
+        squad: null,
+        timer: null,
+        pendingReveals: [],
+        presenting: false,
+        pendingStat: null,
+        chat: [],
+        reactions: [],
+        roomClosedReason: null,
+      });
+      lastPractice = options;
+      ingestGameEvents(set, get, table.events);
+      settlePractice(set, get);
+    },
+
     async joinRoom(code, name, spectator) {
       await guarded(async () => {
         savePlayerName(name);
@@ -178,6 +251,20 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     async leaveRoom() {
+      if (get().practice) {
+        practiceApi?.endPractice();
+        set({
+          practice: false,
+          room: null,
+          game: null,
+          squad: null,
+          timer: null,
+          selfId: null,
+          pendingReveals: [],
+          presenting: false,
+        });
+        return;
+      }
       clearSession();
       set({
         room: null,
@@ -208,12 +295,24 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     async rematch() {
+      if (get().practice) {
+        if (lastPractice !== null) await get().practiceGame(lastPractice);
+        return;
+      }
       await guarded(() => call<"room:rematch", null>("room:rematch", undefined));
     },
 
     async selectStat(stat, play) {
       const previous = get().pendingStat;
       set({ pendingStat: stat }); // optimistic: highlight immediately
+      if (get().practice) {
+        localMove(set, get, {
+          type: "SELECT_STAT",
+          stat,
+          ...(play !== undefined ? { cardIndex: play.cardIndex, power: play.power } : {}),
+        });
+        return;
+      }
       try {
         await call<"game:selectStat", null>("game:selectStat", {
           stat,
@@ -226,22 +325,44 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     async playCard(cardIndex, power) {
+      if (get().practice) {
+        localMove(set, get, { type: "PLAY_CARD", cardIndex, power });
+        return;
+      }
       await guarded(() => call<"game:playCard", null>("game:playCard", { cardIndex, power }));
     },
 
     async command(payload) {
+      if (get().practice) {
+        localMove(set, get, payload);
+        return;
+      }
       await guarded(() => call<"game:command", null>("game:command", payload));
     },
 
     async forfeit() {
+      if (get().practice && practiceApi !== null) {
+        try {
+          ingestGameEvents(set, get, practiceApi.practiceForfeit());
+          settlePractice(set, get);
+        } catch {
+          /* nothing to forfeit — the game already ended */
+        }
+        return;
+      }
       await guarded(() => call<"game:forfeit", null>("game:forfeit", undefined));
     },
 
     async sendChat(text) {
+      if (get().practice) {
+        get().toast("There's nobody to chat to in a practice game.", "info");
+        return;
+      }
       await guarded(() => call<"chat:send", null>("chat:send", { text }));
     },
 
     async react(emote) {
+      if (get().practice) return;
       await guarded(() => call<"chat:react", null>("chat:react", { emote: emote as "👏" }));
     },
 
@@ -254,6 +375,47 @@ export const useStore = create<AppState>((set, get) => {
     },
   };
 });
+
+/**
+ * Fold a batch of wire events into the live game slice. Shared by the socket
+ * and by offline practice (#85), which produces the very same redacted events
+ * locally — one folding path means the table cannot behave differently
+ * depending on who hosted the game.
+ */
+function ingestGameEvents(set: SetState, get: () => AppState, events: WireGameEvent[]): void {
+  const state = get();
+  const selfId = state.spectator ? null : state.selfId;
+  if (state.room?.settings.gameMode === "squad-draft") {
+    const squadEvents = events as SquadDraftWireEvent[];
+    const squad = applySquadEvents(state.squad, squadEvents, selfId);
+    if (squad === null) return;
+    if (squadEvents.some((e) => e.type === "GAME_STARTED")) sounds.deal();
+    // The matches are the climax: hold the results screen back until the
+    // table has shown them phase by phase.
+    const played = squadEvents.some((e) => e.type === "MATCHES_PLAYED");
+    set({ squad, ...(played ? { presenting: true } : {}) });
+    return;
+  }
+  // Fold one event at a time so each resolved round's snapshot (with its
+  // pot share) can be queued for the presenter.
+  let game = state.game;
+  const reveals = [...state.pendingReveals];
+  let resolvedAny = false;
+  for (const event of events as RedactedGameEvent[]) {
+    game = applyRedactedEvents(game, [event], selfId);
+    if (event.type === "GAME_STARTED") sounds.deal();
+    if (event.type === "ROUND_RESOLVED" && game?.lastResolved != null) {
+      reveals.push(game.lastResolved);
+      resolvedAny = true;
+    }
+  }
+  if (game === null) return;
+  set({
+    game,
+    pendingReveals: reveals,
+    ...(resolvedAny ? { pendingStat: null } : {}),
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Socket wiring — registered once at app boot.
@@ -346,38 +508,7 @@ export function initSocket(): void {
   });
 
   socket.on("game:events", (events: WireGameEvent[]) => {
-    const state = get();
-    const selfId = state.spectator ? null : state.selfId;
-    if (state.room?.settings.gameMode === "squad-draft") {
-      const squadEvents = events as SquadDraftWireEvent[];
-      const squad = applySquadEvents(state.squad, squadEvents, selfId);
-      if (squad === null) return;
-      if (squadEvents.some((e) => e.type === "GAME_STARTED")) sounds.deal();
-      // The matches are the climax: hold the results screen back until the
-      // table has shown them phase by phase.
-      const played = squadEvents.some((e) => e.type === "MATCHES_PLAYED");
-      set({ squad, ...(played ? { presenting: true } : {}) });
-      return;
-    }
-    // Fold one event at a time so each resolved round's snapshot (with its
-    // pot share) can be queued for the presenter.
-    let game = state.game;
-    const reveals = [...state.pendingReveals];
-    let resolvedAny = false;
-    for (const event of events as RedactedGameEvent[]) {
-      game = applyRedactedEvents(game, [event], selfId);
-      if (event.type === "GAME_STARTED") sounds.deal();
-      if (event.type === "ROUND_RESOLVED" && game?.lastResolved != null) {
-        reveals.push(game.lastResolved);
-        resolvedAny = true;
-      }
-    }
-    if (game === null) return;
-    set({
-      game,
-      pendingReveals: reveals,
-      ...(resolvedAny ? { pendingStat: null } : {}),
-    });
+    ingestGameEvents(set, get, events);
   });
 
   socket.on("game:timer", (timer: TurnTimerView | null) => {
