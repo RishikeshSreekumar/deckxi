@@ -142,6 +142,9 @@ function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean }) {
               >
                 <strong>{info.name}</strong>
                 <span className="sub">{info.blurb}</span>
+                <span className="sub mode-seats">
+                  {info.players.min}–{info.players.max} players
+                </span>
               </button>
             );
           })}
@@ -157,9 +160,11 @@ function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean }) {
           ))}
         </ul>
       )}
-      {row("Cards per player", s.cardsPerPlayer, [3, 4, 5, 7, 9, 11], "cardsPerPlayer")}
+      {GAME_MODE_INFO[s.gameMode].family === "trumps" &&
+        row("Cards per player", s.cardsPerPlayer, [3, 4, 5, 7, 9, 11], "cardsPerPlayer")}
       {row("Turn timer", s.turnTimerSeconds, [10, 15, 20, 30, 60], "turnTimerSeconds", "s")}
-      {row("Round limit", s.maxRounds, [10, 25, 50, 100, 1000], "maxRounds")}
+      {GAME_MODE_INFO[s.gameMode].family === "trumps" &&
+        row("Round limit", s.maxRounds, [10, 25, 50, 100, 1000], "maxRounds")}
       <p className="sub">
         Edition: {s.editionId}
         {isHost ? "" : " · the host decides"}
@@ -222,7 +227,10 @@ export function Lobby({ room }: { room: RoomView }) {
 
   const isHost = selfId === room.hostId;
   const self = room.players.find((p) => p.id === selfId);
-  const everyoneReady = room.players.length >= 2 && room.players.every((p) => p.ready);
+  const modeInfo = GAME_MODE_INFO[room.settings.gameMode];
+  const tooMany = room.players.length > modeInfo.players.max;
+  const everyoneReady =
+    room.players.length >= modeInfo.players.min && !tooMany && room.players.every((p) => p.ready);
   const players = useMemo(() => [...room.players].sort((a, b) => a.seat - b.seat), [room.players]);
   const openSeats = Math.max(0, MAX_SEATS - players.length);
   const missing = Math.max(0, 2 - players.length);
@@ -230,9 +238,11 @@ export function Lobby({ room }: { room: RoomView }) {
 
   const heading = everyoneReady
     ? "Everyone's ready"
-    : missing > 0
-      ? `Waiting for ${missing === 1 ? "one more" : "two more"}`
-      : "Waiting for ready";
+    : tooMany
+      ? `${modeInfo.name} seats ${modeInfo.players.max}`
+      : missing > 0
+        ? `Waiting for ${missing === 1 ? "one more" : "two more"}`
+        : "Waiting for ready";
 
   return (
     <main className="screen lobby" data-testid="lobby-screen">
@@ -246,7 +256,10 @@ export function Lobby({ room }: { room: RoomView }) {
         </button>
         <div className="app-bar-actions">
           <span className="sub lobby-rules-line">
-            {GAME_MODE_INFO[room.settings.gameMode].name} · {room.settings.maxRounds} rounds
+            {modeInfo.name}
+            {modeInfo.family === "trumps"
+              ? ` · ${room.settings.maxRounds} rounds`
+              : " · 13-card draft"}
           </span>
           <button
             type="button"
@@ -265,8 +278,9 @@ export function Lobby({ room }: { room: RoomView }) {
           <div className="lobby-intro">
             <h1 className="headline">{heading}</h1>
             <p className="sub">
-              {GAME_MODE_INFO[room.settings.gameMode].name} · everyone gets{" "}
-              {room.settings.cardsPerPlayer} cards, dealt at random.
+              {modeInfo.family === "trumps"
+                ? `${modeInfo.name} · everyone gets ${room.settings.cardsPerPlayer} cards, dealt at random.`
+                : `${modeInfo.name} · draft 13 from a shared pool, name your XI, play the league.`}
               {room.spectators.length > 0 && ` ${room.spectators.length} watching.`}
             </p>
           </div>
@@ -341,9 +355,11 @@ export function Lobby({ room }: { room: RoomView }) {
               >
                 {everyoneReady
                   ? "Start match"
-                  : room.players.length < 2
-                    ? "Waiting for players…"
-                    : "Waiting for ready…"}
+                  : tooMany
+                    ? `Too many for ${modeInfo.name}`
+                    : room.players.length < modeInfo.players.min
+                      ? "Waiting for players…"
+                      : "Waiting for ready…"}
               </button>
             )}
           </div>

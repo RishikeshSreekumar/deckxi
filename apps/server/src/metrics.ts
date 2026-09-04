@@ -135,6 +135,11 @@ export function createMetrics(): Metrics {
   metrics.declareCounter("deckxi_room_joins_total", "Players and spectators joining a room");
   metrics.declareCounter("deckxi_games_started_total", "Games started");
   metrics.declareCounter("deckxi_games_finished_total", "Games finished, by end reason");
+  metrics.declareCounter("deckxi_mode_games_total", "Games started, by mode");
+  metrics.declareCounter(
+    "deckxi_mode_games_finished_total",
+    "Games finished, by mode and end reason",
+  );
   metrics.declareCounter("deckxi_socket_connections_total", "Socket connections accepted");
   metrics.declareCounter("deckxi_commands_total", "Client commands handled, by command");
   metrics.declareCounter("deckxi_command_rejections_total", "Commands refused, by error code");

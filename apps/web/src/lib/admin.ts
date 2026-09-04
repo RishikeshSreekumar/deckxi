@@ -64,15 +64,17 @@ export interface AdminRoomDetail extends AdminRoomSummary {
   game: {
     matchId: string;
     editionId: string;
+    mode: string;
     phase: string;
     round: number;
-    leader: string;
+    leader: string | null;
     pot: string[];
     winner: string | null;
     startedAt: number;
     turnDeadline: number | null;
     events: number;
     players: { id: string; active: boolean; hand: string[] }[];
+    detail: Record<string, unknown>;
   } | null;
   recentEvents: { seq: number; type: string; event: unknown }[];
 }

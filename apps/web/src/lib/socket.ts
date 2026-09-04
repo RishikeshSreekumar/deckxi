@@ -80,7 +80,9 @@ export function errorMessage(error: unknown): string {
       "room-not-found": "That room doesn't exist (or has closed).",
       "room-full": "That room is full — you can join as a spectator.",
       "not-host": "Only the host can do that.",
-      "not-enough-players": "You need at least 2 players to start.",
+      "not-enough-players": "You need more players for this mode.",
+      "too-many-players":
+        "Too many players for this mode — pick another, or ask someone to spectate.",
       "players-not-ready": "Everyone needs to be ready first.",
       "rate-limited": "Whoa — slow down a little.",
       "resume-failed": "Couldn't rejoin your game.",

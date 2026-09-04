@@ -22,7 +22,7 @@
  */
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { userFromHeaders, type Auth } from "./auth.js";
-import type { RoomManager, Room } from "./rooms.js";
+import type { GameInstance, Room, RoomManager } from "./rooms.js";
 import type { Logger } from "./logging.js";
 import type { EventFeed } from "./feed.js";
 import type { MatchStore } from "./store.js";
@@ -111,7 +111,7 @@ export function toAdminRoomSummary(room: Room, now: number = Date.now()): AdminR
     disconnected: room.players.filter((p) => !p.connected).length,
     spectators: room.spectators.length,
     matchId: room.game?.matchId ?? null,
-    round: room.game?.state.round ?? null,
+    round: room.game === null ? null : room.game.mode.status(room.game.state).round,
     idleSeconds: Math.round((now - room.lastActivityAt) / 1000),
   };
 }
@@ -138,21 +138,45 @@ export interface AdminRoomDetail extends AdminRoomSummary {
   game: {
     matchId: string;
     editionId: string;
+    mode: string;
     phase: string;
     round: number;
-    leader: string;
+    /** Whose move it is: the trumps leader, the drafter on the clock. */
+    leader: string | null;
+    /** Cards nobody holds: the trumps pot, a draft's pool. */
     pot: string[];
     winner: string | null;
     startedAt: number;
     turnDeadline: number | null;
     events: number;
     players: { id: string; active: boolean; hand: string[] }[];
+    /** Whatever else the mode wants an operator to see. */
+    detail: Record<string, unknown>;
   } | null;
   /** Tail of this match's event log, unredacted, oldest first. */
   recentEvents: { seq: number; type: string; event: unknown }[];
 }
 
 const RECENT_EVENTS = 30;
+
+function inspectGame(game: GameInstance): NonNullable<AdminRoomDetail["game"]> {
+  const view = game.mode.inspect(game.state);
+  return {
+    matchId: game.matchId,
+    editionId: game.editionId,
+    mode: game.mode.id,
+    phase: view.phase,
+    round: view.round,
+    leader: view.leader,
+    pot: [...view.loose],
+    winner: view.winner,
+    startedAt: game.startedAt,
+    turnDeadline: game.turnDeadline,
+    events: game.log.length,
+    players: view.players.map((p) => ({ id: p.id, active: p.active, hand: [...p.cards] })),
+    detail: view.detail,
+  };
+}
 
 export function toAdminRoomDetail(room: Room, now: number = Date.now()): AdminRoomDetail {
   const game = room.game;
@@ -169,26 +193,7 @@ export function toAdminRoomDetail(room: Room, now: number = Date.now()): AdminRo
       ready: s.ready,
       connected: s.connected,
     })),
-    game:
-      game === null
-        ? null
-        : {
-            matchId: game.matchId,
-            editionId: game.editionId,
-            phase: game.state.phase,
-            round: game.state.round,
-            leader: game.state.leader,
-            pot: [...game.state.pot],
-            winner: game.state.winner,
-            startedAt: game.startedAt,
-            turnDeadline: game.turnDeadline,
-            events: game.log.length,
-            players: game.state.players.map((p) => ({
-              id: p.id,
-              active: p.active,
-              hand: [...p.hand],
-            })),
-          },
+    game: game === null ? null : inspectGame(game),
     recentEvents:
       game === null
         ? []

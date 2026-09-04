@@ -65,6 +65,7 @@ describe("protocol schemas", () => {
       [
         "chat:react",
         "chat:send",
+        "game:command",
         "game:forfeit",
         "game:playCard",
         "game:selectStat",

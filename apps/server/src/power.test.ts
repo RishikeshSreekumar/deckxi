@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { baselineBot } from "@deckxi/engine";
 import type { RedactedGameEvent, RoomJoined, TurnTimerView } from "@deckxi/shared";
-import { startTestServer, type TestClient, type TestServer } from "./testkit.js";
+import { startTestServer, trumpsState, type TestClient, type TestServer } from "./testkit.js";
 
 let server: TestServer | undefined;
 
@@ -78,7 +78,7 @@ describe("power trumps over the wire", () => {
     expect(started).toMatchObject({ config: { mode: "power-trumps" } });
 
     const room = s.app.rooms.getRoom(host.joined.roomId);
-    const leaderId = room?.game?.state.leader as string;
+    const leaderId = trumpsState(room).leader as string;
     const leader = bySelf(seats, leaderId);
     const others = seats.filter((x) => x.joined.selfId !== leaderId) as [Seat, Seat];
     const stats = (started as { config: { stats: { key: string }[] } }).config.stats;
@@ -100,7 +100,7 @@ describe("power trumps over the wire", () => {
     const otherSaw = received(others[0]).find((e) => e.type === "STAT_SELECTED");
     expect(leaderSaw).toMatchObject({ cardId: expect.any(String), power: { kind: "powerplay" } });
     expect(otherSaw).toMatchObject({ cardId: null, power: { kind: "powerplay" } });
-    expect(room?.game?.state.phase).toBe("responding");
+    expect(trumpsState(room).phase).toBe("responding");
 
     // The first answer, with a DRS whose stat only its owner sees.
     await others[0].client.call("game:playCard", {
@@ -148,7 +148,7 @@ describe("power trumps over the wire", () => {
     await host.client.call("room:start");
     await expect.poll(() => host.timers.length).toBeGreaterThan(0);
     const room = s.app.rooms.getRoom(host.joined.roomId);
-    const leaderId = room?.game?.state.leader as string;
+    const leaderId = trumpsState(room).leader as string;
     expect(host.timers[0]).toMatchObject({ playerId: leaderId, waitingOn: [leaderId] });
 
     // The leader's clock runs out: the call is automatic and the responding
@@ -180,7 +180,7 @@ describe("power trumps over the wire", () => {
       const room = s.app.rooms.getRoom(host.joined.roomId);
       if (room === undefined) throw new Error("room vanished");
       if (room.phase === "results") break;
-      const state = room.game?.state;
+      const state = trumpsState(room);
       if (state === undefined) throw new Error("no game");
       const mover =
         state.phase === "responding"

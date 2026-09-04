@@ -66,6 +66,7 @@ export function AdminRoomScreen() {
         <Field label="Edition" value={room?.editionId ?? null} />
         <Field label="Match" value={room?.matchId ?? null} />
         <Field label="Events" value={room?.game?.events ?? null} />
+        <Field label="Mode" value={room?.game?.mode ?? room?.gameMode ?? null} />
       </section>
 
       <section className="panel">

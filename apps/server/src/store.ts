@@ -40,11 +40,18 @@ export interface UserMatchSummary {
   outcome: "won" | "lost" | "unfinished";
 }
 
+export interface ModeStats {
+  games: number;
+  wins: number;
+}
+
 export interface UserStats {
   games: number;
   wins: number;
   /** The stat this user picks most when leading (auto-plays excluded). */
   favouriteStat: string | null;
+  /** The same tallies split by game mode (Phase 9); modes never played are absent. */
+  byMode: Record<string, ModeStats>;
 }
 
 /** One row of the admin match list (#69) — enough to pick a replay. */
@@ -143,12 +150,17 @@ export class InMemoryMatchStore implements MatchStore {
   userStats(userId: string): Promise<UserStats> {
     let games = 0;
     let wins = 0;
+    const byMode: Record<string, ModeStats> = {};
     const statPicks = new Map<string, number>();
     for (const match of this.matches.values()) {
       const me = match.players.find((p) => p.userId === userId);
       if (me === undefined) continue;
       games++;
-      if (match.result?.winnerSessionId === me.sessionId) wins++;
+      const won = match.result?.winnerSessionId === me.sessionId;
+      if (won) wins++;
+      const mode = (byMode[match.gameMode] ??= { games: 0, wins: 0 });
+      mode.games++;
+      if (won) mode.wins++;
       for (const { event } of match.events) {
         if (event.type === "STAT_SELECTED" && event.playerId === me.sessionId && !event.auto) {
           statPicks.set(event.stat, (statPicks.get(event.stat) ?? 0) + 1);
@@ -163,7 +175,7 @@ export class InMemoryMatchStore implements MatchStore {
         favouriteStat = stat;
       }
     }
-    return Promise.resolve({ games, wins, favouriteStat });
+    return Promise.resolve({ games, wins, favouriteStat, byMode });
   }
 
   listMatches(limit = HISTORY_LIMIT): Promise<MatchListRow[]> {
