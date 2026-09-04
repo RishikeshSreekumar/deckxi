@@ -12,7 +12,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { replayUntil, type GameEvent, type GameState } from "@deckxi/engine";
+import { getMode, replayMode, type GameEvent, type ModeInspection } from "@deckxi/engine";
 import { TrumpCard } from "@deckxi/ui";
 import {
   fetchAdminMatch,
@@ -34,7 +34,27 @@ function highlightAt(events: GameEvent[], index: number): string | undefined {
   return undefined;
 }
 
+/** Squad Draft events, which the trumps union does not know about. */
+function describeSquad(event: Record<string, unknown>): string | null {
+  const who = String(event["playerId"] ?? "").slice(0, 8);
+  const auto = event["auto"] === true ? " (auto)" : "";
+  switch (event["type"]) {
+    case "CARD_DRAFTED":
+      return `pick ${String(event["pick"])}: ${who} took ${String(event["cardId"])}${auto}`;
+    case "DRAFT_COMPLETED":
+      return "every squad is full";
+    case "XI_SUBMITTED":
+      return `${who} named an XI${auto}`;
+    case "MATCHES_PLAYED":
+      return "the league played out";
+    default:
+      return null;
+  }
+}
+
 function describe(event: GameEvent): string {
+  const squad = describeSquad(event as unknown as Record<string, unknown>);
+  if (squad !== null) return squad;
   switch (event.type) {
     case "GAME_STARTED":
       return `${event.config.players.length} players, ${event.config.cards.length} cards, seed ${event.config.seed}`;
@@ -123,14 +143,18 @@ export function AdminReplayScreen() {
   // One fold per position rather than an incremental cursor: replaying a few
   // hundred events is microseconds, and recomputing from the log is the whole
   // guarantee — an incrementally-mutated view could drift from the engine.
-  const state = useMemo<GameState | null>(() => {
-    if (events.length === 0 || index === 0) return null;
+  const gameMode = match === null || match === "missing" ? null : match.gameMode;
+  // Every mode replays the same way: its reducer over its log. The operator
+  // view is the mode's own inspection, so this screen never learns a rule.
+  const state = useMemo<ModeInspection | null>(() => {
+    if (events.length === 0 || index === 0 || gameMode === null) return null;
     try {
-      return replayUntil(events, index);
+      const folded = replayMode(gameMode, events, index);
+      return getMode(gameMode).inspect(folded);
     } catch {
       return null;
     }
-  }, [events, index]);
+  }, [events, index, gameMode]);
 
   const last = events.length;
   const step = useCallback(
@@ -248,16 +272,16 @@ export function AdminReplayScreen() {
               <strong>{state.round}</strong>
             </div>
             <div className="admin-field">
-              <span className="hint">Leader</span>
-              <strong>{nameOf(state.leader)}</strong>
+              <span className="hint">To move</span>
+              <strong>{state.leader === null ? "—" : nameOf(state.leader)}</strong>
             </div>
             <div className="admin-field">
               <span className="hint">Phase</span>
               <strong>{state.phase}</strong>
             </div>
             <div className="admin-field">
-              <span className="hint">Pot</span>
-              <strong>{state.pot.length}</strong>
+              <span className="hint">{gameMode === "squad-draft" ? "Pool" : "Pot"}</span>
+              <strong>{state.loose.length}</strong>
             </div>
             <div className="admin-field">
               <span className="hint">Winner</span>
@@ -273,10 +297,10 @@ export function AdminReplayScreen() {
                   {!player.active && " · out"}
                   {player.id === state.leader && " · leading"}
                 </strong>
-                <span className="hint">{player.hand.length} cards</span>
+                <span className="hint">{player.cards.length} cards</span>
                 <TrumpCard
                   editionId={editionId}
-                  cardId={player.hand[0] ?? null}
+                  cardId={player.cards[0] ?? null}
                   size="hand"
                   {...(highlight !== undefined ? { highlightStat: highlight } : {})}
                 />

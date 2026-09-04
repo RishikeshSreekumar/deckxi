@@ -316,7 +316,7 @@ describe("room summary", () => {
         { id: "p2", name: "Ghost", connected: false },
       ],
       spectators: [],
-      game: { matchId: "m1", state: { round: 4 } },
+      game: { matchId: "m1", state: {}, mode: { status: () => ({ round: 4 }) } },
       lastActivityAt: 1_000,
     } as unknown as Room;
     expect(toAdminRoomSummary(room, 31_000)).toMatchObject({

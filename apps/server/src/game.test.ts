@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { RedactedGameEvent, RoomJoined, RoomView } from "@deckxi/shared";
-import { startTestServer, type TestClient, type TestServer } from "./testkit.js";
+import { startTestServer, trumpsState, type TestClient, type TestServer } from "./testkit.js";
 
 let server: TestServer | undefined;
 
@@ -106,7 +106,7 @@ describe("authoritative game loop", () => {
     await expect.poll(() => received(host).length).toBeGreaterThan(0);
 
     const room = s.app.rooms.getRoom(host.joined.roomId);
-    const leaderId = room?.game?.state.leader;
+    const leaderId = trumpsState(room).leader;
     const leader = seats.find((x) => x.joined.selfId === leaderId) as Seat;
     const follower = seats.find((x) => x.joined.selfId !== leaderId) as Seat;
     const stat = gameStarted(host).config.stats[0]?.key as string;
@@ -142,7 +142,7 @@ describe("authoritative game loop", () => {
       const room = s.app.rooms.getRoom(host.joined.roomId);
       if (room === undefined) throw new Error("room vanished");
       if (room.phase === "results") break;
-      const leaderId = room.game?.state.leader as string;
+      const leaderId = trumpsState(room).leader as string;
       const leader = seats.find((x) => x.joined.selfId === leaderId) as Seat;
       await leader.client.call("game:selectStat", { stat });
     }

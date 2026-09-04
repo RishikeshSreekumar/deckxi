@@ -4,7 +4,16 @@
  */
 import { io as connect, type Socket } from "socket.io-client";
 import { PROTOCOL_VERSION, type Ack } from "@deckxi/shared";
+import type { GameState } from "@deckxi/engine";
 import { buildApp, type App, type AppOptions } from "./app.js";
+import type { Room } from "./rooms.js";
+
+/** The trumps state inside a room — tests that drive trumps games read it directly. */
+export function trumpsState(room: Room | undefined): GameState {
+  const state = room?.game?.state;
+  if (state === undefined) throw new Error("no game in this room");
+  return state as GameState;
+}
 
 export interface TestServer {
   app: App;

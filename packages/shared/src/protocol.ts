@@ -9,9 +9,10 @@
  * and the RNG seed never leave the server (anti-cheat by construction).
  */
 import { z } from "zod";
+import { draftPickSchema, submitXiSchema, type SquadDraftWireEvent } from "./squadDraft.js";
 
 /** Bumped on any breaking change; the handshake rejects mismatched clients. */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 // ---------------------------------------------------------------------------
 // Primitives & limits
@@ -45,19 +46,38 @@ export const joinCodeSchema = z
 // Room settings (host-editable in the lobby)
 // ---------------------------------------------------------------------------
 
-export const GAME_MODES = ["classic-trumps", "power-trumps"] as const;
+export const GAME_MODES = ["classic-trumps", "power-trumps", "squad-draft"] as const;
 export type GameModeId = (typeof GAME_MODES)[number];
 
-/** Copy for the lobby's mode picker and the table's rules sheet. */
-export const GAME_MODE_INFO: Record<GameModeId, { name: string; blurb: string }> = {
+/**
+ * Copy for the lobby's mode picker and the table's rules sheet, plus the seat
+ * limits the lobby shows before the server enforces them. The engine's mode
+ * registry is the authority on limits; these must agree with it (checked in
+ * the engine's registry test).
+ */
+export const GAME_MODE_INFO: Record<
+  GameModeId,
+  { name: string; blurb: string; players: { min: number; max: number }; family: "trumps" | "squad" }
+> = {
   "classic-trumps": {
     name: "Classic trumps",
     blurb: "Call a stat from your top card. Best number takes the cards. Winner calls next.",
+    players: { min: 2, max: 6 },
+    family: "trumps",
   },
   "power-trumps": {
     name: "Power trumps",
     blurb:
       "Pick one of your top three cards. The call rotates round the table and can't repeat. Three one-shot powers: win big, or lose one extra card.",
+    players: { min: 2, max: 6 },
+    family: "trumps",
+  },
+  "squad-draft": {
+    name: "Squad draft",
+    blurb:
+      "Snake-draft a squad of 13 from a shared pool, name your XI, then every side plays every other across three phases. Most points wins.",
+    players: { min: 2, max: 4 },
+    family: "squad",
   },
 };
 
@@ -142,6 +162,19 @@ export const playCardSchema = z.object({
   power: powerPlaySchema.nullable().optional(),
 });
 
+/**
+ * One message for every mode's moves. The union is the sum of the modes'
+ * client commands; the server validates here and the mode decides whether
+ * the command is one it speaks (`unknown-command` otherwise).
+ */
+export const gameCommandSchema = z.discriminatedUnion("type", [
+  selectStatSchema.extend({ type: z.literal("SELECT_STAT") }),
+  playCardSchema.extend({ type: z.literal("PLAY_CARD") }),
+  draftPickSchema,
+  submitXiSchema,
+]);
+export type GameCommandPayload = z.infer<typeof gameCommandSchema>;
+
 export const chatSendSchema = z.object({
   text: z.string().trim().min(1).max(MAX_CHAT_LENGTH),
 });
@@ -163,6 +196,7 @@ export const clientMessageSchemas = {
   "game:selectStat": selectStatSchema,
   "game:playCard": playCardSchema,
   "game:forfeit": emptySchema,
+  "game:command": gameCommandSchema,
   "chat:send": chatSendSchema,
   "chat:react": chatReactSchema,
 } as const;
@@ -182,6 +216,8 @@ export const ERROR_CODES = [
   "not-host",
   "not-in-lobby",
   "not-enough-players",
+  /** More seats filled than the chosen mode supports. */
+  "too-many-players",
   "players-not-ready",
   "game-not-running",
   "command-rejected",
@@ -248,7 +284,7 @@ export interface RoomJoined {
 /** Ack payload for room:resume — snapshot plus your redacted event log. */
 export interface RoomResumed extends RoomJoined {
   /** Redacted log of the game in progress (empty in lobby/results). */
-  events: RedactedGameEvent[];
+  events: WireGameEvent[];
   /** Current turn deadline, if a turn timer is running. */
   timer: TurnTimerView | null;
 }
@@ -258,7 +294,7 @@ export interface RoomResumed extends RoomJoined {
 // ---------------------------------------------------------------------------
 
 export interface RedactedGameConfig {
-  mode: GameModeId;
+  mode: "classic-trumps" | "power-trumps";
   players: string[];
   /** Full definitions of every card in play — public edition data. */
   cards: { id: string; stats: Record<string, number> }[];
@@ -309,12 +345,11 @@ export interface PowerRoundView {
 }
 
 /**
- * Engine events with hidden information stripped per viewer. GAME_STARTED
+ * Trumps events with hidden information stripped per viewer. GAME_STARTED
  * carries your own hand plus card counts; the seed and other hands never
- * appear. Every event carries the server-assigned sequence number so
- * reconnection can replay deterministically.
+ * appear.
  */
-export type RedactedGameEvent = { seq: number } & (
+export type TrumpsEventView =
   | {
       type: "GAME_STARTED";
       config: RedactedGameConfig;
@@ -355,8 +390,19 @@ export type RedactedGameEvent = { seq: number } & (
       type: "GAME_ENDED";
       winner: string;
       reason: "last-standing" | "opponents-forfeited" | "round-limit" | "final-tie";
-    }
-);
+    };
+
+/**
+ * A trumps event on the wire. Every event carries the server-assigned
+ * sequence number so reconnection can replay deterministically.
+ */
+export type RedactedGameEvent = { seq: number } & TrumpsEventView;
+
+/**
+ * Any mode's event on the wire. The room's `gameMode` says which member a
+ * client should expect; GAME_STARTED's `config.mode` says the same thing.
+ */
+export type WireGameEvent = RedactedGameEvent | SquadDraftWireEvent;
 
 export interface TurnTimerView {
   /** Whose turn the timer is for: the leader, or (responding) the first player still to answer. */
@@ -396,7 +442,7 @@ export interface ChatReactionView {
 export interface ServerToClientEvents {
   "room:state": (room: RoomView) => void;
   "room:closed": (info: { reason: RoomClosedReason }) => void;
-  "game:events": (events: RedactedGameEvent[]) => void;
+  "game:events": (events: WireGameEvent[]) => void;
   "game:timer": (timer: TurnTimerView | null) => void;
   "chat:message": (message: ChatMessageView) => void;
   "chat:reaction": (reaction: ChatReactionView) => void;
@@ -433,6 +479,10 @@ export interface ClientToServerEvents {
     ack: (reply: Ack<null>) => void,
   ) => void;
   "game:forfeit": (payload: undefined, ack: (reply: Ack<null>) => void) => void;
+  "game:command": (
+    payload: z.input<typeof gameCommandSchema>,
+    ack: (reply: Ack<null>) => void,
+  ) => void;
   "chat:send": (payload: z.input<typeof chatSendSchema>, ack: (reply: Ack<null>) => void) => void;
   "chat:react": (payload: z.input<typeof chatReactSchema>, ack: (reply: Ack<null>) => void) => void;
 }

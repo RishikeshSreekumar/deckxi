@@ -7,8 +7,11 @@ import { create } from "zustand";
 import type {
   ChatMessageView,
   ChatReactionView,
+  GameCommandPayload,
   PowerPlayView,
   RedactedGameEvent,
+  SquadDraftWireEvent,
+  WireGameEvent,
   OpsNoticeView,
   RoomClosedReason,
   RoomJoined,
@@ -22,6 +25,7 @@ import {
   type ClientGameState,
   type ResolvedRound,
 } from "../game/clientGame.js";
+import { applySquadEvents, type SquadClientState } from "../game/squadClient.js";
 import { call, errorMessage, getSocket } from "../lib/socket.js";
 import { clearSession, loadSession, saveSession, savePlayerName } from "../lib/session.js";
 import { sounds } from "../lib/sounds.js";
@@ -55,7 +59,10 @@ interface AppState {
   selfId: string | null;
   spectator: boolean;
   room: RoomView | null;
+  /** The trumps game in this room (classic or power), folded from the wire. */
   game: ClientGameState | null;
+  /** The Squad Draft in this room; which slice is live follows the room's mode. */
+  squad: SquadClientState | null;
   timer: TurnTimerView | null;
   /** Rounds resolved but not yet shown — the reveal presenter drains this. */
   pendingReveals: ResolvedRound[];
@@ -83,6 +90,8 @@ interface AppState {
   ): Promise<void>;
   /** Power trumps: answer the call with one of your top cards. */
   playCard(cardIndex: number, power: PowerPlayView | null): Promise<void>;
+  /** Any mode's move (Squad Draft picks and XIs go this way). */
+  command(payload: GameCommandPayload): Promise<void>;
   forfeit(): Promise<void>;
   sendChat(text: string): Promise<void>;
   react(emote: string): Promise<void>;
@@ -99,8 +108,10 @@ function joined(set: SetState, data: RoomJoined): void {
     spectator: data.spectator,
     room: data.room,
     game: null,
+    squad: null,
     timer: null,
     pendingReveals: [],
+    presenting: false,
     pendingStat: null,
     chat: [],
     reactions: [],
@@ -128,6 +139,7 @@ export const useStore = create<AppState>((set, get) => {
     spectator: false,
     room: null,
     game: null,
+    squad: null,
     timer: null,
     pendingReveals: [],
     presenting: false,
@@ -167,7 +179,15 @@ export const useStore = create<AppState>((set, get) => {
 
     async leaveRoom() {
       clearSession();
-      set({ room: null, game: null, timer: null, selfId: null, pendingReveals: [] });
+      set({
+        room: null,
+        game: null,
+        squad: null,
+        timer: null,
+        selfId: null,
+        pendingReveals: [],
+        presenting: false,
+      });
       try {
         await call<"room:leave", null>("room:leave", undefined);
       } catch {
@@ -207,6 +227,10 @@ export const useStore = create<AppState>((set, get) => {
 
     async playCard(cardIndex, power) {
       await guarded(() => call<"game:playCard", null>("game:playCard", { cardIndex, power }));
+    },
+
+    async command(payload) {
+      await guarded(() => call<"game:command", null>("game:command", payload));
     },
 
     async forfeit() {
@@ -253,12 +277,19 @@ export function initSocket(): void {
         try {
           const data = await call<"room:resume", RoomResumed>("room:resume", session);
           joined(set, data);
-          const game = applyRedactedEvents(null, data.events, data.spectator ? null : data.selfId);
-          set({ game, timer: data.timer });
+          const viewer = data.spectator ? null : data.selfId;
+          if (data.room.settings.gameMode === "squad-draft") {
+            const squad = applySquadEvents(null, data.events as SquadDraftWireEvent[], viewer);
+            // Rejoining after the matches: show the table, not the reveal.
+            set({ squad, timer: data.timer });
+          } else {
+            const game = applyRedactedEvents(null, data.events as RedactedGameEvent[], viewer);
+            set({ game, timer: data.timer });
+          }
         } catch {
           clearSession();
           if (get().room !== null || wasReconnecting) {
-            set({ room: null, game: null, timer: null, selfId: null });
+            set({ room: null, game: null, squad: null, timer: null, selfId: null });
             get().toast("Couldn't rejoin your game — it may have ended.", "error");
           }
         }
@@ -296,7 +327,7 @@ export function initSocket(): void {
     set({ room });
     // Rematch: server flips results → lobby and clears the old game.
     if (previous?.phase === "results" && room.phase === "lobby") {
-      set({ game: null, timer: null, pendingReveals: [], pendingStat: null });
+      set({ game: null, squad: null, timer: null, pendingReveals: [], pendingStat: null });
     }
   });
 
@@ -305,22 +336,35 @@ export function initSocket(): void {
     set({
       room: null,
       game: null,
+      squad: null,
       timer: null,
       selfId: null,
       pendingReveals: [],
+      presenting: false,
       roomClosedReason: reason,
     });
   });
 
-  socket.on("game:events", (events: RedactedGameEvent[]) => {
+  socket.on("game:events", (events: WireGameEvent[]) => {
     const state = get();
     const selfId = state.spectator ? null : state.selfId;
+    if (state.room?.settings.gameMode === "squad-draft") {
+      const squadEvents = events as SquadDraftWireEvent[];
+      const squad = applySquadEvents(state.squad, squadEvents, selfId);
+      if (squad === null) return;
+      if (squadEvents.some((e) => e.type === "GAME_STARTED")) sounds.deal();
+      // The matches are the climax: hold the results screen back until the
+      // table has shown them phase by phase.
+      const played = squadEvents.some((e) => e.type === "MATCHES_PLAYED");
+      set({ squad, ...(played ? { presenting: true } : {}) });
+      return;
+    }
     // Fold one event at a time so each resolved round's snapshot (with its
     // pot share) can be queued for the presenter.
     let game = state.game;
     const reveals = [...state.pendingReveals];
     let resolvedAny = false;
-    for (const event of events) {
+    for (const event of events as RedactedGameEvent[]) {
       game = applyRedactedEvents(game, [event], selfId);
       if (event.type === "GAME_STARTED") sounds.deal();
       if (event.type === "ROUND_RESOLVED" && game?.lastResolved != null) {

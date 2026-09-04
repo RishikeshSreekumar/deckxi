@@ -9,6 +9,7 @@ import {
   type Ack,
   type ClientMessageName,
   type ErrorCode,
+  type GameCommandPayload,
   type PowerPlayView,
   type RoomJoined,
   type RoomSettings,
@@ -80,7 +81,9 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       detachRoom(room);
     },
     gameEvents(room, events: SeqEvent[]) {
-      const editionId = room.game?.editionId ?? room.settings.editionId;
+      const game = room.game;
+      if (game === null) return;
+      const editionId = game.editionId;
       for (const { seq, event } of events) {
         // Debug level: on stdout this is off in a deployment, but the ops
         // feed tees before the level filter, so the dashboard still sees
@@ -102,7 +105,7 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
         const viewerId = session.spectator ? null : session.id;
         socket.emit(
           "game:events",
-          events.map((e) => redactEvent(e, viewerId, editionId)),
+          events.map((e) => redactEvent(game.mode, e, viewerId, editionId)),
         );
       }
     },
@@ -287,7 +290,7 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       const viewerId = session.spectator ? null : session.id;
       return {
         ...joined,
-        events: game !== null ? redactLog(game.log, viewerId, game.editionId) : [],
+        events: game !== null ? redactLog(game.mode, game.log, viewerId, game.editionId) : [],
         timer: game !== null && room.phase === "playing" ? manager.timerView(game) : null,
       };
     });
@@ -336,6 +339,12 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
 
     on("game:forfeit", () => {
       manager.forfeit(requireSessionId());
+      return null;
+    });
+
+    /** Any mode's move; the mode decides whether it is one it speaks. */
+    on("game:command", (payload: GameCommandPayload) => {
+      manager.command(requireSessionId(), payload);
       return null;
     });
 

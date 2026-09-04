@@ -8,9 +8,11 @@
  * control nobody will use.
  */
 import { useEffect, useState } from "react";
+import { GAME_MODES } from "@deckxi/shared";
 import { fetchAdminFlags, saveAdminFlags, type OpsFlags } from "../lib/admin.js";
 
-const MODES = ["classic-trumps", "power-trumps"];
+/** Every mode the engine registers gets a switch; a new mode is never dark by default. */
+const MODES: readonly string[] = GAME_MODES;
 
 export function AdminOps() {
   const [flags, setFlags] = useState<OpsFlags | null>(null);

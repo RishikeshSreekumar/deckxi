@@ -13,6 +13,7 @@ import {
   type MatchRecord,
   type MatchResult,
   type MatchStore,
+  type ModeStats,
   type StoredMatch,
   type UserMatchSummary,
   type UserStats,
@@ -159,10 +160,24 @@ export class PostgresMatchStore implements MatchStore {
       .orderBy(sql`count(*) desc`)
       .limit(1);
 
+    const perMode = await this.db
+      .select({
+        mode: matches.gameMode,
+        games: sql<number>`count(*)::int`,
+        wins: sql<number>`count(*) filter (where ${matches.winnerSessionId} = ${matchPlayers.sessionId})::int`,
+      })
+      .from(matchPlayers)
+      .innerJoin(matches, eq(matches.id, matchPlayers.matchId))
+      .where(eq(matchPlayers.userId, userId))
+      .groupBy(matches.gameMode);
+    const byMode: Record<string, ModeStats> = {};
+    for (const row of perMode) byMode[row.mode] = { games: row.games, wins: row.wins };
+
     return {
       games: totals?.games ?? 0,
       wins: totals?.wins ?? 0,
       favouriteStat: favourite?.stat ?? null,
+      byMode,
     };
   }
 

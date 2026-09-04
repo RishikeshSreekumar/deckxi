@@ -3288,3 +3288,59 @@ select:focus {
   flex-wrap: wrap;
   gap: var(--space-3);
 }
+
+/* -- squad draft: the pieces eager screens show (results, lobby, profile).
+   The draft board's own styles ride with its lazy chunk (screens/squadDraft.css). */
+
+.league-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+}
+
+.league-table th,
+.league-table td {
+  padding: var(--space-2) var(--space-2);
+  text-align: center;
+  border-bottom: 1px solid var(--ink-line-soft);
+}
+
+.league-table th {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.league-table .league-name {
+  text-align: left;
+  font-weight: var(--weight-semibold);
+}
+
+.league-row--top td {
+  background: var(--surface-field);
+  color: var(--text-on-field);
+}
+
+.mode-seats {
+  display: block;
+  margin-top: var(--space-1);
+}
+
+.mode-stats {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.mode-stats li {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3) var(--space-4);
+  border: var(--edge) solid var(--ink-line);
+  border-radius: var(--radius-sm);
+}

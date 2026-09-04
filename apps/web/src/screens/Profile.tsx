@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { AVATARS, MAX_NAME_LENGTH } from "@deckxi/shared";
+import { AVATARS, GAME_MODE_INFO, MAX_NAME_LENGTH, type GameModeId } from "@deckxi/shared";
 import { authClient, ensureSession } from "../lib/auth.js";
 import { fetchProfile, type Profile } from "../lib/api.js";
 import { Avatar, DEFAULT_EDITION_ID, statName } from "@deckxi/ui";
@@ -237,6 +237,18 @@ export function ProfileScreen() {
               <span>favourite stat</span>
             </div>
           </div>
+          {Object.keys(stats.byMode ?? {}).length > 0 && (
+            <ul className="mode-stats" aria-label="Record by mode" data-testid="mode-stats">
+              {Object.entries(stats.byMode).map(([mode, tally]) => (
+                <li key={mode}>
+                  <strong>{GAME_MODE_INFO[mode as GameModeId]?.name ?? mode}</strong>
+                  <span className="hint">
+                    {tally.wins}/{tally.games} won
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
 
           <Link className="button" to="/history">
             Match history

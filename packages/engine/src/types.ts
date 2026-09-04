@@ -24,15 +24,23 @@ export interface StatDefinition {
 export interface CardDefinition {
   id: CardId;
   stats: Record<StatKey, number>;
+  /**
+   * Optional card metadata some modes read (Squad Draft: role balance and
+   * the nation cap). Trumps ignores both — a card is its numbers there.
+   */
+  role?: string;
+  nation?: string;
 }
 
 /**
- * Which rule set a game runs under. `classic-trumps` is the plain game
+ * Which trumps rule set a game runs under. `classic-trumps` is the plain game
  * (`docs/games/classic-trumps.md`); `power-trumps` adds card choice, the
  * no-repeat rule, rotating lead and the three power cards
- * (`docs/games/power-trumps.md`).
+ * (`docs/games/power-trumps.md`). Both are variants of the one trumps state
+ * machine in this package; other games (Squad Draft) are separate `GameMode`
+ * plugins under `modes/`.
  */
-export type GameMode = "classic-trumps" | "power-trumps";
+export type TrumpsVariant = "classic-trumps" | "power-trumps";
 
 /** Config as supplied by the caller; `maxRounds` defaults to 1000. */
 export interface GameConfigInput {
@@ -43,7 +51,7 @@ export interface GameConfigInput {
   seed: number;
   maxRounds?: number;
   /** Defaults to `classic-trumps`. */
-  mode?: GameMode;
+  mode?: TrumpsVariant;
 }
 
 /** Normalised config as stored in the GAME_STARTED event. */
@@ -171,7 +179,16 @@ export type CommandRejectionReason =
   | "not-responding"
   | "already-played"
   | "power-unavailable"
-  | "power-not-allowed";
+  | "power-not-allowed"
+  /** A command this game mode does not understand (wrong mode, or a bad payload). */
+  | "unknown-command"
+  // Squad Draft (docs/games/squad-draft.md)
+  | "not-on-the-clock"
+  | "card-not-in-pool"
+  | "nation-cap"
+  | "not-building"
+  | "already-submitted"
+  | "invalid-roster";
 
 /** Invalid commands are rejected with a reason code and produce no events. */
 export class CommandRejectedError extends Error {

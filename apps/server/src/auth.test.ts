@@ -93,7 +93,7 @@ describe("guest identity", () => {
     };
     expect(body.user.isAnonymous).toBe(true);
     expect(body.user.email).toBeNull();
-    expect(body.stats).toEqual({ games: 0, wins: 0, favouriteStat: null });
+    expect(body.stats).toEqual({ games: 0, wins: 0, favouriteStat: null, byMode: {} });
   });
 
   it("rejects profile requests without a session", async () => {

@@ -8,20 +8,19 @@
  */
 import { randomInt, randomUUID } from "node:crypto";
 import {
-  applyCommand,
   CommandRejectedError,
-  initGame,
+  getMode,
   MAX_PLAYERS,
   MIN_PLAYERS,
-  reduceAll,
+  type AnyGameMode,
   type CardDefinition,
-  type Command,
-  type GameState,
+  type ModeStatus,
   type StatDefinition,
 } from "@deckxi/engine";
 import { CURRENT_EDITION_ID, loadEdition } from "@deckxi/data";
 import type {
   ErrorCode,
+  GameCommandPayload,
   PowerPlayView,
   RoomPhase,
   RoomSettings,
@@ -61,11 +60,17 @@ export interface Session {
   resumeToken: string;
 }
 
-/** A running (or just-finished) game inside a room. */
+/**
+ * A running (or just-finished) game inside a room. The room never looks
+ * inside `state`: it is whatever the mode's reducer produces, threaded back
+ * into that same mode's hooks (see `AnyGameMode`).
+ */
 export interface GameInstance {
   matchId: string;
   editionId: string;
-  state: GameState;
+  /** The plugin running this game — settings.gameMode, resolved at start. */
+  mode: AnyGameMode;
+  state: unknown;
   /** Full, unredacted event log — server truth; redacted per viewer on send. */
   log: SeqEvent[];
   startedAt: number;
@@ -76,9 +81,9 @@ export interface GameInstance {
   turnKey: string | null;
 }
 
-/** The timer is per round *phase*: a call and the answers to it get one clock each. */
-function turnKey(state: GameState): string {
-  return `${state.round}:${state.phase}`;
+/** The mode's view of where the game stands — timers, dashboards and persistence read this. */
+function statusOf(game: GameInstance): ModeStatus {
+  return game.mode.status(game.state);
 }
 
 export interface Room {
@@ -328,10 +333,11 @@ export class RoomManager {
     // Leaving mid-game is a forfeit — the engine decides the consequences.
     if (
       room.phase === "playing" &&
-      room.game?.state.players.some((p) => p.id === sessionId && p.active) === true
+      room.game !== null &&
+      statusOf(room.game).active.includes(sessionId)
     ) {
       try {
-        this.applyEngineCommand(room, { type: "FORFEIT", playerId: sessionId });
+        this.applyEngineCommand(room, room.game.mode.forfeit(sessionId));
       } catch {
         // Game already over or command rejected — removal proceeds regardless.
       }
@@ -378,49 +384,58 @@ export class RoomManager {
       // Killed after the lobby formed: the room stays, the game cannot start.
       throw new RoomError("mode-disabled", `${room.settings.gameMode} is switched off right now`);
     }
-    if (room.players.length < MIN_PLAYERS) {
-      throw new RoomError("not-enough-players", `need at least ${MIN_PLAYERS} players`);
+    const mode = getMode(room.settings.gameMode);
+    if (room.players.length < mode.players.min) {
+      throw new RoomError("not-enough-players", `need at least ${mode.players.min} players`);
+    }
+    if (room.players.length > mode.players.max) {
+      throw new RoomError(
+        "too-many-players",
+        `${mode.id} seats at most ${mode.players.max}; ${room.players.length} are here`,
+      );
     }
     const notReady = room.players.filter((p) => p.id !== room.hostId && !p.ready);
     if (notReady.length > 0) {
       throw new RoomError("players-not-ready", notReady.map((p) => p.name).join(", "));
     }
 
-    const { cards, stats } = buildDeck(room.settings, room.players.length);
-    const started = initGame({
+    const { cards, stats } = buildDeck(room.settings, mode, room.players.length);
+    const started: unknown = mode.init({
       players: room.players.map((p) => p.id),
       cards,
       stats,
       seed: randomInt(2 ** 31),
       maxRounds: room.settings.maxRounds,
-      mode: room.settings.gameMode,
     });
 
-    room.game = {
+    const game: GameInstance = {
       matchId: randomUUID(),
       editionId: room.settings.editionId,
-      state: reduceAll([started]),
-      log: [{ seq: 0, event: started }],
+      mode,
+      state: mode.reduce(undefined, started),
+      log: [{ seq: 0, event: started as SeqEvent["event"] }],
       startedAt: Date.now(),
       turnDeadline: null,
       turnTimer: null,
       turnKey: null,
     };
+    room.game = game;
     room.phase = "playing";
     this.touch(room);
     this.metrics.increment("deckxi_games_started_total");
+    this.metrics.increment("deckxi_mode_games_total", { mode: mode.id });
     this.log.info(
       {
         event: "game.started",
         roomId: room.id,
-        matchId: room.game.matchId,
-        editionId: room.game.editionId,
+        matchId: game.matchId,
+        editionId: game.editionId,
+        mode: mode.id,
         players: room.players.length,
       },
       "game started",
     );
 
-    const game = room.game;
     this.persist("createMatch", async () => {
       await this.store.createMatch({
         matchId: game.matchId,
@@ -440,19 +455,37 @@ export class RoomManager {
     });
 
     this.observer.roomState(room);
-    this.observer.gameEvents(room, room.game.log);
+    this.observer.gameEvents(room, game.log);
     this.scheduleTurn(room);
   }
 
+  /**
+   * A player's move in whatever mode the room runs. The payload has passed
+   * the shared schema; the mode turns it into its own command (or refuses
+   * it as `unknown-command` if it belongs to another game).
+   */
+  command(sessionId: string, payload: GameCommandPayload): void {
+    const { room, session } = this.requirePlayer(sessionId);
+    if (room.phase !== "playing" || room.game === null) throw new RoomError("game-not-running");
+    let command: unknown;
+    try {
+      command = room.game.mode.clientCommand(session.id, payload);
+    } catch (error) {
+      if (error instanceof CommandRejectedError)
+        throw new RoomError("command-rejected", error.reason);
+      throw error;
+    }
+    this.applyEngineCommand(room, command);
+  }
+
+  /** Trumps: the leader's call (kept as its own message for the trumps client). */
   selectStat(
     sessionId: string,
     stat: string,
     options: { cardIndex?: number | undefined; power?: PowerPlayView | null | undefined } = {},
   ): void {
-    const { room, session } = this.requirePlayer(sessionId);
-    this.applyEngineCommand(room, {
+    this.command(sessionId, {
       type: "SELECT_STAT",
-      playerId: session.id,
       stat,
       ...(options.cardIndex !== undefined ? { cardIndex: options.cardIndex } : {}),
       ...(options.power !== undefined ? { power: options.power } : {}),
@@ -461,13 +494,13 @@ export class RoomManager {
 
   /** Power trumps: a non-leader answers the call. */
   playCard(sessionId: string, cardIndex: number, power: PowerPlayView | null = null): void {
-    const { room, session } = this.requirePlayer(sessionId);
-    this.applyEngineCommand(room, { type: "PLAY_CARD", playerId: session.id, cardIndex, power });
+    this.command(sessionId, { type: "PLAY_CARD", cardIndex, power });
   }
 
   forfeit(sessionId: string): void {
     const { room, session } = this.requirePlayer(sessionId);
-    this.applyEngineCommand(room, { type: "FORFEIT", playerId: session.id });
+    if (room.phase !== "playing" || room.game === null) throw new RoomError("game-not-running");
+    this.applyEngineCommand(room, room.game.mode.forfeit(session.id));
   }
 
   /** Host resets a finished room back to the lobby for another game. */
@@ -483,14 +516,14 @@ export class RoomManager {
     this.observer.roomState(room);
   }
 
-  protected applyEngineCommand(room: Room, command: Command): void {
+  protected applyEngineCommand(room: Room, command: unknown): void {
     if (room.phase !== "playing" || room.game === null) {
       throw new RoomError("game-not-running");
     }
     const game = room.game;
-    let events;
+    let events: unknown[];
     try {
-      events = applyCommand(game.state, command);
+      events = game.mode.apply(game.state, command);
     } catch (error) {
       if (error instanceof CommandRejectedError) {
         throw new RoomError("command-rejected", error.reason);
@@ -499,27 +532,34 @@ export class RoomManager {
     }
 
     let seq = (game.log.at(-1)?.seq ?? -1) + 1;
-    const appended: SeqEvent[] = events.map((event) => ({ seq: seq++, event }));
+    const appended: SeqEvent[] = events.map((event) => ({
+      seq: seq++,
+      event: event as SeqEvent["event"],
+    }));
     game.log.push(...appended);
-    game.state = reduceAll(events, game.state);
+    for (const event of events) game.state = game.mode.reduce(game.state, event);
     this.touch(room);
     this.persist("appendEvents", () => this.store.appendEvents(game.matchId, appended));
     this.observer.gameEvents(room, appended);
 
-    if (game.state.phase === "finished") {
+    const status = statusOf(game);
+    if (status.finished) {
       this.clearTurn(game);
       room.phase = "results";
       const ended = appended.find((e) => e.event.type === "GAME_ENDED")?.event;
       const reason = ended?.type === "GAME_ENDED" ? ended.reason : "unknown";
+      const rounds = Math.max(0, status.round - 1);
       this.metrics.increment("deckxi_games_finished_total", { reason });
+      this.metrics.increment("deckxi_mode_games_finished_total", { mode: game.mode.id, reason });
       this.metrics.observeGameDuration(Math.round((Date.now() - game.startedAt) / 1000));
       this.log.info(
         {
           event: "game.finished",
           roomId: room.id,
           matchId: game.matchId,
+          mode: game.mode.id,
           reason,
-          rounds: game.state.round - 1,
+          rounds,
           durationMs: Date.now() - game.startedAt,
         },
         "game finished",
@@ -527,9 +567,9 @@ export class RoomManager {
       this.persist("finishMatch", () =>
         this.store.finishMatch(game.matchId, {
           finishedAt: new Date(),
-          winnerSessionId: game.state.winner ?? "",
-          endReason: ended?.type === "GAME_ENDED" ? ended.reason : "unknown",
-          rounds: game.state.round - 1,
+          winnerSessionId: status.winner ?? "",
+          endReason: reason,
+          rounds,
         }),
       );
       this.observer.timer(room, null);
@@ -553,25 +593,18 @@ export class RoomManager {
   // so a stalled (or disconnected) player never blocks the table.
   // -------------------------------------------------------------------------
 
-  /** Who the table is waiting on right now. */
-  static waitingOn(state: GameState): string[] {
-    if (state.phase === "responding") {
-      const played = state.pending?.plays ?? {};
-      return state.players.filter((p) => p.active && !(p.id in played)).map((p) => p.id);
-    }
-    return [state.leader];
-  }
-
   timerView(game: GameInstance): TurnTimerView | null {
     if (game.turnDeadline === null) return null;
-    const waitingOn = RoomManager.waitingOn(game.state);
-    return { playerId: waitingOn[0] ?? game.state.leader, waitingOn, deadline: game.turnDeadline };
+    const { waitingOn } = statusOf(game);
+    const first = waitingOn[0];
+    if (first === undefined) return null;
+    return { playerId: first, waitingOn, deadline: game.turnDeadline };
   }
 
   protected scheduleTurn(room: Room): void {
     const game = room.game;
     if (game === null || room.phase !== "playing") return;
-    const key = turnKey(game.state);
+    const key = statusOf(game).turnKey;
     // One answer landing must not restart the clock for everyone else still
     // to answer: a phase gets one clock, started when it opens.
     if (key !== game.turnKey || game.turnTimer === null) {
@@ -595,16 +628,16 @@ export class RoomManager {
     const key = game.turnKey;
     // Everyone still to act plays automatically; the handle stays set so the
     // reschedules each auto-play triggers leave this phase's clock alone.
-    for (const playerId of RoomManager.waitingOn(game.state)) {
-      if (room.phase !== "playing" || turnKey(game.state) !== key) return;
+    for (const playerId of statusOf(game).waitingOn) {
+      if (room.phase !== "playing" || statusOf(game).turnKey !== key) return;
       try {
-        this.applyEngineCommand(room, { type: "AUTO_PLAY", playerId });
+        this.applyEngineCommand(room, game.mode.autoPlay(playerId));
       } catch {
         // The engine refused (e.g. a race with game end); nothing to do.
       }
     }
     // Belt and braces: if the phase somehow survived, give it a fresh clock.
-    if (room.phase === "playing" && turnKey(game.state) === key) {
+    if (room.phase === "playing" && statusOf(game).turnKey === key) {
       game.turnTimer = null;
       this.scheduleTurn(room);
     }
@@ -747,13 +780,15 @@ export class RoomManager {
 }
 
 /**
- * Draw this game's deck: a random subset of the edition's cards sized
- * `cardsPerPlayer × players`, plus the edition's stat definitions in engine
- * form. Server-side randomness is fine — the chosen deck is recorded in
- * GAME_STARTED and public.
+ * Draw this game's deck: a random subset of the edition's cards, sized by
+ * the mode (`cardsPerPlayer × players` for trumps; a draft sizes its own
+ * pool), plus the edition's stat definitions in engine form. Server-side
+ * randomness is fine — the chosen deck is recorded in GAME_STARTED and
+ * public. Role and nation ride along for the modes that read them.
  */
 function buildDeck(
   settings: RoomSettings,
+  mode: AnyGameMode,
   playerCount: number,
 ): { cards: CardDefinition[]; stats: StatDefinition[] } {
   const edition = loadEdition(settings.editionId);
@@ -764,9 +799,14 @@ function buildDeck(
     pool[i] = pool[j] as (typeof pool)[number];
     pool[j] = a;
   }
-  const deckSize = Math.min(pool.length, settings.cardsPerPlayer * playerCount);
+  const deckSize = Math.min(pool.length, mode.deckSize(settings.cardsPerPlayer, playerCount));
   return {
-    cards: pool.slice(0, deckSize).map((p) => ({ id: p.id, stats: { ...p.stats } })),
+    cards: pool.slice(0, deckSize).map((p) => ({
+      id: p.id,
+      stats: { ...p.stats },
+      role: p.role,
+      nation: p.nationality,
+    })),
     stats: edition.stats.map((s) => ({
       key: s.key,
       direction: s.direction,

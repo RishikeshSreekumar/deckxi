@@ -16,6 +16,8 @@ export interface ProfileStats {
   games: number;
   wins: number;
   favouriteStat: string | null;
+  /** Games and wins per mode id; modes never played are absent. */
+  byMode: Record<string, { games: number; wins: number }>;
 }
 
 export interface Profile {

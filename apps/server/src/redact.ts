@@ -1,87 +1,37 @@
 /**
  * Redaction — the anti-cheat boundary. The full engine event log (seed, all
  * hands) never leaves the server; each viewer gets a copy with only what
- * they're entitled to see: their own hand, everyone's card counts, and the
- * public reveal/round events.
+ * they're entitled to see. What that is depends on the game, so the rules
+ * live with each mode (`GameMode.redact`); this file adds the sequence
+ * number and fans a log out.
  */
-import type { GameEvent } from "@deckxi/engine";
-import type { RedactedGameEvent } from "@deckxi/shared";
+import type { AnyGameMode, GameEvent } from "@deckxi/engine";
+import type { WireGameEvent } from "@deckxi/shared";
 
 export interface SeqEvent {
   seq: number;
+  /**
+   * Typed as the trumps event for the persistence layer's `type` column and
+   * the tests; at runtime this is whatever the room's mode emitted.
+   */
   event: GameEvent;
 }
 
-/**
- * Redact one logged event for a viewer (`null` = spectator). Reveals are
- * public by construction — they only ever contain cards that just left a
- * hand — but a committed card stays hidden until then, and a DRS stat is
- * the reviewer's secret until the reveal.
- */
+/** Redact one logged event for a viewer (`null` = spectator). */
 export function redactEvent(
+  mode: AnyGameMode,
   { seq, event }: SeqEvent,
   viewerId: string | null,
   editionId: string,
-): RedactedGameEvent {
-  if (event.type === "STAT_SELECTED") {
-    if (event.cardId === undefined) return { seq, ...event };
-    const mine = viewerId === event.playerId;
-    return {
-      seq,
-      type: "STAT_SELECTED",
-      playerId: event.playerId,
-      stat: event.stat,
-      auto: event.auto,
-      cardId: mine ? event.cardId : null,
-      power: event.power ?? null,
-    };
-  }
-  if (event.type === "CARD_PLAYED") {
-    const mine = viewerId === event.playerId;
-    const power =
-      event.power?.kind === "drs" && !mine ? ({ kind: "drs" } as const) : (event.power ?? null);
-    return {
-      seq,
-      type: "CARD_PLAYED",
-      playerId: event.playerId,
-      cardId: mine ? event.cardId : null,
-      power,
-      auto: event.auto,
-    };
-  }
-  if (event.type !== "GAME_STARTED") return { seq, ...event };
-
-  const handCounts: Record<string, number> = {};
-  for (const [playerId, hand] of Object.entries(event.hands)) {
-    handCounts[playerId] = hand.length;
-  }
-  const { config } = event;
-  return {
-    seq,
-    type: "GAME_STARTED",
-    config: {
-      mode: config.mode ?? "classic-trumps",
-      players: [...config.players],
-      cards: config.cards.map((c) => ({ id: c.id, stats: { ...c.stats } })),
-      stats: config.stats.map((s) => ({
-        key: s.key,
-        direction: s.direction,
-        min: s.min,
-        max: s.max,
-      })),
-      maxRounds: config.maxRounds,
-      editionId,
-    },
-    firstLeader: event.firstLeader,
-    yourHand: viewerId !== null && event.hands[viewerId] ? [...event.hands[viewerId]] : null,
-    handCounts,
-  };
+): WireGameEvent {
+  return { seq, ...(mode.redact(event, viewerId, editionId) as object) } as WireGameEvent;
 }
 
 export function redactLog(
+  mode: AnyGameMode,
   log: readonly SeqEvent[],
   viewerId: string | null,
   editionId: string,
-): RedactedGameEvent[] {
-  return log.map((e) => redactEvent(e, viewerId, editionId));
+): WireGameEvent[] {
+  return log.map((e) => redactEvent(mode, e, viewerId, editionId));
 }

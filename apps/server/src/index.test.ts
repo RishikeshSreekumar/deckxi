@@ -32,7 +32,7 @@ function client(url: string, auth: Record<string, unknown> = {}): Socket {
 
 describe("@deckxi/server", () => {
   it("reports server info", () => {
-    expect(serverInfo()).toBe("DeckXI server (protocol v1)");
+    expect(serverInfo()).toBe("DeckXI server (protocol v2)");
   });
 
   it("parses env with defaults and splits CORS origins", () => {

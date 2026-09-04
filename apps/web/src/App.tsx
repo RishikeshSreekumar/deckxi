@@ -39,6 +39,10 @@ const CreditsScreen = lazy(() =>
 const CardsGalleryScreen = lazy(() =>
   import("./screens/CardsGallery.js").then((m) => ({ default: m.CardsGalleryScreen })),
 );
+/** The draft board is only on the path into a Squad Draft room; trumps never pays for it. */
+const SquadDraftTable = lazy(() =>
+  import("./screens/SquadDraftTable.js").then((m) => ({ default: m.SquadDraftTable })),
+);
 const DeckScreen = lazy(() => import("./screens/Deck.js").then((m) => ({ default: m.DeckScreen })));
 const ShareCardScreen = lazy(() =>
   import("./screens/ShareCard.js").then((m) => ({ default: m.ShareCardScreen })),
@@ -85,6 +89,14 @@ function Screen() {
   if (room.phase === "lobby") return <Lobby room={room} />;
   if (room.phase === "results" && pendingReveals.length === 0 && !presenting) {
     return <Results room={room} />;
+  }
+  // Each mode ships its own table; the room's mode picks it (ADR 0001).
+  if (room.settings.gameMode === "squad-draft") {
+    return (
+      <Suspense fallback={<main className="screen table-screen squad-screen" />}>
+        <SquadDraftTable room={room} />
+      </Suspense>
+    );
   }
   return <GameTable room={room} />;
 }

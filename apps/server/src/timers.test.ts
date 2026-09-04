@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { RedactedGameEvent, RoomJoined, TurnTimerView } from "@deckxi/shared";
-import { startTestServer, type TestClient, type TestServer } from "./testkit.js";
+import { startTestServer, trumpsState, type TestClient, type TestServer } from "./testkit.js";
 
 let server: TestServer | undefined;
 
@@ -39,7 +39,7 @@ describe("turn timers", () => {
     const { s, joined, timers } = await startedGame(60_000);
     await expect.poll(() => timers.length).toBeGreaterThan(0);
     const timer = timers[0] as TurnTimerView;
-    const leader = s.app.rooms.getRoom(joined.roomId)?.game?.state.leader;
+    const leader = trumpsState(s.app.rooms.getRoom(joined.roomId)).leader;
     expect(timer.playerId).toBe(leader);
     expect(timer.deadline).toBeGreaterThan(Date.now());
   });

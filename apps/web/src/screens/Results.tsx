@@ -7,22 +7,26 @@ import type { RoomView } from "@deckxi/shared";
 import { useStore } from "../store/store.js";
 import { sounds } from "../lib/sounds.js";
 import { AppBar, LeaveIcon, MuteButton } from "../components/Chrome.js";
+import { LeagueTable } from "../components/LeagueTable.js";
 
 const REASON_COPY = {
   "last-standing": "took every card on the table",
   "opponents-forfeited": "wins — everyone else forfeited",
   "round-limit": "led when the round limit hit",
   "final-tie": "edges a dead-even finish",
+  league: "topped the table",
 } as const;
 
 export function Results({ room }: { room: RoomView }) {
   const selfId = useStore((s) => s.selfId);
   const spectator = useStore((s) => s.spectator);
   const game = useStore((s) => s.game);
+  const squad = useStore((s) => s.squad);
   const rematch = useStore((s) => s.rematch);
   const leaveRoom = useStore((s) => s.leaveRoom);
 
-  const winnerId = game?.winner ?? null;
+  const isSquad = room.settings.gameMode === "squad-draft";
+  const winnerId = (isSquad ? squad?.winner : game?.winner) ?? null;
   const youWon = !spectator && winnerId === selfId;
   const winnerName =
     winnerId === null ? "?" : (room.players.find((p) => p.id === winnerId)?.name ?? winnerId);
@@ -30,12 +34,12 @@ export function Results({ room }: { room: RoomView }) {
 
   const played = useRef(false);
   useEffect(() => {
-    if (played.current || game === null) return;
+    if (played.current || (game === null && squad === null)) return;
     played.current = true;
     if (spectator) return;
     if (youWon) sounds.gameWin();
     else sounds.gameLose();
-  }, [game, youWon, spectator]);
+  }, [game, squad, youWon, spectator]);
 
   const standings =
     game === null
@@ -57,14 +61,30 @@ export function Results({ room }: { room: RoomView }) {
         <h2 className="results-title" data-testid="winner-line">
           {youWon ? "You win!" : `${winnerName} wins!`}
         </h2>
-        {game?.endReason != null && (
+        {!isSquad && game?.endReason != null && (
           <p className="results-reason">
             {youWon ? "You" : winnerName} {REASON_COPY[game.endReason]} after {game.round - 1}{" "}
             {game.round - 1 === 1 ? "round" : "rounds"}.
           </p>
         )}
+        {isSquad && squad?.endReason != null && (
+          <p className="results-reason">
+            {youWon ? "You" : winnerName} {REASON_COPY[squad.endReason]}
+            {squad.league !== null
+              ? ` across ${squad.league.matches.length} ${squad.league.matches.length === 1 ? "match" : "matches"}.`
+              : "."}
+          </p>
+        )}
 
-        <ul className="standings">
+        {isSquad && squad?.league != null && (
+          <LeagueTable
+            state={squad}
+            names={Object.fromEntries(room.players.map((p) => [p.id, p.name]))}
+            selfId={spectator ? null : selfId}
+          />
+        )}
+
+        <ul className="standings" hidden={isSquad}>
           {standings.map((p, i) => (
             <li key={p.id} className={p.id === winnerId ? "standing standing--winner" : "standing"}>
               <span>{i + 1}.</span>
