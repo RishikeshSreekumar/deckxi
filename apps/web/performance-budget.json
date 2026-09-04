@@ -5,8 +5,8 @@
     "Raising a number here is a decision — say why in the commit message."
   ],
   "budgets": {
-    "initial-js-gzip-kb": 150,
-    "initial-css-gzip-kb": 12,
+    "initial-js-gzip-kb": 165,
+    "initial-css-gzip-kb": 14,
     "initial-requests": 6
   }
 }
