@@ -639,3 +639,21 @@ a different card now.
 `POST /api/me/showcase` refuses a card the account has not won with; the
 showcase is meant to be earned. Deleting an account deletes both the collection
 and the showcase, and a guest who signs up carries both across.
+
+## Shareable replays (#83)
+
+A finished match is private until someone who sat at it makes a link:
+`POST /api/me/matches/:matchId/share` returns a token, and the same call twice
+returns the same token so a link already in a chat thread is never orphaned.
+`DELETE /api/me/shares/:token` revokes it, and no URL survives that.
+
+`GET /api/replay/:token` is public — the link is the permission — and the log
+it returns is redacted **as a spectator**. That is deliberate: sharing a game
+must not hand out information the players themselves were denied while it ran,
+so a shared replay shows exactly what the table saw at each reveal and no hand
+that was never turned over. The admin replay debugger (#69) is the unredacted
+one and stays behind the admin role.
+
+The player-facing screen steps round by round rather than event by event, and
+the whole thing is folded through the ordinary client reducer — the same code
+that renders a live game.

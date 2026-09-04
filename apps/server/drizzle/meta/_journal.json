@@ -43,6 +43,13 @@
       "when": 1788526895567,
       "tag": "0005_collection",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788527185241,
+      "tag": "0006_match_shares",
+      "breakpoints": true
     }
   ]
 }

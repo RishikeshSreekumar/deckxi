@@ -20,6 +20,8 @@ import {
   type ServerToClientEvents,
 } from "@deckxi/shared";
 import { CURRENT_EDITION_ID } from "@deckxi/data";
+import { findMode } from "@deckxi/engine";
+import { randomUUID } from "node:crypto";
 import { originMatcher } from "./origins.js";
 import { requestId, type Logger } from "./logging.js";
 import { registerErrorTracking } from "./errors.js";
@@ -28,6 +30,7 @@ import { registerAdminRoutes } from "./admin.js";
 import { EventFeed, teeLogger } from "./feed.js";
 import { InMemoryConfigStore, OpsConfig, type ConfigStore } from "./ops.js";
 import { registerSockets, type SocketOptions } from "./sockets.js";
+import { redactLog } from "./redact.js";
 import { clientIp, DEFAULT_QUOTAS, Quotas, type QuotaConfig } from "./quota.js";
 import { turnstileVerifier, type CaptchaVerifier } from "./captcha.js";
 import type { RoomManager, RoomManagerOptions } from "./rooms.js";
@@ -307,6 +310,65 @@ export function buildApp(options: AppOptions = {}): App {
    * Your collection (#84) and the card on your profile. Signed-in only: a
    * collection is a record of games this account played.
    */
+  /**
+   * Shareable replays (#83). A finished match is private until someone who
+   * sat at it makes a link. The link carries a random token, so revoking a
+   * share is deleting one row — no URL survives it.
+   */
+  fastify.post("/api/me/matches/:matchId/share", async (request, reply) => {
+    const user = await requireUser(request);
+    if (user === null) return await reply.status(401).send({ error: "not signed in" });
+    const { matchId } = request.params as { matchId: string };
+    const match = await store.getMatch(matchId);
+    if (match === null) return await reply.status(404).send({ error: "no such match" });
+    // Only a player from that table may share it. A spectator saw the game;
+    // it still is not theirs to publish.
+    if (!match.players.some((p) => p.userId === user.id)) {
+      return await reply.status(403).send({ error: "you didn't play in that match" });
+    }
+    const share = await store.shareMatch(matchId, randomUUID().replaceAll("-", ""), user.id);
+    return { token: share.token };
+  });
+
+  fastify.delete("/api/me/shares/:token", async (request, reply) => {
+    const user = await requireUser(request);
+    if (user === null) return await reply.status(401).send({ error: "not signed in" });
+    const { token } = request.params as { token: string };
+    await store.revokeShare(token, user.id);
+    return await reply.status(204).send();
+  });
+
+  /**
+   * The replay itself, for anyone holding the link. Redacted as a spectator
+   * — exactly what the table saw at each reveal, and no hand that was never
+   * turned over. Sharing a game should not hand out information the players
+   * themselves were denied while it ran.
+   */
+  fastify.get("/api/replay/:token", async (request, reply) => {
+    const { token } = request.params as { token: string };
+    const share = await store.getShare(token);
+    if (share === null) return await reply.status(404).send({ error: "no such replay" });
+    const match = await store.getMatch(share.matchId);
+    if (match === null) return await reply.status(404).send({ error: "no such replay" });
+    const mode = findMode(match.gameMode);
+    if (mode === undefined) {
+      return await reply.status(410).send({ error: "this game mode is no longer supported" });
+    }
+    return {
+      match: {
+        roomCode: match.roomCode,
+        gameMode: match.gameMode,
+        editionId: match.editionId,
+        startedAt: match.startedAt.toISOString(),
+        finishedAt: match.result?.finishedAt.toISOString() ?? null,
+        rounds: match.result?.rounds ?? null,
+        winnerSessionId: match.result?.winnerSessionId ?? null,
+        players: match.players.map((p) => ({ sessionId: p.sessionId, name: p.name, seat: p.seat })),
+      },
+      events: redactLog(mode, match.events, null, match.editionId),
+    };
+  });
+
   fastify.get("/api/me/collection", async (request, reply) => {
     const user = await requireUser(request);
     if (user === null) return await reply.status(401).send({ error: "not signed in" });
