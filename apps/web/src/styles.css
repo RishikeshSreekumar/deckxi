@@ -3636,3 +3636,18 @@ select:focus {
   align-items: flex-start;
   margin-bottom: var(--space-5);
 }
+
+/* Shared replay links (#83): long, so they wrap and break rather than push
+   the row wider than the phone. */
+.match-share-link {
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+}
+
+.replay-controls {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: var(--space-5) 0;
+}

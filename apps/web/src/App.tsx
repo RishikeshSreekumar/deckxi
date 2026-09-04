@@ -30,6 +30,9 @@ const ProfileScreen = lazy(() =>
 const LeaderboardScreen = lazy(() =>
   import("./screens/Leaderboard.js").then((m) => ({ default: m.LeaderboardScreen })),
 );
+const ReplayScreen = lazy(() =>
+  import("./screens/Replay.js").then((m) => ({ default: m.ReplayScreen })),
+);
 const CollectionScreen = lazy(() =>
   import("./screens/Collection.js").then((m) => ({ default: m.CollectionScreen })),
 );
@@ -80,6 +83,7 @@ function Screen() {
           <Route path="/history" element={<HistoryScreen />} />
           <Route path="/leaderboard" element={<LeaderboardScreen />} />
           <Route path="/collection" element={<CollectionScreen />} />
+          <Route path="/replay/:token" element={<ReplayScreen />} />
           <Route path="/privacy" element={<PrivacyScreen />} />
           <Route path="/credits" element={<CreditsScreen />} />
           <Route path="/cards" element={<CardsGalleryScreen />} />

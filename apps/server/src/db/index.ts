@@ -4,7 +4,7 @@
  */
 import pg from "pg";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { SeqEvent } from "../redact.js";
 import {
   DELETED_PLAYER_NAME,
@@ -15,6 +15,7 @@ import {
   type MatchStore,
   type ModeStats,
   type CollectionRow,
+  type MatchShare,
   type RatingRow,
   type RatingUpdate,
   type ShowcaseCard,
@@ -27,6 +28,7 @@ import {
   cardCollection,
   matchEvents,
   matchPlayers,
+  matchShares,
   matches,
   profileShowcase,
   ratings,
@@ -463,6 +465,39 @@ export class PostgresMatchStore implements MatchStore {
         target: profileShowcase.userId,
         set: { editionId: card.editionId, cardId: card.cardId, updatedAt: new Date() },
       });
+  }
+
+  async shareMatch(matchId: string, token: string, createdBy: string | null): Promise<MatchShare> {
+    const [existing] = await this.db
+      .select()
+      .from(matchShares)
+      .where(
+        createdBy === null
+          ? and(eq(matchShares.matchId, matchId), isNull(matchShares.createdBy))
+          : and(eq(matchShares.matchId, matchId), eq(matchShares.createdBy, createdBy)),
+      )
+      .limit(1);
+    if (existing !== undefined) return existing;
+    const [row] = await this.db
+      .insert(matchShares)
+      .values({ token, matchId, createdBy, createdAt: new Date() })
+      .returning();
+    return row as MatchShare;
+  }
+
+  async getShare(token: string): Promise<MatchShare | null> {
+    const [row] = await this.db
+      .select()
+      .from(matchShares)
+      .where(eq(matchShares.token, token))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async revokeShare(token: string, userId: string): Promise<void> {
+    await this.db
+      .delete(matchShares)
+      .where(and(eq(matchShares.token, token), eq(matchShares.createdBy, userId)));
   }
 
   async ping(): Promise<void> {

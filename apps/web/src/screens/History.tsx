@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ensureSession } from "../lib/auth.js";
-import { fetchMatches, fetchProfile, type MatchSummary } from "../lib/api.js";
+import { fetchMatches, fetchProfile, shareMatch, type MatchSummary } from "../lib/api.js";
 import { AppBar } from "../components/Chrome.js";
 
 const OUTCOME_COPY = { won: "Won", lost: "Lost", unfinished: "Unfinished" } as const;
@@ -23,6 +23,26 @@ export function HistoryScreen() {
   const [matches, setMatches] = useState<MatchSummary[] | null>(null);
   const [selfId, setSelfId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** matchId → the link, once made. Sharing twice returns the same one. */
+  const [links, setLinks] = useState<Record<string, string>>({});
+
+  /**
+   * Copy where the browser allows it and show the link either way: a link you
+   * can see and select beats a silent failure on a browser that refuses the
+   * clipboard outside a trusted context.
+   */
+  const share = (matchId: string) => {
+    void shareMatch(matchId)
+      .then(async (url) => {
+        setLinks((current) => ({ ...current, [matchId]: url }));
+        try {
+          await navigator.clipboard.writeText(url);
+        } catch {
+          /* no clipboard — the link is on screen */
+        }
+      })
+      .catch(() => setError("Couldn't make a share link for that match."));
+  };
 
   useEffect(() => {
     void ensureSession()
@@ -66,7 +86,22 @@ export function HistoryScreen() {
                     {when(m.startedAt)}
                     {m.rounds !== null ? ` · ${m.rounds} rounds` : ""} · room {m.roomCode}
                   </span>
+                  {links[m.matchId] !== undefined && (
+                    <a className="hint match-share-link" href={links[m.matchId]}>
+                      {links[m.matchId]}
+                    </a>
+                  )}
                 </div>
+                {m.outcome !== "unfinished" && (
+                  <button
+                    type="button"
+                    className="button button--ghost button--sm"
+                    data-testid={`share-${m.matchId}`}
+                    onClick={() => share(m.matchId)}
+                  >
+                    {links[m.matchId] !== undefined ? "Copied" : "Share"}
+                  </button>
+                )}
               </li>
             );
           })}

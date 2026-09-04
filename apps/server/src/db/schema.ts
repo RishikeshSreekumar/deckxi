@@ -111,6 +111,21 @@ export const profileShowcase = pgTable("profile_showcase", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Shareable replays (#83). A finished match is private until a player who sat
+ * at it makes a link; the token is what the link carries, so revoking a share
+ * is deleting one row and no URL survives it.
+ */
+export const matchShares = pgTable("match_shares", {
+  token: text("token").primaryKey(),
+  matchId: uuid("match_id")
+    .notNull()
+    .references(() => matches.id, { onDelete: "cascade" }),
+  /** Who made the link; null once that account is deleted. */
+  createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const appConfig = pgTable("app_config", {
   key: text("key").primaryKey(),
   value: jsonb("value").notNull(),

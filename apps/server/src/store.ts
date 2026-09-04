@@ -102,6 +102,14 @@ export interface ShowcaseCard {
   cardId: string;
 }
 
+/** A share link for a finished match (#83). */
+export interface MatchShare {
+  token: string;
+  matchId: string;
+  createdBy: string | null;
+  createdAt: Date;
+}
+
 export interface MatchStore {
   createMatch(record: MatchRecord): Promise<void>;
   appendEvents(matchId: string, events: readonly SeqEvent[]): Promise<void>;
@@ -141,6 +149,12 @@ export interface MatchStore {
   getShowcase(userId: string): Promise<ShowcaseCard | null>;
   /** Set (or, with null, clear) the profile card. */
   setShowcase(userId: string, card: ShowcaseCard | null): Promise<void>;
+  /** Create (or return the existing) share link for a match. */
+  shareMatch(matchId: string, token: string, createdBy: string | null): Promise<MatchShare>;
+  /** Resolve a share token; null when it never existed or was revoked. */
+  getShare(token: string): Promise<MatchShare | null>;
+  /** Revoke a share. Only the player who made it may call this. */
+  revokeShare(token: string, userId: string): Promise<void>;
   /** Health probe; rejects when the backing store is unreachable. */
   ping(): Promise<void>;
   close(): Promise<void>;
@@ -166,6 +180,7 @@ export class InMemoryMatchStore implements MatchStore {
   /** Keyed `userId|editionId|cardId`, mirroring the Postgres primary key. */
   readonly cards = new Map<string, CollectionRow & { userId: string }>();
   readonly showcases = new Map<string, ShowcaseCard>();
+  readonly shares = new Map<string, MatchShare>();
 
   createMatch(record: MatchRecord): Promise<void> {
     this.matches.set(record.matchId, {
@@ -404,6 +419,27 @@ export class InMemoryMatchStore implements MatchStore {
   setShowcase(userId: string, card: ShowcaseCard | null): Promise<void> {
     if (card === null) this.showcases.delete(userId);
     else this.showcases.set(userId, card);
+    return Promise.resolve();
+  }
+
+  shareMatch(matchId: string, token: string, createdBy: string | null): Promise<MatchShare> {
+    // One link per match per player: sharing twice should hand back the link
+    // already in someone's chat thread, not orphan it.
+    for (const share of this.shares.values()) {
+      if (share.matchId === matchId && share.createdBy === createdBy) return Promise.resolve(share);
+    }
+    const share: MatchShare = { token, matchId, createdBy, createdAt: new Date() };
+    this.shares.set(token, share);
+    return Promise.resolve(share);
+  }
+
+  getShare(token: string): Promise<MatchShare | null> {
+    return Promise.resolve(this.shares.get(token) ?? null);
+  }
+
+  revokeShare(token: string, userId: string): Promise<void> {
+    const share = this.shares.get(token);
+    if (share?.createdBy === userId) this.shares.delete(token);
     return Promise.resolve();
   }
 

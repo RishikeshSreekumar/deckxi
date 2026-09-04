@@ -107,5 +107,31 @@ export async function setShowcase(card: ShowcaseCard | null): Promise<void> {
   if (!response.ok) throw new Error(`showcase failed (${response.status})`);
 }
 
+export interface ReplayMatch {
+  roomCode: string;
+  gameMode: string;
+  editionId: string;
+  startedAt: string;
+  finishedAt: string | null;
+  rounds: number | null;
+  winnerSessionId: string | null;
+  players: { sessionId: string; name: string; seat: number }[];
+}
+
+/** A shared replay. Public — the link is the permission (#83). */
+export const fetchReplay = (token: string): Promise<{ match: ReplayMatch; events: unknown[] }> =>
+  get<{ match: ReplayMatch; events: unknown[] }>(`/api/replay/${encodeURIComponent(token)}`);
+
+/** Make (or fetch again) the share link for a match you played in. */
+export async function shareMatch(matchId: string): Promise<string> {
+  const response = await fetch(`${API_URL}/api/me/matches/${matchId}/share`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error(`share failed (${response.status})`);
+  const { token } = (await response.json()) as { token: string };
+  return `${location.origin}/replay/${token}`;
+}
+
 export const fetchMatches = async (): Promise<MatchSummary[]> =>
   (await get<{ matches: MatchSummary[] }>("/api/me/matches")).matches;
