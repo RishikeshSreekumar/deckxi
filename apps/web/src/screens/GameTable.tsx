@@ -16,7 +16,7 @@
  * the bottom edge. Nothing leaves the screen at the one moment the player is
  * watching it.
  */
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import {
   POWER_INFO,
   type PowerKindView,
@@ -28,6 +28,14 @@ import type { ClientGameState, DeclaredPower, ResolvedRound } from "../game/clie
 import { Dialog, PowerCard, TrumpCard, formatStatValue, getCardInfo, statName } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
 import { EmoteBar } from "../components/EmoteBar.js";
+/**
+ * Voice is opt-in and needs WebRTC plumbing nobody who never taps "join voice"
+ * should download (#107's budget, #89's feature): the controls are their own
+ * chunk, and the table renders without them until they arrive.
+ */
+const VoiceControls = lazy(() =>
+  import("../components/VoiceControls.js").then((m) => ({ default: m.VoiceControls })),
+);
 import { GameChat } from "../components/GameChat.js";
 import { MuteButton, SmileIcon } from "../components/Chrome.js";
 import { sounds } from "../lib/sounds.js";
@@ -300,6 +308,7 @@ export function GameTable({ room }: { room: RoomView }) {
   const playCard = useStore((s) => s.playCard);
   const forfeit = useStore((s) => s.forfeit);
   const leaveRoom = useStore((s) => s.leaveRoom);
+  const voiceLive = useStore((s) => s.voiceLive);
   const [menuOpen, setMenuOpen] = useState(false);
   const [emotesOpen, setEmotesOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -526,7 +535,18 @@ export function GameTable({ room }: { room: RoomView }) {
                   {(names[id] ?? "?").slice(0, 1).toUpperCase()}
                 </span>
                 <div className="seat-plate">
-                  <span className="seat-name">{names[id] ?? id}</span>
+                  <span className="seat-name">
+                    {names[id] ?? id}
+                    {voiceLive.includes(id) && (
+                      <span
+                        className="seat-mic"
+                        title={`${names[id] ?? "This player"} has a live mic`}
+                        aria-label="live mic"
+                      >
+                        ●
+                      </span>
+                    )}
+                  </span>
                   <span className="seat-status">
                     {status}
                     {declared !== null && current === null && (
@@ -795,6 +815,9 @@ export function GameTable({ room }: { room: RoomView }) {
       </div>
 
       <div className="table-social">
+        <Suspense fallback={null}>
+          <VoiceControls />
+        </Suspense>
         {emotesOpen && !spectator && (
           <div className="emote-tray">
             <EmoteBar />

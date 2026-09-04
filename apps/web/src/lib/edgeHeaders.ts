@@ -17,7 +17,10 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
   "x-content-type-options": "nosniff",
   "referrer-policy": "strict-origin-when-cross-origin",
   "x-frame-options": "DENY",
-  "permissions-policy": "geolocation=(), microphone=(), camera=()",
+  // `microphone=(self)` since #89: voice chat needs getUserMedia from our own
+  // origin. Geolocation and camera stay banned outright — nothing in this game
+  // has any business asking for either.
+  "permissions-policy": "geolocation=(), microphone=(self), camera=()",
 };
 
 /**

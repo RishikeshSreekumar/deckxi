@@ -3,6 +3,7 @@
  */
 import { z } from "zod";
 import { parseOrigins } from "./origins.js";
+import { parseTurnUrls } from "./voice.js";
 
 /** Which deployment this process is: local dev, staging, or production. */
 export type AppEnv = "development" | "staging" | "production";
@@ -51,6 +52,13 @@ const envSchema = z.object({
    * single Cloud Run instance is.
    */
   REDIS_URL: z.string().url().optional(),
+  /**
+   * TURN relay for voice chat (#89). Comma-separated URLs plus the shared
+   * secret the provider signs credentials with. Unset means STUN only, which
+   * connects most players and silently fails behind symmetric NAT.
+   */
+  TURN_URLS: z.string().optional(),
+  TURN_SECRET: z.string().min(8).optional(),
 });
 
 export interface Env {
@@ -69,6 +77,7 @@ export interface Env {
   mail: { apiKey: string | undefined; from: string | undefined };
   captchaSecret: string | undefined;
   redisUrl: string | undefined;
+  turn: { urls: string[]; secret: string } | null;
 }
 
 /**
@@ -114,5 +123,9 @@ export function parseEnv(source: NodeJS.ProcessEnv = process.env): Env {
     mail: { apiKey: parsed.MAIL_API_KEY, from: parsed.MAIL_FROM },
     captchaSecret: parsed.TURNSTILE_SECRET,
     redisUrl: parsed.REDIS_URL,
+    turn:
+      parsed.TURN_SECRET !== undefined && parseTurnUrls(parsed.TURN_URLS).length > 0
+        ? { urls: parseTurnUrls(parsed.TURN_URLS), secret: parsed.TURN_SECRET }
+        : null,
   };
 }

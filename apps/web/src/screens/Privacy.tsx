@@ -28,6 +28,24 @@ export function PrivacyScreen() {
           picked, and who won. Records are linked to your account only while it exists.
         </p>
 
+        <h2>Voice chat</h2>
+        <p>
+          Voice is peer to peer. Your audio goes straight to the other players at the table and
+          never through our servers, so there is nothing for us to record and nothing we could hand
+          over. It is off until you turn it on, only offered in private rooms opened by an invite,
+          and whenever a mic is live every seat at the table shows it.
+        </p>
+        <p>
+          The flip side of not carrying the audio is that we cannot act on a report about what
+          someone said — we did not hear it. You can mute a player on your own device, and the host
+          can remove them from the table.
+        </p>
+        <p>
+          On some networks a direct connection is impossible, and the audio is bounced through a
+          relay server to get through. The relay passes encrypted media along without being able to
+          read it; it sees that two players are talking, not what they say.
+        </p>
+
         <h2>Cookies</h2>
         <p>
           One session cookie keeps you signed in (guest or account). There are no analytics or

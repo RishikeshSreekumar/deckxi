@@ -34,6 +34,7 @@ import { redactLog } from "./redact.js";
 import { clientIp, DEFAULT_QUOTAS, Quotas, type QuotaConfig } from "./quota.js";
 import { turnstileVerifier, type CaptchaVerifier } from "./captcha.js";
 import type { Cluster } from "./cluster.js";
+import { iceServers, type TurnConfig } from "./voice.js";
 import type { RoomManager, RoomManagerOptions } from "./rooms.js";
 import { InMemoryMatchStore, type MatchStore } from "./store.js";
 import {
@@ -107,6 +108,8 @@ export interface AppOptions {
   captcha?: CaptchaVerifier;
   /** Quick match (#81): how long to look for a human before seating bots. */
   botWaitMs?: number;
+  /** TURN relay for voice (#89). Unset means STUN only. */
+  turn?: TurnConfig | null;
   /**
    * The cluster this instance belongs to (#86). Omitted means a cluster of
    * one — the single-instance default, and what every test uses unless it is
@@ -390,6 +393,18 @@ export function buildApp(options: AppOptions = {}): App {
    * the people you play with; the invite link is still the only way into a
    * room, so saving someone gives them no access to anything.
    */
+  /**
+   * ICE servers for a voice call (#89). Signed-in only — not because voice is
+   * a privilege, but because TURN relay costs money per byte and an
+   * unauthenticated endpoint handing out relay credentials is a bandwidth bill
+   * waiting to happen.
+   */
+  fastify.get("/api/voice/ice", async (request, reply) => {
+    const user = await requireUser(request);
+    if (user === null) return await reply.status(401).send({ error: "not signed in" });
+    return { iceServers: iceServers(user.id, options.turn ?? null) };
+  });
+
   fastify.get("/api/me/friends", async (request, reply) => {
     const user = await requireUser(request);
     if (user === null) return await reply.status(401).send({ error: "not signed in" });

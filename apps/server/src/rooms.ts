@@ -98,6 +98,12 @@ export interface Room {
   id: string;
   code: string;
   phase: RoomPhase;
+  /**
+   * Opened by quick match rather than by someone sharing a code (#81). It is
+   * a table of strangers, which is why voice is refused here (#89): public
+   * matchmaking has no moderation story for a live mic.
+   */
+  matchmade: boolean;
   hostId: string;
   settings: RoomSettings;
   /** Players in seat order (spectators are not seated). */
@@ -218,6 +224,7 @@ export class RoomManager {
     name: string,
     settings?: Partial<RoomSettings>,
     userId: string | null = null,
+    options: { matchmade?: boolean } = {},
   ): { room: Room; session: Session } {
     if (this.rooms.size >= this.maxRooms) {
       throw new RoomError("server-full", "no capacity for new rooms");
@@ -230,6 +237,7 @@ export class RoomManager {
       id: randomUUID(),
       code: generateJoinCode(new Set(this.roomIdByCode.keys())),
       phase: "lobby",
+      matchmade: options.matchmade ?? false,
       hostId: "",
       settings: { ...DEFAULT_SETTINGS, ...settings },
       players: [],
@@ -964,6 +972,7 @@ export function toRoomView(room: Room): RoomView {
     roomId: room.id,
     code: room.code,
     phase: room.phase,
+    ...(room.matchmade ? { matchmade: true } : {}),
     hostId: room.hostId,
     settings: room.settings,
     players: room.players.map((p) => ({

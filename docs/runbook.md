@@ -736,3 +736,34 @@ Operational notes:
   different instances will not be paired; with the traffic that justifies a
   second instance, each queue fills on its own.
 - Counters: `deckxi_cluster_remote_joins_total`, `deckxi_cluster_remote_resumes_total`.
+
+## Voice chat (#89)
+
+WebRTC mesh, no media server. Rooms cap at six players, so a full mesh is about
+thirty audio streams — fine for voice, and it avoids operating an SFU. **If the
+room cap ever rises, that decision has to be revisited rather than stretched.**
+
+Signalling rides the existing socket (`voice:signal`), room-scoped and refused
+for anyone not at your table; the server relays opaque blobs and is never a
+party to the call. Audio never touches our servers.
+
+`TURN_URLS` + `TURN_SECRET` configure a relay. **TURN is not optional in
+practice**: a meaningful share of players are behind symmetric NAT and will
+never connect without it, and "voice works for some of my friends" is the worst
+version of this feature. Credentials follow coturn's REST convention — username
+`<expiry>:<userId>`, password the base64 HMAC-SHA1 of it — so nothing is
+provisioned per player and a leaked credential dies within the hour.
+`/api/voice/ice` is signed-in only, because relay bandwidth costs money.
+
+Unset, the server returns STUN alone: voice works on most networks and fails on
+some, and the UI shows who actually connected rather than pretending.
+
+Product rules that are not negotiable without a new decision:
+
+- A live mic is always visible — on your own button and as a dot on every seat.
+- Voice is offered in private invite rooms only. Quick-match tables get no mic
+  button until there is a moderation story for public voice.
+- Refusing the microphone is a normal answer: the table plays on and nothing
+  asks again.
+- `Permissions-Policy` now allows `microphone=(self)` (it banned it outright
+  before); geolocation and camera stay banned.
