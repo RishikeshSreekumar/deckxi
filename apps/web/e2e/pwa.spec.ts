@@ -96,3 +96,39 @@ test("the manifest's create-room shortcut hosts a table", async ({ page }) => {
   await expect(page.getByTestId("lobby-screen")).toBeVisible();
   await expect(page).toHaveURL(/\/$/);
 });
+
+test("practice plays a round with the network cut", async ({ page, context }) => {
+  // The install story is only half of #85: the other half is that there is
+  // something to do once you are offline. Practice runs the engine on the
+  // device, so a cut network must not stop a round from resolving.
+  await page.goto("/");
+  await serviceWorkerInControl(page);
+  await page.getByPlaceholder("e.g. CoverDrive").first().fill("Tunnel Player");
+
+  await context.setOffline(true);
+  await page.getByTestId("practice").click();
+  await expect(page.getByTestId("game-table")).toBeVisible();
+  // The offline banner belongs to rooms, not to a game played on the device.
+  await expect(page.getByTestId("conn-banner")).toHaveCount(0);
+
+  // Whoever leads, the round resolves on the device: bots move in the same
+  // burst, so either a reveal is already animating or the pick is ours.
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    if (
+      await page
+        .getByTestId("reveal-cards")
+        .isVisible()
+        .catch(() => false)
+    )
+      break;
+    const stat = page.locator(".your-area--turn .stat-button").first();
+    if (await stat.isVisible().catch(() => false)) {
+      await stat.click({ timeout: 2000 }).catch(() => undefined);
+    }
+    await page.waitForTimeout(300);
+  }
+  await expect(page.getByTestId("reveal-cards")).toBeVisible();
+
+  await context.setOffline(false);
+});

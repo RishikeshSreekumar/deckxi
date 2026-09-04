@@ -49,6 +49,7 @@ if (isMain) {
       ...(sendMagicLink !== undefined ? { sendMagicLink } : {}),
     },
     admin: { token: env.adminToken, emails: env.adminEmails },
+    captchaSecret: env.captchaSecret,
   });
   installProcessHandlers(app.fastify.log as unknown as Logger);
   const port = await app.listen(env.port, env.host);

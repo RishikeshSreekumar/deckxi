@@ -40,6 +40,11 @@ const envSchema = z.object({
   MAIL_FROM: z.string().optional(),
   /** Cloud Run sets this per revision; a usable release id when RELEASE isn't set. */
   K_REVISION: z.string().optional(),
+  /**
+   * Cloudflare Turnstile secret (#87). Unset means sources that trip the
+   * abuse quotas are refused outright instead of being offered a challenge.
+   */
+  TURNSTILE_SECRET: z.string().min(8).optional(),
 });
 
 export interface Env {
@@ -56,6 +61,7 @@ export interface Env {
   adminToken: string | undefined;
   adminEmails: string[];
   mail: { apiKey: string | undefined; from: string | undefined };
+  captchaSecret: string | undefined;
 }
 
 /**
@@ -99,5 +105,6 @@ export function parseEnv(source: NodeJS.ProcessEnv = process.env): Env {
       .map((email) => email.trim())
       .filter((email) => email.length > 0),
     mail: { apiKey: parsed.MAIL_API_KEY, from: parsed.MAIL_FROM },
+    captchaSecret: parsed.TURNSTILE_SECRET,
   };
 }

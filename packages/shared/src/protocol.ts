@@ -136,9 +136,13 @@ export const roomSettingsPatchSchema = roomSettingsSchema.partial();
 // Client → server messages
 // ---------------------------------------------------------------------------
 
+/** A solved CAPTCHA, sent only after the server asked for one (#87). */
+const captchaTokenSchema = z.string().min(1).max(2048).optional();
+
 export const createRoomSchema = z.object({
   name: playerNameSchema,
   settings: roomSettingsPatchSchema.optional(),
+  captchaToken: captchaTokenSchema,
 });
 
 export const joinRoomSchema = z.object({
@@ -146,6 +150,7 @@ export const joinRoomSchema = z.object({
   name: playerNameSchema,
   /** Join read-only; also forced when the room is full or in-game. */
   spectator: z.boolean().optional(),
+  captchaToken: captchaTokenSchema,
 });
 
 export const resumeRoomSchema = z.object({
@@ -240,6 +245,13 @@ export const ERROR_CODES = [
   "spectators-cannot",
   "resume-failed",
   "server-full",
+  /** Over an abuse quota (#87): too many rooms, joins or requests from one source. */
+  "quota-exceeded",
+  /**
+   * The source looks like a script (join-code sweeping), and this deployment
+   * has a CAPTCHA configured: retry the same message with `captchaToken`.
+   */
+  "captcha-required",
   /** The requested game mode is switched off by an operator (#70). */
   "mode-disabled",
 ] as const;
