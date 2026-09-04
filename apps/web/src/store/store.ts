@@ -7,6 +7,7 @@ import { create } from "zustand";
 import type {
   ChatMessageView,
   ChatReactionView,
+  PowerPlayView,
   RedactedGameEvent,
   OpsNoticeView,
   RoomClosedReason,
@@ -76,7 +77,12 @@ interface AppState {
   updateSettings(patch: Partial<RoomSettings>): Promise<void>;
   startGame(): Promise<void>;
   rematch(): Promise<void>;
-  selectStat(stat: string): Promise<void>;
+  selectStat(
+    stat: string,
+    play?: { cardIndex: number; power: PowerPlayView | null },
+  ): Promise<void>;
+  /** Power trumps: answer the call with one of your top cards. */
+  playCard(cardIndex: number, power: PowerPlayView | null): Promise<void>;
   forfeit(): Promise<void>;
   sendChat(text: string): Promise<void>;
   react(emote: string): Promise<void>;
@@ -185,15 +191,22 @@ export const useStore = create<AppState>((set, get) => {
       await guarded(() => call<"room:rematch", null>("room:rematch", undefined));
     },
 
-    async selectStat(stat) {
+    async selectStat(stat, play) {
       const previous = get().pendingStat;
       set({ pendingStat: stat }); // optimistic: highlight immediately
       try {
-        await call<"game:selectStat", null>("game:selectStat", { stat });
+        await call<"game:selectStat", null>("game:selectStat", {
+          stat,
+          ...(play !== undefined ? { cardIndex: play.cardIndex, power: play.power } : {}),
+        });
       } catch (error) {
         set({ pendingStat: previous }); // rollback
         get().toast(errorMessage(error), "error");
       }
+    },
+
+    async playCard(cardIndex, power) {
+      await guarded(() => call<"game:playCard", null>("game:playCard", { cardIndex, power }));
     },
 
     async forfeit() {

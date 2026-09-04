@@ -3,7 +3,8 @@ import { analyzeBalance } from "./balance.js";
 import { driftEdition, topMovers } from "./drift.js";
 import { loadEdition } from "./editions.js";
 
-const edition = loadEdition();
+// Drift is for invented data, so it is exercised on the fictional fixture.
+const edition = loadEdition("edition-fixture");
 const AT = "2026-09-05T06:00:00Z";
 
 describe("driftEdition", () => {

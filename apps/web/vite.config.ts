@@ -83,14 +83,15 @@ export default defineConfig({
             handler: "NetworkOnly",
           },
           {
-            // Exported card art: worth keeping for repeat visits, capped so a
-            // long-lived install cannot grow without bound.
+            // Card photos (one per player in the deck): worth keeping for
+            // repeat visits, capped so a long-lived install cannot grow
+            // without bound.
             urlPattern: ({ request, url }) =>
               request.destination === "image" && url.origin === self.location.origin,
             handler: "CacheFirst",
             options: {
               cacheName: "deckxi-images",
-              expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              expiration: { maxEntries: 160, maxAgeSeconds: 60 * 60 * 24 * 30 },
             },
           },
         ],

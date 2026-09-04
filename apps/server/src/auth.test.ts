@@ -77,7 +77,9 @@ describe("guest identity", () => {
     };
     expect(matches).toHaveLength(1);
     const first = matches[0] as (typeof matches)[number];
-    expect(first.players.find((p) => p.name === "Host")?.userId).toBe(user.id);
+    // The account's display name is the name at the table, not the payload's.
+    expect(first.players.find((p) => p.userId === user.id)?.name).toBe(user.name);
+    expect(first.players.find((p) => p.name === "Host")).toBeUndefined();
     expect(first.players.find((p) => p.name === "Anon")?.userId).toBeNull();
   });
 

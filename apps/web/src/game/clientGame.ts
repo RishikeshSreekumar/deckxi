@@ -7,11 +7,16 @@
  * hidden (a forfeiter's hand) are `null` until revealed.
  */
 import type {
+  PowerKindView,
+  PowerPlayView,
+  PowerRoundView,
   RedactedGameConfig,
   RedactedGameEvent,
   RevealedCardView,
   RoundResultView,
 } from "@deckxi/shared";
+
+const ALL_POWERS: readonly PowerKindView[] = ["powerplay", "drs", "super-over"];
 
 /** `null` = a card whose identity this client has never seen. */
 export type MaybeCardId = string | null;
@@ -24,7 +29,12 @@ export interface ResolvedRound {
   result: RoundResultView;
   /** How many pot cards the winner swept along with the reveal. */
   potTaken: number;
+  /** Power trumps: what the powers did. */
+  power: PowerRoundView | null;
 }
+
+/** A declared power as this client sees it (a DRS stat is its owner's secret). */
+export type DeclaredPower = PowerPlayView | { kind: "drs" };
 
 export interface ClientGameState {
   config: RedactedGameConfig;
@@ -38,6 +48,16 @@ export interface ClientGameState {
   active: Record<string, boolean>;
   /** The current round's stat pick, cleared when the round resolves. */
   selected: { playerId: string; stat: string; auto: boolean } | null;
+  /** `responding` (power trumps): the call is in, waiting on answers. */
+  phase: "selecting" | "responding" | "finished";
+  /** Power trumps: who has committed a card this round and the power they declared. */
+  plays: Record<string, { power: DeclaredPower | null }>;
+  /** Power trumps: your committed card this round, once you have played it. */
+  yourPlay: { cardId: string; power: PowerPlayView | null } | null;
+  /** Power trumps: the stat that decided the last round — the leader may not call it. */
+  lastStat: string | null;
+  /** Power trumps: unused powers per player (public — a spent power is seen by all). */
+  powers: Record<string, PowerKindView[]>;
   lastResolved: ResolvedRound | null;
   finished: boolean;
   winner: string | null;
@@ -72,7 +92,12 @@ export function applyRedactedEvent(
 ): ClientGameState {
   if (event.type === "GAME_STARTED") {
     const active: Record<string, boolean> = {};
-    for (const id of event.config.players) active[id] = (event.handCounts[id] ?? 0) > 0;
+    const powers: Record<string, PowerKindView[]> = {};
+    const dealt = event.config.mode === "power-trumps" ? ALL_POWERS : [];
+    for (const id of event.config.players) {
+      active[id] = (event.handCounts[id] ?? 0) > 0;
+      powers[id] = [...dealt];
+    }
     return {
       config: event.config,
       round: 1,
@@ -82,6 +107,11 @@ export function applyRedactedEvent(
       pot: [],
       active,
       selected: null,
+      phase: "selecting",
+      plays: {},
+      yourPlay: null,
+      lastStat: null,
+      powers,
       lastResolved: null,
       finished: false,
       winner: null,
@@ -98,6 +128,21 @@ export function applyRedactedEvent(
   switch (event.type) {
     case "STAT_SELECTED":
       next.selected = { playerId: event.playerId, stat: event.stat, auto: event.auto };
+      if (event.cardId !== undefined) {
+        // Power trumps: the call opens the responding window.
+        next.phase = "responding";
+        next.plays = { [event.playerId]: { power: event.power ?? null } };
+        if (event.playerId === selfId && event.cardId !== null) {
+          next.yourPlay = { cardId: event.cardId, power: ownPower(event.power ?? null) };
+        }
+      }
+      return next;
+
+    case "CARD_PLAYED":
+      next.plays = { ...state.plays, [event.playerId]: { power: event.power } };
+      if (event.playerId === selfId && event.cardId !== null) {
+        next.yourPlay = { cardId: event.cardId, power: ownPower(event.power) };
+      }
       return next;
 
     case "ROUND_RESOLVED": {
@@ -106,8 +151,11 @@ export function applyRedactedEvent(
         handCounts[r.playerId] = Math.max(0, (handCounts[r.playerId] ?? 0) - 1);
       }
       let yourHand = state.yourHand;
-      if (yourHand !== null && event.revealed.some((r) => r.playerId === selfId)) {
-        yourHand = yourHand.slice(1);
+      const mine = event.revealed.find((r) => r.playerId === selfId);
+      if (yourHand !== null && mine !== undefined) {
+        // Classic: always the top card. Power trumps: whichever was chosen.
+        const index = yourHand.indexOf(mine.cardId);
+        yourHand = index === -1 ? yourHand.slice(1) : yourHand.filter((_, i) => i !== index);
       }
 
       const revealedIds = event.revealed.map((r) => r.cardId);
@@ -126,11 +174,41 @@ export function applyRedactedEvent(
         pot = [...pot, ...revealedIds];
       }
 
+      if (event.power !== undefined) {
+        // The ledger names every card that moved, so even a card we never
+        // saw becomes known the moment it changes hands.
+        for (const t of event.power.transfers) {
+          if (t.from === "pot") {
+            pot = removeOne(pot, t.cardId);
+          } else {
+            handCounts[t.from] = Math.max(0, (handCounts[t.from] ?? 0) - 1);
+            if (yourHand !== null && t.from === selfId) yourHand = removeOne(yourHand, t.cardId);
+          }
+          if (t.to === "pot") {
+            pot = [...pot, t.cardId];
+          } else {
+            handCounts[t.to] = (handCounts[t.to] ?? 0) + 1;
+            if (yourHand !== null && t.to === selfId) yourHand = [...yourHand, t.cardId];
+          }
+        }
+        next.leader = event.power.nextLeader;
+        const powers = { ...state.powers };
+        for (const o of event.power.outcomes) {
+          if (o.outcome === "void") continue;
+          powers[o.playerId] = (powers[o.playerId] ?? []).filter((k) => k !== o.power);
+        }
+        next.powers = powers;
+      }
+
       next.round = event.round + 1;
       next.handCounts = handCounts;
       next.yourHand = yourHand;
       next.pot = pot;
       next.selected = null;
+      next.phase = "selecting";
+      next.plays = {};
+      next.yourPlay = null;
+      next.lastStat = event.stat;
       next.lastResolved = {
         seq: event.seq,
         round: event.round,
@@ -138,6 +216,7 @@ export function applyRedactedEvent(
         revealed: event.revealed,
         result: event.result,
         potTaken,
+        power: event.power ?? null,
       };
       return next;
     }
@@ -169,15 +248,36 @@ export function applyRedactedEvent(
       if (state.leader === event.playerId) {
         next.leader = nextActive(state.config.players, active, event.playerId) ?? state.leader;
       }
+      if (event.playerId in state.plays) {
+        const plays = { ...state.plays };
+        delete plays[event.playerId];
+        next.plays = plays;
+      }
       return next;
     }
 
     case "GAME_ENDED":
       next.finished = true;
+      next.phase = "finished";
       next.winner = event.winner;
       next.endReason = event.reason;
       return next;
   }
+}
+
+/** Remove the first `cardId` (or, for a card we never saw, one unknown slot). */
+function removeOne(cards: MaybeCardId[], cardId: string): MaybeCardId[] {
+  let index = cards.indexOf(cardId);
+  if (index === -1) index = cards.indexOf(null);
+  if (index === -1) return cards;
+  return cards.filter((_, i) => i !== index);
+}
+
+/** Our own declaration always carries its DRS stat; narrow the wire type back. */
+function ownPower(power: DeclaredPower | null): PowerPlayView | null {
+  if (power === null) return null;
+  if (power.kind === "drs" && !("stat" in power)) return null;
+  return power as PowerPlayView;
 }
 
 /** Fold a batch of redacted events into a state. */

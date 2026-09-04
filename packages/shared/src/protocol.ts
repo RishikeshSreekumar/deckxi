@@ -45,8 +45,47 @@ export const joinCodeSchema = z
 // Room settings (host-editable in the lobby)
 // ---------------------------------------------------------------------------
 
+export const GAME_MODES = ["classic-trumps", "power-trumps"] as const;
+export type GameModeId = (typeof GAME_MODES)[number];
+
+/** Copy for the lobby's mode picker and the table's rules sheet. */
+export const GAME_MODE_INFO: Record<GameModeId, { name: string; blurb: string }> = {
+  "classic-trumps": {
+    name: "Classic trumps",
+    blurb: "Call a stat from your top card. Best number takes the cards. Winner calls next.",
+  },
+  "power-trumps": {
+    name: "Power trumps",
+    blurb:
+      "Pick one of your top three cards. The call rotates round the table and can't repeat. Three one-shot powers: win big, or lose one extra card.",
+  },
+};
+
+export const POWER_INFO: Record<
+  "powerplay" | "drs" | "super-over",
+  { name: string; short: string; blurb: string }
+> = {
+  powerplay: {
+    name: "Powerplay",
+    short: "PP",
+    blurb: "Win and take one extra card from every loser. Lose and give one extra.",
+  },
+  drs: {
+    name: "DRS",
+    short: "DRS",
+    blurb:
+      "Overrule the call with a stat of your own. Win and you lead next. Lose one extra if not.",
+  },
+  "super-over": {
+    name: "Super Over",
+    short: "SO",
+    blurb:
+      "If you lose, play your next card against the winner's for the lot. Lose that card too if it fails.",
+  },
+};
+
 export const roomSettingsSchema = z.object({
-  gameMode: z.literal("classic-trumps"),
+  gameMode: z.enum(GAME_MODES),
   /** Edition the game's deck is drawn from; pinned at game start. */
   editionId: z.string().regex(/^edition-\d{4}-q[1-4]$/),
   /** Cards dealt per player; the deck is a random edition subset of size n×players. */
@@ -81,8 +120,26 @@ export const resumeRoomSchema = z.object({
 
 export const setReadySchema = z.object({ ready: z.boolean() });
 
+const statKeySchema = z.string().regex(/^[a-z][a-zA-Z0-9]*$/);
+
+export const powerPlaySchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("powerplay") }),
+  z.object({ kind: z.literal("super-over") }),
+  z.object({ kind: z.literal("drs"), stat: statKeySchema }),
+]);
+export type PowerPlayView = z.infer<typeof powerPlaySchema>;
+
 export const selectStatSchema = z.object({
-  stat: z.string().regex(/^[a-z][a-zA-Z0-9]*$/),
+  stat: statKeySchema,
+  /** Power trumps: which of the top three to play (default 0). */
+  cardIndex: z.number().int().min(0).max(2).optional(),
+  power: powerPlaySchema.nullable().optional(),
+});
+
+/** Power trumps: a non-leader answering the call. */
+export const playCardSchema = z.object({
+  cardIndex: z.number().int().min(0).max(2),
+  power: powerPlaySchema.nullable().optional(),
 });
 
 export const chatSendSchema = z.object({
@@ -104,6 +161,7 @@ export const clientMessageSchemas = {
   "room:start": emptySchema,
   "room:rematch": emptySchema,
   "game:selectStat": selectStatSchema,
+  "game:playCard": playCardSchema,
   "game:forfeit": emptySchema,
   "chat:send": chatSendSchema,
   "chat:react": chatReactSchema,
@@ -200,6 +258,7 @@ export interface RoomResumed extends RoomJoined {
 // ---------------------------------------------------------------------------
 
 export interface RedactedGameConfig {
+  mode: GameModeId;
   players: string[];
   /** Full definitions of every card in play — public edition data. */
   cards: { id: string; stats: Record<string, number> }[];
@@ -217,6 +276,38 @@ export interface RevealedCardView {
 export type RoundResultView =
   { kind: "won"; winner: string } | { kind: "tie"; tiedPlayers: string[] };
 
+export type PowerKindView = "powerplay" | "drs" | "super-over";
+
+export interface PowerOutcomeView {
+  playerId: string;
+  power: PowerKindView;
+  outcome: "won" | "lost" | "void";
+}
+
+export interface CardTransferView {
+  cardId: string;
+  from: string | "pot";
+  to: string | "pot";
+}
+
+export interface SuperOverView {
+  challenger: string;
+  defender: string;
+  challengerCard: RevealedCardView;
+  defenderCard: RevealedCardView;
+  winner: string | null;
+}
+
+/** What the powers did to a power-trumps round; the client applies `transfers` verbatim. */
+export interface PowerRoundView {
+  calledStat: string;
+  drsBy: string | null;
+  outcomes: PowerOutcomeView[];
+  superOvers: SuperOverView[];
+  transfers: CardTransferView[];
+  nextLeader: string;
+}
+
 /**
  * Engine events with hidden information stripped per viewer. GAME_STARTED
  * carries your own hand plus card counts; the seed and other hands never
@@ -232,13 +323,31 @@ export type RedactedGameEvent = { seq: number } & (
       yourHand: string[] | null;
       handCounts: Record<string, number>;
     }
-  | { type: "STAT_SELECTED"; playerId: string; stat: string; auto: boolean }
+  | {
+      type: "STAT_SELECTED";
+      playerId: string;
+      stat: string;
+      auto: boolean;
+      /** Power trumps: the leader's committed card — your own only, null for others. */
+      cardId?: string | null;
+      /** Power trumps: the declared power. A DRS stat is yours only; others see `{ kind: "drs" }`. */
+      power?: PowerPlayView | { kind: "drs" } | null;
+    }
+  | {
+      type: "CARD_PLAYED";
+      playerId: string;
+      /** Your own card only; null for everyone else's. */
+      cardId: string | null;
+      power: PowerPlayView | { kind: "drs" } | null;
+      auto: boolean;
+    }
   | {
       type: "ROUND_RESOLVED";
       round: number;
       stat: string;
       revealed: RevealedCardView[];
       result: RoundResultView;
+      power?: PowerRoundView;
     }
   | { type: "PLAYER_ELIMINATED"; playerId: string; round: number }
   | { type: "PLAYER_FORFEITED"; playerId: string }
@@ -250,8 +359,10 @@ export type RedactedGameEvent = { seq: number } & (
 );
 
 export interface TurnTimerView {
-  /** Whose turn the timer is for (the round leader). */
+  /** Whose turn the timer is for: the leader, or (responding) the first player still to answer. */
   playerId: string;
+  /** Everyone the table is waiting on — the leader alone while they call. */
+  waitingOn: string[];
   /** Epoch ms when the server will auto-play. */
   deadline: number;
 }
@@ -315,6 +426,10 @@ export interface ClientToServerEvents {
   "room:rematch": (payload: undefined, ack: (reply: Ack<null>) => void) => void;
   "game:selectStat": (
     payload: z.input<typeof selectStatSchema>,
+    ack: (reply: Ack<null>) => void,
+  ) => void;
+  "game:playCard": (
+    payload: z.input<typeof playCardSchema>,
     ack: (reply: Ack<null>) => void,
   ) => void;
   "game:forfeit": (payload: undefined, ack: (reply: Ack<null>) => void) => void;

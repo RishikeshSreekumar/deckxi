@@ -3,12 +3,21 @@
  * values (that's all the engine needs); names, teams, roles and rarity come
  * from the edition dataset, bundled statically per known edition id.
  */
-import { editionSchema, type Edition, type Player, type Team } from "@deckxi/shared";
+import { editionSchema, unpackFigures, type Edition, type Player, type Team } from "@deckxi/shared";
 import edition2026q3 from "@deckxi/data/editions/edition-2026-q3.json";
 
 const bundled: Record<string, unknown> = {
   "edition-2026-q3": edition2026q3,
 };
+
+/**
+ * Make another edition resolvable at runtime — how the visual-regression
+ * build adds the fictional fixture without shipping it to players.
+ */
+export function registerEdition(id: string, raw: unknown): void {
+  bundled[id] = raw;
+  cache.delete(id);
+}
 
 /** The edition this build labels stats with when no game context exists. */
 export const DEFAULT_EDITION_ID = "edition-2026-q3";
@@ -48,5 +57,9 @@ export function statName(editionId: string, key: string): string {
 export function formatStatValue(editionId: string, key: string, value: number): string {
   const def = getEdition(editionId)?.stats.find((s) => s.key === key);
   if (def?.format === "decimal") return value.toFixed(2);
+  if (def?.format === "figures") {
+    const figures = unpackFigures(value);
+    return figures === null ? "—" : `${figures.wickets}/${figures.runs}`;
+  }
   return String(Math.round(value));
 }

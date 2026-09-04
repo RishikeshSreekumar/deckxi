@@ -493,10 +493,12 @@
 
 /* -- trump card ------------------------------------------------------------- */
 
-/* Design 9b: a printed piece, identical in both themes. Cream stock, ink
-   outline, ink drop. The top is the photo, bled to the edges, with the name
-   printed over its foot; under it an ink table with the numbers. Everything
-   inside uses the --card-* roles, never --text-*, which belong to the app.
+/* Design 10: a printed piece, identical in both themes. Cream stock, ink
+   outline, ink drop. The top is the photo, bled to the edges, with the shirt
+   number in an ink square and the flag in a framed tab; the name printed over
+   the photo's foot; under it, on the cream, a two-column table headed
+   BATTING / BOWLING. Everything inside uses the --card-* roles, never
+   --text-*, which belong to the app.
 
    One drawing, at every size. The card's font-size comes from its own width
    (container units on the .card-scale wrapper), so a 130px reveal card and
@@ -523,11 +525,13 @@
 
 .card {
   --card-pad: 0.9em;
-  --card-table-ink: var(--ink-900);
-  --card-table-rule: rgba(255, 250, 240, 0.14);
-  --card-table-muted: var(--tan-300);
-  --card-table-text: var(--cream-100);
-  --card-row: 1.85em;
+  --card-band-ink: var(--ink-900);
+  --card-band-text: var(--cream-50);
+  --card-table-face: var(--cream-50);
+  --card-table-rule: rgba(27, 20, 16, 0.18);
+  --card-table-muted: var(--tan-600);
+  --card-table-text: var(--ink-900);
+  --card-row: 1.7em;
 
   position: relative;
   display: flex;
@@ -595,6 +599,24 @@
   justify-content: center;
 }
 
+/* The real thing: a licensed photo cut to the window, faces kept high by
+   `object-position` since the name band eats the foot of the frame. */
+.card-photo-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 20%;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.card-photo--real {
+  background-image: none;
+  background-color: var(--team-color);
+}
+
 /* Sized by the photo, never the other way round: absolute, so the silhouette
    cannot decide how tall the card is. */
 .card-portrait {
@@ -609,45 +631,54 @@
   pointer-events: none;
 }
 
-/* Rating in a roundel, the role glyph under it: the corner of a playing
-   card, with the rank and the suit. */
-.card-roundel {
+/* The shirt number in an ink square: the corner of a playing card, with the
+   rank. Without a number on record, the rating and the role glyph. */
+.card-jersey {
   position: absolute;
   top: 0.7em;
   left: 0.7em;
-  width: 3.1em;
-  height: 3.1em;
+  min-width: 3.4em;
+  height: 3.4em;
+  padding: 0 0.5em;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0;
   border: 0.16em solid var(--ink-line);
-  border-radius: 50%;
-  background: var(--cream-50);
-  color: var(--card-body-ink);
+  border-radius: 0.55em;
+  background: var(--card-band-ink);
+  color: var(--card-band-text);
   line-height: 1;
+  box-shadow: 0.12em 0.12em 0 rgba(27, 20, 16, 0.35);
 }
 
-.card-roundel-rating {
+.card-jersey-number {
   font-family: var(--font-display);
-  font-size: 1.25em;
+  font-size: 1.9em;
   font-weight: var(--weight-bold);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
-.card-roundel .role-icon {
-  width: 0.9em;
-  height: 0.9em;
+.card-jersey--rating .card-jersey-number {
+  font-size: 1.35em;
+}
+
+.card-jersey .role-icon {
+  width: 0.85em;
+  height: 0.85em;
+  margin-top: 0.15em;
+  color: var(--tan-300);
 }
 
 /* The nation, top right: the flag, printed straight on the photo. */
 .card-flag {
   position: absolute;
-  top: 0.55em;
+  top: 0.6em;
   right: 0.7em;
   font-size: 1.9em;
   line-height: 1;
+  filter: drop-shadow(0 0.04em 0.12em rgba(27, 20, 16, 0.45));
 }
 
 .card-flag--text {
@@ -657,20 +688,7 @@
   font-size: 1em;
   letter-spacing: var(--tracking-wide);
   color: var(--card-body-ink);
-}
-
-/* Star and legend marks, on the photo above the band. */
-.card-rarity {
-  position: absolute;
-  right: 0.8em;
-  top: 3.2em;
-  font-size: 1.3em;
-  line-height: 1;
-  color: var(--card-body-accent);
-}
-
-.card-rarity--legend {
-  color: var(--rarity-legend-ink);
+  filter: none;
 }
 
 /* -- the band -- */
@@ -685,16 +703,15 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.15em;
-  padding: 1.6em var(--card-pad) 0.55em;
+  padding: 2.4em var(--card-pad) 0.7em;
   background: linear-gradient(
     to top,
-    var(--card-table-ink) 0,
-    var(--card-table-ink) 62%,
-    color-mix(in srgb, var(--card-table-ink) 60%, transparent) 84%,
+    var(--card-band-ink) 0,
+    var(--card-band-ink) 45%,
+    color-mix(in srgb, var(--card-band-ink) 55%, transparent) 78%,
     transparent 100%
   );
-  color: var(--card-table-text);
+  color: var(--card-band-text);
 }
 
 /* Long names wrap to a second line rather than truncating on the first — a
@@ -702,7 +719,7 @@
    Two lines is the cap. */
 .card-name {
   font-family: var(--font-display);
-  font-size: 1.7em;
+  font-size: 1.9em;
   font-weight: var(--weight-bold);
   line-height: var(--leading-tight);
   letter-spacing: var(--tracking-display);
@@ -715,25 +732,15 @@
   hyphens: none;
 }
 
-.card-nation {
-  flex: 0 0 auto;
-  font-family: var(--font-label);
-  font-size: 0.85em;
-  font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--ember-400);
-}
-
 /* -- the table (stats are gameplay, not decoration) -- */
 
 .card-table {
   flex: 0 0 auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  background: var(--card-table-ink);
+  background: var(--card-table-face);
   color: var(--card-table-text);
-  border-top: 1px solid var(--card-table-rule);
+  border-top: 0.16em solid var(--ink-line);
   border-radius: 0 0 0.5em 0.5em;
 }
 
@@ -741,38 +748,45 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding: 0.6em var(--card-pad) 0.7em;
+  padding: 0.55em var(--card-pad) 0.6em;
 }
 
 .card-column + .card-column {
   border-left: 1px solid var(--card-table-rule);
 }
 
-/* The bat and the ball are the headings: small, one line, out of the way. */
+/* The headings: the bat, the ball, and the word. Small, one line. */
+.card-column-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  height: 1.7em;
+  margin-bottom: 0.2em;
+  font-family: var(--font-label);
+  font-size: 0.85em;
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--card-table-muted);
+  white-space: nowrap;
+}
+
 .card-column-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.6em;
-  height: 1.6em;
-  margin-bottom: 0.35em;
-  border-radius: 50%;
-  background: var(--cream-100);
-  color: var(--ink-900);
-}
-
-.card-column-icon--bat {
-  background: var(--ember-500);
-  color: var(--cream-50);
+  width: 1.5em;
+  height: 1.5em;
+  color: var(--ember-500);
 }
 
 .card-column-icon .role-icon {
-  width: 0.95em;
-  height: 0.95em;
+  width: 1.2em;
+  height: 1.2em;
 }
 
-.card-column-icon--ball .role-icon {
-  color: var(--ink-900);
+.card-column-icon--ball .role-icon path {
+  stroke: var(--cream-50);
 }
 
 .card-stats {
@@ -837,7 +851,7 @@
 
 .stat-button:hover,
 .stat-button:focus-visible {
-  background: rgba(255, 250, 240, 0.1);
+  background: rgba(27, 20, 16, 0.07);
 }
 
 .stat-button:focus-visible {
@@ -846,15 +860,27 @@
 }
 
 .stat-button:active {
-  background: rgba(255, 250, 240, 0.18);
+  background: rgba(27, 20, 16, 0.14);
+}
+
+/* Called last round: still printed, not for calling again. */
+.stat-row--spent .stat-button {
+  cursor: not-allowed;
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.stat-row--spent .stat-button:hover,
+.stat-row--spent .stat-button:active {
+  background: transparent;
 }
 
 .stat-name {
   min-width: 0;
   font-family: var(--font-label);
-  font-size: 0.95em;
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-wide);
+  font-size: 0.85em;
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--card-table-muted);
   overflow: hidden;
@@ -873,7 +899,7 @@
 
 .stat-value {
   font-family: var(--font-display);
-  font-size: 1.25em;
+  font-size: 1.35em;
   font-weight: var(--weight-bold);
   font-variant-numeric: tabular-nums;
   color: var(--card-table-text);
@@ -882,7 +908,7 @@
 }
 
 /* The called stat is the one row that inverts: the green of the table,
-   pulled onto the ink. */
+   pulled onto the cream. */
 .stat-row--hot .stat-button,
 .stat-row--hot .stat-static {
   background: var(--surface-field);
@@ -921,62 +947,6 @@
   display: block;
 }
 
-/* -- rarity treatments -- */
-
-/* Star: gold foil inner frame + warm glow. Both foil and glow are per-theme
-   tokens — a foil tuned for near-black reads as mud on near-white. */
-.card--star {
-  box-shadow:
-    var(--elevation-card),
-    0 0 14px var(--rarity-star-glow);
-}
-
-.card--star .card-frame {
-  border: 1.5px solid transparent;
-  background: var(--rarity-star-foil) border-box;
-  mask:
-    linear-gradient(#000 0 0) padding-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-}
-
-/* Legend: holographic foil — a static holo tint over the photo, with a
-   travelling sheen on top. Reduced motion keeps the tint, drops the sweep. */
-.card--legend {
-  box-shadow:
-    var(--elevation-card),
-    0 0 18px var(--rarity-legend-glow);
-}
-
-.card--legend .card-frame {
-  border: 1.5px solid transparent;
-  background: var(--rarity-legend-foil) border-box;
-  mask:
-    linear-gradient(#000 0 0) padding-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-}
-
-.card--legend .card-top::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: var(--holo);
-  opacity: var(--holo-opacity);
-  pointer-events: none;
-  z-index: 2;
-}
-
-.card--legend .card-top::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: var(--holo);
-  pointer-events: none;
-  z-index: 2;
-  animation: sheen 3.2s ease-in-out infinite;
-}
-
 /* -- outcome states -- */
 
 .card--winner {
@@ -997,16 +967,6 @@
    --dur-fast with no bounce — the press-into-shadow translate is the one
    exception, and it is 4px. Transform and opacity only — nothing here may
    trigger layout. See docs/design/direction.md §6. */
-
-@keyframes sheen {
-  0%,
-  60% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
-}
 
 @keyframes flip-in {
   from {
@@ -1096,8 +1056,8 @@
 
 /* -- reduced motion --------------------------------------------------------- */
 
-/* Keep every state, drop every journey: the holo tint and the winner ring
-   stay, the travelling sheen and the sweeps do not. */
+/* Keep every state, drop every journey: the winner ring stays, the sweeps
+   do not. */
 @media (prefers-reduced-motion: reduce) {
   .toast,
   .dialog,
@@ -1107,11 +1067,6 @@
   .button--loading::before {
     animation: none;
     will-change: auto;
-  }
-
-  .card--legend .card-top::after {
-    animation: none;
-    display: none;
   }
 
   .stat-button,

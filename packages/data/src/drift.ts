@@ -46,6 +46,11 @@ export function driftEdition(edition: Edition, seed: number, generatedAt: string
       const value = player.stats[def.key] ?? def.min;
       // "Better" moves with form regardless of direction: lower-wins stats
       // improve by shrinking.
+      // A packed bowling analysis is a record, not a rate: form leaves it alone.
+      if (def.format === "figures") {
+        stats[def.key] = value;
+        continue;
+      }
       const drifted = def.direction === "higher" ? value * factor : value / factor;
       const dp = def.format === "integer" ? 1 : 10;
       stats[def.key] = Math.min(def.max, Math.max(def.min, Math.round(drifted * dp) / dp));

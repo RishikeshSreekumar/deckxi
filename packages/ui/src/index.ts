@@ -6,6 +6,7 @@ export * as tokens from "./tokens.js";
 export {
   getEdition,
   getCardInfo,
+  registerEdition,
   statName,
   formatStatValue,
   DEFAULT_EDITION_ID,

@@ -20,7 +20,14 @@ import {
   type StatDefinition,
 } from "@deckxi/engine";
 import { CURRENT_EDITION_ID, loadEdition } from "@deckxi/data";
-import type { ErrorCode, RoomPhase, RoomSettings, RoomView, TurnTimerView } from "@deckxi/shared";
+import type {
+  ErrorCode,
+  PowerPlayView,
+  RoomPhase,
+  RoomSettings,
+  RoomView,
+  TurnTimerView,
+} from "@deckxi/shared";
 import { generateJoinCode } from "./codes.js";
 import { nullLogger, type Logger } from "./logging.js";
 import { createMetrics, type Metrics } from "./metrics.js";
@@ -62,9 +69,16 @@ export interface GameInstance {
   /** Full, unredacted event log — server truth; redacted per viewer on send. */
   log: SeqEvent[];
   startedAt: number;
-  /** Epoch ms when the current leader is auto-played; null when finished. */
+  /** Epoch ms when whoever is still to act is auto-played; null when finished. */
   turnDeadline: number | null;
   turnTimer: NodeJS.Timeout | null;
+  /** Which round/phase the running timer belongs to (see `turnKey`). */
+  turnKey: string | null;
+}
+
+/** The timer is per round *phase*: a call and the answers to it get one clock each. */
+function turnKey(state: GameState): string {
+  return `${state.round}:${state.phase}`;
 }
 
 export interface Room {
@@ -379,6 +393,7 @@ export class RoomManager {
       stats,
       seed: randomInt(2 ** 31),
       maxRounds: room.settings.maxRounds,
+      mode: room.settings.gameMode,
     });
 
     room.game = {
@@ -389,6 +404,7 @@ export class RoomManager {
       startedAt: Date.now(),
       turnDeadline: null,
       turnTimer: null,
+      turnKey: null,
     };
     room.phase = "playing";
     this.touch(room);
@@ -428,9 +444,25 @@ export class RoomManager {
     this.scheduleTurn(room);
   }
 
-  selectStat(sessionId: string, stat: string): void {
+  selectStat(
+    sessionId: string,
+    stat: string,
+    options: { cardIndex?: number | undefined; power?: PowerPlayView | null | undefined } = {},
+  ): void {
     const { room, session } = this.requirePlayer(sessionId);
-    this.applyEngineCommand(room, { type: "SELECT_STAT", playerId: session.id, stat });
+    this.applyEngineCommand(room, {
+      type: "SELECT_STAT",
+      playerId: session.id,
+      stat,
+      ...(options.cardIndex !== undefined ? { cardIndex: options.cardIndex } : {}),
+      ...(options.power !== undefined ? { power: options.power } : {}),
+    });
+  }
+
+  /** Power trumps: a non-leader answers the call. */
+  playCard(sessionId: string, cardIndex: number, power: PowerPlayView | null = null): void {
+    const { room, session } = this.requirePlayer(sessionId);
+    this.applyEngineCommand(room, { type: "PLAY_CARD", playerId: session.id, cardIndex, power });
   }
 
   forfeit(sessionId: string): void {
@@ -516,39 +548,65 @@ export class RoomManager {
   }
 
   // -------------------------------------------------------------------------
-  // Turn timers — the server auto-plays leaders who run out of time, so a
-  // stalled (or disconnected) player never blocks the table.
+  // Turn timers — the server auto-plays whoever runs out of time (the leader
+  // while they call; every player still to answer while the table responds),
+  // so a stalled (or disconnected) player never blocks the table.
   // -------------------------------------------------------------------------
+
+  /** Who the table is waiting on right now. */
+  static waitingOn(state: GameState): string[] {
+    if (state.phase === "responding") {
+      const played = state.pending?.plays ?? {};
+      return state.players.filter((p) => p.active && !(p.id in played)).map((p) => p.id);
+    }
+    return [state.leader];
+  }
+
+  timerView(game: GameInstance): TurnTimerView | null {
+    if (game.turnDeadline === null) return null;
+    const waitingOn = RoomManager.waitingOn(game.state);
+    return { playerId: waitingOn[0] ?? game.state.leader, waitingOn, deadline: game.turnDeadline };
+  }
 
   protected scheduleTurn(room: Room): void {
     const game = room.game;
     if (game === null || room.phase !== "playing") return;
-    this.clearTurn(game);
-    const durationMs = this.turnTimerMsOverride ?? room.settings.turnTimerSeconds * 1000;
-    const leader = game.state.leader;
-    const deadline = Date.now() + durationMs;
-    game.turnDeadline = deadline;
-    game.turnTimer = setTimeout(() => this.onTurnExpired(room.id, leader, deadline), durationMs);
-    game.turnTimer.unref();
-    this.observer.timer(room, { playerId: leader, deadline });
+    const key = turnKey(game.state);
+    // One answer landing must not restart the clock for everyone else still
+    // to answer: a phase gets one clock, started when it opens.
+    if (key !== game.turnKey || game.turnTimer === null) {
+      this.clearTurn(game);
+      const durationMs = this.turnTimerMsOverride ?? room.settings.turnTimerSeconds * 1000;
+      const deadline = Date.now() + durationMs;
+      game.turnDeadline = deadline;
+      game.turnKey = key;
+      game.turnTimer = setTimeout(() => this.onTurnExpired(room.id, deadline), durationMs);
+      game.turnTimer.unref();
+    }
+    this.observer.timer(room, this.timerView(game));
   }
 
-  private onTurnExpired(roomId: string, leader: string, deadline: number): void {
+  private onTurnExpired(roomId: string, deadline: number): void {
     const room = this.rooms.get(roomId);
     const game = room?.game;
     if (room === undefined || game === null || game === undefined) return;
     // Stale timer (a command landed and rescheduled, or the game ended).
-    if (
-      room.phase !== "playing" ||
-      game.turnDeadline !== deadline ||
-      game.state.leader !== leader
-    ) {
-      return;
+    if (room.phase !== "playing" || game.turnDeadline !== deadline) return;
+    const key = game.turnKey;
+    // Everyone still to act plays automatically; the handle stays set so the
+    // reschedules each auto-play triggers leave this phase's clock alone.
+    for (const playerId of RoomManager.waitingOn(game.state)) {
+      if (room.phase !== "playing" || turnKey(game.state) !== key) return;
+      try {
+        this.applyEngineCommand(room, { type: "AUTO_PLAY", playerId });
+      } catch {
+        // The engine refused (e.g. a race with game end); nothing to do.
+      }
     }
-    try {
-      this.applyEngineCommand(room, { type: "AUTO_PLAY", playerId: leader });
-    } catch {
-      // The engine refused (e.g. a race with game end); nothing to do.
+    // Belt and braces: if the phase somehow survived, give it a fresh clock.
+    if (room.phase === "playing" && turnKey(game.state) === key) {
+      game.turnTimer = null;
+      this.scheduleTurn(room);
     }
   }
 
@@ -556,6 +614,7 @@ export class RoomManager {
     if (game.turnTimer !== null) clearTimeout(game.turnTimer);
     game.turnTimer = null;
     game.turnDeadline = null;
+    game.turnKey = null;
   }
 
   private clearGrace(sessionId: string): void {

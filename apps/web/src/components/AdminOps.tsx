@@ -10,7 +10,7 @@
 import { useEffect, useState } from "react";
 import { fetchAdminFlags, saveAdminFlags, type OpsFlags } from "../lib/admin.js";
 
-const MODES = ["classic-trumps"];
+const MODES = ["classic-trumps", "power-trumps"];
 
 export function AdminOps() {
   const [flags, setFlags] = useState<OpsFlags | null>(null);

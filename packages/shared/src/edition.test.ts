@@ -65,6 +65,25 @@ describe("editionSchema", () => {
     }
   };
 
+  it("accepts a photo credit and declared sources", () => {
+    const edition = makeEdition();
+    (edition.players[0] as Edition["players"][number]).photo = {
+      src: "/cards/edition-2026-q3/player-0.webp",
+      author: "Someone",
+      license: "CC BY-SA 4.0",
+      licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+      source: "https://commons.wikimedia.org/wiki/File:Player_0.jpg",
+    };
+    edition.sources = [{ name: "Cricsheet", url: "https://cricsheet.org/", license: "ODC-By 1.0" }];
+    expect(editionSchema.safeParse(edition).success).toBe(true);
+  });
+
+  it("accepts fixture-style ids and rejects malformed ones", () => {
+    expect(editionSchema.safeParse({ ...makeEdition(), id: "edition-fixture" }).success).toBe(true);
+    expect(editionSchema.safeParse({ ...makeEdition(), id: "Edition-2026" }).success).toBe(false);
+    expect(editionSchema.safeParse({ ...makeEdition(), id: "2026-q3" }).success).toBe(false);
+  });
+
   it("rejects unknown teamId", () => {
     failsWith((e) => {
       (e.players[0] as Edition["players"][number]).teamId = "team-zz";
@@ -97,8 +116,8 @@ describe("editionSchema", () => {
 
   it("rejects bad edition ids and ratings", () => {
     failsWith((e) => {
-      e.id = "edition-latest" as Edition["id"];
-    }, /edition-YYYY-qN/);
+      e.id = "Edition Latest" as Edition["id"];
+    }, /edition-<slug>/);
     failsWith((e) => {
       (e.players[0] as Edition["players"][number]).rating = 101;
     }, /<=100|less than or equal/i);
