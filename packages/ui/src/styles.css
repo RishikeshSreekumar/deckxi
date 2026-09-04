@@ -1076,3 +1076,126 @@
     transition: none;
   }
 }
+
+/* -- the power card -------------------------------------------------------- */
+
+/* Same stock as a trump card: the badge block where the photo goes, the name
+   printed on the band over its foot, and the rule under it in a table drawn
+   like the stats — so a power reads as a card in the deck rather than as a
+   legend beside it. */
+/* Width belongs to the size class (.card-scale--hand/--reveal/--full), the
+   same as a trump card; this only strips the button chrome off the ones that
+   are buttons. */
+.power-card-scale {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+button.power-card-scale {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button.power-card-scale:disabled {
+  cursor: default;
+}
+
+.power-card {
+  /* The rule needs the room the two stat columns do not. */
+  --card-pad: 0.8em;
+}
+
+.power-card-top {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 6em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5em 0.5em 0 0;
+  overflow: hidden;
+  background-color: var(--team-color);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.09) 0 0.9em,
+    transparent 0.9em 1.8em
+  );
+}
+
+/* The three letters, big, in the middle of the block — the thing a player
+   matches against the chip in their hand. */
+.power-card-badge {
+  font-family: var(--font-display);
+  font-size: 3.4em;
+  font-weight: var(--weight-bold);
+  line-height: 1;
+  letter-spacing: var(--tracking-display);
+  color: var(--cream-50);
+  /* Lifted clear of the band's gradient. */
+  margin-bottom: 0.55em;
+}
+
+.power-card-stamp {
+  position: absolute;
+  top: 0.8em;
+  right: 0.8em;
+  padding: 0.15em 0.5em;
+  border: 0.15em solid var(--cream-50);
+  border-radius: 0.3em;
+  font-family: var(--font-label);
+  font-size: 0.8em;
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--cream-50);
+  transform: rotate(8deg);
+}
+
+.power-card-table {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.55em var(--card-pad) 0.65em;
+  background: var(--card-table-face);
+  color: var(--card-table-text);
+  border-top: 0.16em solid var(--ink-line);
+  border-radius: 0 0 0.5em 0.5em;
+}
+
+.power-card-row + .power-card-row {
+  margin-top: 0.5em;
+  padding-top: 0.5em;
+  border-top: 1px solid var(--card-table-rule);
+}
+
+.power-card-row dt {
+  font-family: var(--font-label);
+  font-size: 0.85em;
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--card-table-muted);
+}
+
+.power-card-row dd {
+  margin: 0.15em 0 0;
+  font-size: 0.95em;
+  line-height: var(--leading-snug);
+  color: var(--card-table-text);
+}
+
+.power-card--armed {
+  box-shadow:
+    0 0 0 0.22em var(--interactive-accent),
+    0.3em 0.3em 0 var(--ink-line);
+}
+
+.power-card--spent {
+  opacity: 0.55;
+  filter: saturate(0.4);
+}

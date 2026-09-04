@@ -25,7 +25,7 @@ import {
   type TurnTimerView,
 } from "@deckxi/shared";
 import type { ClientGameState, DeclaredPower, ResolvedRound } from "../game/clientGame.js";
-import { Dialog, TrumpCard, formatStatValue, getCardInfo, statName } from "@deckxi/ui";
+import { Dialog, PowerCard, TrumpCard, formatStatValue, getCardInfo, statName } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
 import { EmoteBar } from "../components/EmoteBar.js";
 import { GameChat } from "../components/GameChat.js";
@@ -391,6 +391,8 @@ export function GameTable({ room }: { room: RoomView }) {
       : "100%";
 
   const myPowers = selfId === null ? [] : (game.powers[selfId] ?? []);
+  // The picker is live only while you still have a move to make with it.
+  const pickerLocked = move === null || game.yourPlay !== null;
   const waitingNames = (timer?.waitingOn ?? [])
     .filter((id) => id !== selfId)
     .map((id) => names[id] ?? id);
@@ -633,34 +635,39 @@ export function GameTable({ room }: { room: RoomView }) {
             </span>
           )}
           {powerMode && !spectator && hand !== null && choices.length > 1 && (
-            <div
-              className={`hand-picker ${move === null || game.yourPlay !== null ? "hand-picker--locked" : ""}`.trim()}
-              role="radiogroup"
-              aria-label="Which card to play"
-              data-testid="hand-picker"
-            >
-              {choices.map((cardId, index) => {
-                const committed = game.yourPlay?.cardId ?? playedCard;
-                const on = committed !== null ? committed === cardId : index === safePick;
-                return (
-                  <button
-                    key={`${index}-${cardId ?? "?"}`}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    className={on ? "pick-chip pick-chip--on" : "pick-chip"}
-                    disabled={move === null || game.yourPlay !== null}
-                    data-testid={`pick-${index}`}
-                    onClick={() => {
-                      haptics.tap();
-                      setPick(index);
-                    }}
-                  >
-                    <i>{index + 1}</i>
-                    {cardShortName(editionId, cardId)}
-                  </button>
-                );
-              })}
+            <div className="hand-pick-row">
+              <span className="hand-pick-label">
+                {pickerLocked ? "Playing" : "Your top 3 — tap to swap"}
+              </span>
+              <div
+                className={`hand-picker ${pickerLocked ? "hand-picker--locked" : ""}`.trim()}
+                role="radiogroup"
+                aria-label="Which card to play"
+                data-testid="hand-picker"
+              >
+                {choices.map((cardId, index) => {
+                  const committed = game.yourPlay?.cardId ?? playedCard;
+                  const on = committed !== null ? committed === cardId : index === safePick;
+                  return (
+                    <button
+                      key={`${index}-${cardId ?? "?"}`}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      className={on ? "pick-chip pick-chip--on" : "pick-chip"}
+                      disabled={pickerLocked}
+                      data-testid={`pick-${index}`}
+                      onClick={() => {
+                        haptics.tap();
+                        setPick(index);
+                      }}
+                    >
+                      <i>{index + 1}</i>
+                      <span>{cardShortName(editionId, cardId)}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -759,9 +766,11 @@ export function GameTable({ room }: { room: RoomView }) {
               >
                 {sending
                   ? "Playing…"
-                  : armed === null
-                    ? "Play this card"
-                    : `Play · ${POWER_INFO[armed].name}`}
+                  : armed !== null
+                    ? `Play · ${POWER_INFO[armed].name}`
+                    : hotStat !== null
+                      ? `Play this card on ${statName(editionId, hotStat)}`
+                      : "Play this card"}
               </button>
             )}
             {move === null && game.yourPlay !== null && current === null && (
@@ -857,12 +866,6 @@ export function GameTable({ room }: { room: RoomView }) {
                 decided the last round. The call goes round the table.
               </span>
             </li>
-            {POWER_ORDER.map((kind) => (
-              <li key={kind}>
-                <strong>{POWER_INFO[kind].name}</strong>
-                <span className="sub">{POWER_INFO[kind].blurb}</span>
-              </li>
-            ))}
             <li>
               <strong>Every power is a bet</strong>
               <span className="sub">
@@ -871,6 +874,16 @@ export function GameTable({ room }: { room: RoomView }) {
               </span>
             </li>
           </ul>
+          <div className="power-card-row-strip" aria-label="Power cards">
+            {POWER_ORDER.map((kind) => (
+              <PowerCard
+                key={kind}
+                kind={kind}
+                size="full"
+                spent={!spectator && !myPowers.includes(kind)}
+              />
+            ))}
+          </div>
           <button type="button" className="button" onClick={() => setRulesOpen(false)}>
             Got it
           </button>

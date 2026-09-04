@@ -9,15 +9,17 @@ import {
   GAME_MODES,
   GAME_MODE_INFO,
   MAX_CHAT_LENGTH,
-  POWER_INFO,
   type RoomSettings,
   type RoomView,
 } from "@deckxi/shared";
-import { Dialog, RoomCode } from "@deckxi/ui";
+import { Dialog, PowerCard, RoomCode, getEdition } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
 import { LeaveIcon, Wordmark } from "../components/Chrome.js";
 
 const MAX_SEATS = 6;
+
+/** The powers in the order the table shows them, everywhere. */
+const POWER_ORDER = ["powerplay", "drs", "super-over"] as const;
 
 function inviteUrl(code: string): string {
   return `${location.origin}/join/${code}`;
@@ -87,6 +89,91 @@ function InviteDialog({ code, onClose }: { code: string; onClose: () => void }) 
   );
 }
 
+/**
+ * The three power cards, laid out as cards. A power that only ever appears as
+ * two letters on a chip is a rule nobody at the table has read; printed as a
+ * piece of the deck, with what it does on it, it is a rule they can point at.
+ */
+function PowerCardRow() {
+  return (
+    <div className="power-card-row-strip" aria-label="Power cards">
+      {POWER_ORDER.map((kind) => (
+        <PowerCard key={kind} kind={kind} size="full" />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The setup, on the lobby itself. It used to live only behind "Deck rules",
+ * which meant a player could sit through a whole match without ever learning
+ * the mode was a choice — so the mode, the numbers and (in power trumps) the
+ * cards are printed here, with the one button that changes them right beside
+ * them.
+ */
+function MatchSetup({
+  room,
+  isHost,
+  onEdit,
+}: {
+  room: RoomView;
+  isHost: boolean;
+  onEdit: () => void;
+}) {
+  const s = room.settings;
+  const info = GAME_MODE_INFO[s.gameMode];
+  const chips: [string, string][] = [
+    ...(info.family === "trumps"
+      ? ([["Cards each", String(s.cardsPerPlayer)]] as [string, string][])
+      : []),
+    ["Turn timer", `${s.turnTimerSeconds}s`],
+    ...(info.family === "trumps"
+      ? ([["Round limit", String(s.maxRounds)]] as [string, string][])
+      : []),
+    ["Deck", getEdition(s.editionId)?.name ?? s.editionId],
+  ];
+
+  return (
+    <section className="panel match-setup" aria-labelledby="setup-title" data-testid="match-setup">
+      <div className="match-setup-head">
+        <h2 className="panel-title" id="setup-title">
+          Match setup
+        </h2>
+        <button
+          type="button"
+          className="chip match-setup-edit"
+          data-testid="edit-setup"
+          onClick={onEdit}
+        >
+          {isHost ? "Change" : "View"}
+        </button>
+      </div>
+
+      <div className="match-setup-mode">
+        <strong>{info.name}</strong>
+        <span className="sub">{info.blurb}</span>
+        <span className="sub">
+          {info.players.min}–{info.players.max} players ·{" "}
+          {isHost
+            ? `${GAME_MODES.length} modes to pick from — tap Change`
+            : "the host picks the mode"}
+        </span>
+      </div>
+
+      <dl className="match-setup-chips">
+        {chips.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {s.gameMode === "power-trumps" && <PowerCardRow />}
+    </section>
+  );
+}
+
 function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean }) {
   const updateSettings = useStore((s) => s.updateSettings);
   const s = room.settings;
@@ -150,23 +237,14 @@ function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean }) {
           })}
         </div>
       </div>
-      {s.gameMode === "power-trumps" && (
-        <ul className="power-legend" aria-label="Power cards">
-          {(Object.keys(POWER_INFO) as (keyof typeof POWER_INFO)[]).map((kind) => (
-            <li key={kind}>
-              <strong>{POWER_INFO[kind].name}</strong>
-              <span className="sub">{POWER_INFO[kind].blurb}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      {s.gameMode === "power-trumps" && <PowerCardRow />}
       {GAME_MODE_INFO[s.gameMode].family === "trumps" &&
         row("Cards per player", s.cardsPerPlayer, [3, 4, 5, 7, 9, 11], "cardsPerPlayer")}
       {row("Turn timer", s.turnTimerSeconds, [10, 15, 20, 30, 60], "turnTimerSeconds", "s")}
       {GAME_MODE_INFO[s.gameMode].family === "trumps" &&
         row("Round limit", s.maxRounds, [10, 25, 50, 100, 1000], "maxRounds")}
       <p className="sub">
-        Edition: {s.editionId}
+        Deck: {getEdition(s.editionId)?.name ?? s.editionId}
         {isHost ? "" : " · the host decides"}
       </p>
     </div>
@@ -277,13 +355,15 @@ export function Lobby({ room }: { room: RoomView }) {
         <section className="lobby-main">
           <div className="lobby-intro">
             <h1 className="headline">{heading}</h1>
-            <p className="sub">
-              {modeInfo.family === "trumps"
-                ? `${modeInfo.name} · everyone gets ${room.settings.cardsPerPlayer} cards, dealt at random.`
-                : `${modeInfo.name} · draft 13 from a shared pool, name your XI, play the league.`}
-              {room.spectators.length > 0 && ` ${room.spectators.length} watching.`}
-            </p>
+            {room.spectators.length > 0 && (
+              <p className="sub">{room.spectators.length} watching.</p>
+            )}
           </div>
+
+          {/* Above the seats, not under them: on a phone the seat list is
+              most of the screen, and a setup nobody scrolls to is a setup
+              nobody knows they can change. */}
+          <MatchSetup room={room} isHost={isHost} onEdit={() => setSheet("rules")} />
 
           <ul className="player-list seat-grid" aria-label={`Players (${players.length}/6)`}>
             {players.map((p) => {

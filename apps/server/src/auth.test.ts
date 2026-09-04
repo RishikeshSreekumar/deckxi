@@ -55,7 +55,7 @@ describe("guest identity", () => {
   it("anonymous sign-in creates a guest with a cricket handle and avatar", async () => {
     const { cookie, user } = await signInGuest(server.url);
     expect(cookie).toContain("better-auth.session_token");
-    expect(user.name).toMatch(/^[A-Za-z]+\d{1,2}$/);
+    expect(user.name).toMatch(/^[A-Za-z]+$/);
     expect(user.isAnonymous).toBe(true);
     expect(user.image).not.toBeNull();
     expect(isAvatarId(user.image as string)).toBe(true);

@@ -81,26 +81,41 @@ export const GAME_MODE_INFO: Record<
   },
 };
 
+/**
+ * The three power cards, in the words they are printed with. `blurb` is the
+ * one-line version for a chip's tooltip; `when`/`win`/`fail` are the three
+ * lines the power card itself prints, because a card a player can read is
+ * worth more than a rule they have to be told.
+ */
 export const POWER_INFO: Record<
-  "powerplay" | "drs" | "super-over",
-  { name: string; short: string; blurb: string }
+  PowerKindView,
+  { name: string; short: string; blurb: string; when: string; win: string; fail: string }
 > = {
   powerplay: {
     name: "Powerplay",
     short: "PP",
     blurb: "Win and take one extra card from every loser. Lose and give one extra.",
+    when: "Play it with your card, on your call or your answer.",
+    win: "Take one extra card from every player you beat.",
+    fail: "Give one extra card away.",
   },
   drs: {
     name: "DRS",
     short: "DRS",
     blurb:
       "Overrule the call with a stat of your own. Win and you lead next. Lose one extra if not.",
+    when: "Only when answering someone else's call — tap the stat you overrule with.",
+    win: "Your stat decides the round, and you call next.",
+    fail: "Give one extra card away.",
   },
   "super-over": {
     name: "Super Over",
     short: "SO",
     blurb:
       "If you lose, play your next card against the winner's for the lot. Lose that card too if it fails.",
+    when: "Play it with your card. It only wakes up if you lose the round.",
+    win: "Beat the winner head-to-head and take every card on the table.",
+    fail: "That card is gone too.",
   },
 };
 

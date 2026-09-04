@@ -54,14 +54,17 @@ const config: RedactedGameConfig = {
   editionId: EDITION_ID,
 };
 
-function room(phase: RoomView["phase"]): RoomView {
+function room(
+  phase: RoomView["phase"],
+  gameMode: RoomView["settings"]["gameMode"] = "classic-trumps",
+): RoomView {
   return {
     roomId: "room-visual",
     code: "TRUMP7",
     phase,
     hostId: SELF,
     settings: {
-      gameMode: "classic-trumps",
+      gameMode,
       editionId: EDITION_ID,
       cardsPerPlayer: 7,
       turnTimerSeconds: 20,
@@ -140,6 +143,20 @@ const SCENARIOS: Record<string, () => StoreState> = {
     chat,
   }),
 
+  /**
+   * The same lobby set to power trumps — the one place the three power cards
+   * are printed before a match, and the only screen where the setup panel has
+   * a card strip under it.
+   */
+  "lobby-power": () => ({
+    connection: "online",
+    selfId: SELF,
+    spectator: false,
+    room: room("lobby", "power-trumps"),
+    game: null,
+    chat,
+  }),
+
   /** Table waiting on your pick — the highest-stakes idle state. */
   "table-turn": () => ({
     connection: "online",
@@ -147,6 +164,35 @@ const SCENARIOS: Record<string, () => StoreState> = {
     spectator: false,
     room: room("playing"),
     game: game(),
+    timer: null,
+    pendingReveals: [],
+  }),
+
+  /**
+   * Power trumps, answering someone else's call — the busiest the table ever
+   * gets, and the layout that has to hold three name chips, three power chips,
+   * the help button and the Play button on one phone without any of them
+   * sliding off the edge.
+   */
+  "table-power": () => ({
+    connection: "online",
+    selfId: SELF,
+    spectator: false,
+    room: room("playing", "power-trumps"),
+    game: game({
+      config: { ...config, mode: "power-trumps" },
+      leader: "p-asha",
+      phase: "responding",
+      selected: { playerId: "p-asha", stat: edition?.stats[1]?.key ?? "", auto: false },
+      lastStat: edition?.stats[0]?.key ?? "",
+      plays: { "p-dev": { power: null } },
+      powers: {
+        [SELF]: ["powerplay", "drs", "super-over"],
+        "p-asha": ["powerplay", "super-over"],
+        "p-dev": ["drs"],
+        "p-nour": ["powerplay", "drs", "super-over"],
+      },
+    }),
     timer: null,
     pendingReveals: [],
   }),

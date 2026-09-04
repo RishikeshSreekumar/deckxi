@@ -12,7 +12,9 @@ import { test, expect, type Page } from "@playwright/test";
 
 const SCENARIOS = [
   { name: "lobby", path: "lobby", ready: "lobby-screen" },
+  { name: "lobby-power", path: "lobby-power", ready: "match-setup" },
   { name: "table-turn", path: "table-turn", ready: "game-table" },
+  { name: "table-power", path: "table-power", ready: "power-row" },
   { name: "table-reveal", path: "table-reveal", ready: "verdict" },
   { name: "results", path: "results", ready: "results" },
 ] as const;

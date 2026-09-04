@@ -9,7 +9,14 @@
  * card renderer and nothing else, and a button regression was invisible.
  */
 import { useSearchParams } from "react-router-dom";
-import { DEFAULT_EDITION_ID, RoomCode, TimerRing, TrumpCard, getEdition } from "@deckxi/ui";
+import {
+  DEFAULT_EDITION_ID,
+  PowerCard,
+  RoomCode,
+  TimerRing,
+  TrumpCard,
+  getEdition,
+} from "@deckxi/ui";
 
 /** A fixed deadline so the timer ring's arc is the same in every screenshot. */
 const FROZEN_TIMER = { deadline: 0, seconds: 20 };
@@ -183,6 +190,24 @@ export function CardsGalleryScreen() {
               outcome="loser"
             />
             <figcaption>loser</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      {/* The power cards are printed pieces of the same deck, so they get the
+          same watch: a restyle of the card stock has to move both or neither. */}
+      <section className="panel gallery-section" data-testid="gallery-powers">
+        <h2>Power cards</h2>
+        <div className="gallery-row">
+          {(["powerplay", "drs", "super-over"] as const).map((kind) => (
+            <figure key={kind} className="gallery-item gallery-item--power">
+              <PowerCard kind={kind} size="full" />
+              <figcaption>{kind}</figcaption>
+            </figure>
+          ))}
+          <figure className="gallery-item gallery-item--power">
+            <PowerCard kind="powerplay" size="full" spent />
+            <figcaption>used</figcaption>
           </figure>
         </div>
       </section>
