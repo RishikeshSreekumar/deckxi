@@ -14,13 +14,24 @@ import {
   type MatchResult,
   type MatchStore,
   type ModeStats,
+  type CollectionRow,
   type RatingRow,
   type RatingUpdate,
+  type ShowcaseCard,
   type StoredMatch,
   type UserMatchSummary,
   type UserStats,
 } from "../store.js";
-import { appConfig, matchEvents, matchPlayers, matches, ratings, user } from "./schema.js";
+import {
+  appConfig,
+  cardCollection,
+  matchEvents,
+  matchPlayers,
+  matches,
+  profileShowcase,
+  ratings,
+  user,
+} from "./schema.js";
 import { InMemoryConfigStore, type ConfigStore } from "../ops.js";
 
 export class PostgresMatchStore implements MatchStore {
@@ -278,12 +289,33 @@ export class PostgresMatchStore implements MatchStore {
          )
     `);
     await this.db.delete(ratings).where(eq(ratings.userId, fromUserId));
+    // Same shape for the collection: move what does not collide, drop the rest.
+    await this.db.execute(sql`
+      update card_collection as c
+         set user_id = ${toUserId}
+       where c.user_id = ${fromUserId}
+         and not exists (
+           select 1 from card_collection existing
+            where existing.user_id = ${toUserId}
+              and existing.edition_id = c.edition_id
+              and existing.card_id = c.card_id
+         )
+    `);
+    await this.db.delete(cardCollection).where(eq(cardCollection.userId, fromUserId));
+    await this.db.execute(sql`
+      update profile_showcase set user_id = ${toUserId}
+       where user_id = ${fromUserId}
+         and not exists (select 1 from profile_showcase where user_id = ${toUserId})
+    `);
+    await this.db.delete(profileShowcase).where(eq(profileShowcase.userId, fromUserId));
   }
 
   async anonymizeUser(userId: string): Promise<void> {
     // The ladder row goes with the account — a rating is personal data, and a
     // nameless ghost on a leaderboard helps nobody.
     await this.db.delete(ratings).where(eq(ratings.userId, userId));
+    await this.db.delete(cardCollection).where(eq(cardCollection.userId, userId));
+    await this.db.delete(profileShowcase).where(eq(profileShowcase.userId, userId));
     await this.db
       .update(matchPlayers)
       .set({ userId: null, name: DELETED_PLAYER_NAME })
@@ -367,6 +399,70 @@ export class PostgresMatchStore implements MatchStore {
       .orderBy(desc(ratings.rating), desc(ratings.games));
     const rows = limit === undefined ? await query : await query.limit(limit);
     return rows.map((row) => ({ ...row, name: row.name ?? null }));
+  }
+
+  async addCardWins(
+    userId: string,
+    editionId: string,
+    cards: readonly { cardId: string; wins: number }[],
+  ): Promise<void> {
+    if (cards.length === 0) return;
+    const now = new Date();
+    for (const card of cards) {
+      await this.db
+        .insert(cardCollection)
+        .values({
+          userId,
+          editionId,
+          cardId: card.cardId,
+          wins: card.wins,
+          firstWonAt: now,
+          lastWonAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [cardCollection.userId, cardCollection.editionId, cardCollection.cardId],
+          // Accumulated in SQL: two matches finishing at once would otherwise
+          // both write the total they read, and one would vanish.
+          set: { wins: sql`${cardCollection.wins} + ${card.wins}`, lastWonAt: now },
+        });
+    }
+  }
+
+  async collection(userId: string): Promise<CollectionRow[]> {
+    return await this.db
+      .select({
+        editionId: cardCollection.editionId,
+        cardId: cardCollection.cardId,
+        wins: cardCollection.wins,
+        firstWonAt: cardCollection.firstWonAt,
+        lastWonAt: cardCollection.lastWonAt,
+      })
+      .from(cardCollection)
+      .where(eq(cardCollection.userId, userId))
+      .orderBy(desc(cardCollection.wins), cardCollection.cardId);
+  }
+
+  async getShowcase(userId: string): Promise<ShowcaseCard | null> {
+    const [row] = await this.db
+      .select({ editionId: profileShowcase.editionId, cardId: profileShowcase.cardId })
+      .from(profileShowcase)
+      .where(eq(profileShowcase.userId, userId))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async setShowcase(userId: string, card: ShowcaseCard | null): Promise<void> {
+    if (card === null) {
+      await this.db.delete(profileShowcase).where(eq(profileShowcase.userId, userId));
+      return;
+    }
+    await this.db
+      .insert(profileShowcase)
+      .values({ userId, editionId: card.editionId, cardId: card.cardId, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: profileShowcase.userId,
+        set: { editionId: card.editionId, cardId: card.cardId, updatedAt: new Date() },
+      });
   }
 
   async ping(): Promise<void> {

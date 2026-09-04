@@ -3587,3 +3587,52 @@ select:focus {
   background: var(--surface-field);
   color: var(--text-on-field);
 }
+
+/* ---------------------------------------------------------------------------
+   Collection (#84). A grid of cards you earned, and the one you pinned.
+   --------------------------------------------------------------------------- */
+
+.collection-grid {
+  list-style: none;
+  margin: 0 0 var(--space-6);
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-5);
+}
+
+.collection-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3);
+  background: none;
+  border: var(--edge) solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+/* The pinned card is the one on your profile; it should read as chosen. */
+.collection-card--pinned {
+  border-color: var(--ink-line);
+  background: var(--surface-raised, var(--surface-base));
+}
+
+.collection-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.profile-showcase {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+  margin-bottom: var(--space-5);
+}

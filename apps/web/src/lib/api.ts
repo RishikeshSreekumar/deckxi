@@ -29,11 +29,26 @@ export interface RatingRow {
   wins: number;
 }
 
+export interface CollectionCard {
+  editionId: string;
+  cardId: string;
+  wins: number;
+  firstWonAt: string;
+  lastWonAt: string;
+}
+
+export interface ShowcaseCard {
+  editionId: string;
+  cardId: string;
+}
+
 export interface Profile {
   user: ProfileUser;
   stats: ProfileStats;
   /** Absent on an account that has never finished a rated game. */
   ratings?: RatingRow[];
+  /** The card this player pinned to their profile (#84). */
+  showcase?: ShowcaseCard | null;
 }
 
 export interface LeaderboardRow {
@@ -75,6 +90,22 @@ export const fetchProfile = (): Promise<Profile> => get<Profile>("/api/me");
 /** The ladder for one mode. Public — no session needed. */
 export const fetchLeaderboard = (mode: string): Promise<Leaderboard> =>
   get<Leaderboard>(`/api/leaderboard?mode=${encodeURIComponent(mode)}`);
+
+export const fetchCollection = (): Promise<{
+  cards: CollectionCard[];
+  showcase: ShowcaseCard | null;
+}> => get<{ cards: CollectionCard[]; showcase: ShowcaseCard | null }>("/api/me/collection");
+
+/** Pin a card to your profile, or pass null to clear it. */
+export async function setShowcase(card: ShowcaseCard | null): Promise<void> {
+  const response = await fetch(`${API_URL}/api/me/showcase`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(card ?? { cardId: null }),
+  });
+  if (!response.ok) throw new Error(`showcase failed (${response.status})`);
+}
 
 export const fetchMatches = async (): Promise<MatchSummary[]> =>
   (await get<{ matches: MatchSummary[] }>("/api/me/matches")).matches;

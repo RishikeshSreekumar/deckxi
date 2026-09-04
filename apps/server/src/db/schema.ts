@@ -77,6 +77,40 @@ export const ratings = pgTable(
   (table) => [primaryKey({ columns: [table.userId, table.gameMode, table.seasonId] })],
 );
 
+/**
+ * Collection meta (#84): which cards a player has actually won rounds with.
+ * Keyed by edition as well as card, because a card id is only unique inside
+ * one — and a card you won with in an old edition is a different card now.
+ */
+export const cardCollection = pgTable(
+  "card_collection",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    editionId: text("edition_id").notNull(),
+    cardId: text("card_id").notNull(),
+    /** Rounds this card took for you. */
+    wins: integer("wins").notNull().default(0),
+    firstWonAt: timestamp("first_won_at", { withTimezone: true }).notNull().defaultNow(),
+    lastWonAt: timestamp("last_won_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.editionId, table.cardId] })],
+);
+
+/**
+ * The one card a player puts on their profile. Its own table rather than a
+ * column on better-auth's `user`, which is generated and should stay theirs.
+ */
+export const profileShowcase = pgTable("profile_showcase", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  editionId: text("edition_id").notNull(),
+  cardId: text("card_id").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const appConfig = pgTable("app_config", {
   key: text("key").primaryKey(),
   value: jsonb("value").notNull(),
