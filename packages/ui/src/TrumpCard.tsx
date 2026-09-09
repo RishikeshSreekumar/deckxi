@@ -187,7 +187,7 @@ export function TrumpCard({
             className="stat-button"
             data-stat={def.key}
             disabled={disabled}
-            aria-label={`${statName(editionId, def.key)}${disabled ? " (called last round)" : ""} ${display}${lower ? ", lower wins" : ""}`}
+            aria-label={`${statName(editionId, def.key)}${disabled ? " (burned)" : ""} ${display}${lower ? ", lower wins" : ""}`}
             onClick={() => onSelectStat(def.key)}
           >
             {row}

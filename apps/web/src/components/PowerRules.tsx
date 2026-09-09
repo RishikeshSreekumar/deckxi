@@ -21,8 +21,9 @@ export function PowerRules({
         <li>
           <strong>Your play</strong>
           <span className="sub">
-            Pick any of your top cards (two, unless the host set otherwise). The leader calls a
-            stat, but never the one that decided the last round. The call goes round the table.
+            Pick any of your top cards (two, unless the host set otherwise). The leader calls a stat
+            — but a stat that has decided a round is burned for everyone until every stat has been
+            used, then the sheet resets. The call goes round the table.
           </span>
         </li>
         <li>

@@ -68,8 +68,9 @@ export function HowToPlay({
           </li>
           {gameMode === "power-trumps" && (
             <li>
-              <strong>Power trumps:</strong> play either of your top two cards, never repeat last
-              round's stat, and spend three one-shot powers — each a bet that your card is strong.
+              <strong>Power trumps:</strong> play either of your top two cards, never call a burned
+              stat (one that decided a round — burned for all until every stat has been used), and
+              spend three one-shot powers — each a bet that your card is strong.
             </li>
           )}
         </ol>

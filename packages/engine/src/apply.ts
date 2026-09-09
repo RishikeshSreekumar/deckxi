@@ -56,13 +56,13 @@ function isPowerMode(state: GameState): boolean {
 
 /**
  * The stats a leader may call this round: everything on the card, minus the
- * one that decided the last round (power trumps) — unless that would leave
- * nothing to call.
+ * burned ones (power trumps) — unless that would leave nothing to call, in
+ * which case the whole card is open (spec edge case 1).
  */
 export function callableStats(state: GameState, card: CardDefinition): StatDefinition[] {
   const onCard = state.config.stats.filter((s) => s.key in card.stats);
-  if (!isPowerMode(state) || state.lastStat === null) return onCard;
-  const fresh = onCard.filter((s) => s.key !== state.lastStat);
+  if (!isPowerMode(state) || state.burnedStats.length === 0) return onCard;
+  const fresh = onCard.filter((s) => !state.burnedStats.includes(s.key));
   return fresh.length > 0 ? fresh : onCard;
 }
 
@@ -115,7 +115,7 @@ export function applyCommand(state: GameState, command: Command): GameEvent[] {
       throw new CommandRejectedError("stat-not-on-card", command.stat);
     }
     if (!callableStats(state, card).some((s) => s.key === command.stat)) {
-      throw new CommandRejectedError("stat-repeated", command.stat);
+      throw new CommandRejectedError("stat-burned", command.stat);
     }
     stat = command.stat;
   }
@@ -243,6 +243,9 @@ function validatePower(
     statDef(state, power.stat);
     if (power.stat === calledStat) {
       throw new CommandRejectedError("power-not-allowed", "DRS must name a different stat");
+    }
+    if (state.burnedStats.includes(power.stat)) {
+      throw new CommandRejectedError("power-not-allowed", "DRS cannot review on a burned stat");
     }
     const taken = Object.values(state.pending?.plays ?? {}).some((p) => p.power?.kind === "drs");
     if (taken) throw new CommandRejectedError("power-not-allowed", "DRS already called this round");

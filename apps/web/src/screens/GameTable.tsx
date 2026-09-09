@@ -532,8 +532,8 @@ export function GameTable({ room }: { room: RoomView }) {
     : move === "call"
       ? armedStat !== null
         ? "Tap Call to lock it in — or another stat to change"
-        : powerMode && game.lastStat !== null
-          ? `Tap a stat on your card, then Call — not ${statName(editionId, game.lastStat)} again`
+        : powerMode && game.burnedStats.length > 0
+          ? `Tap a stat on your card, then Call — ${game.burnedStats.length === 1 ? "1 stat is" : `${game.burnedStats.length} stats are`} burned`
           : "Tap a stat on your card, then Call"
       : move === "answer"
         ? armed === "drs"
@@ -804,6 +804,13 @@ export function GameTable({ room }: { room: RoomView }) {
             {game.pot.length > 0 && (
               <span className="called-pot">{game.pot.length} in the pot</span>
             )}
+            {powerMode && game.burnedStats.length > 0 && (
+              <ul className="burned-tray" aria-label="Burned stats" data-testid="burned-tray">
+                {game.burnedStats.map((key) => (
+                  <li key={key}>{statName(editionId, key)}</li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
       </section>
@@ -929,8 +936,8 @@ export function GameTable({ room }: { room: RoomView }) {
                   {...(myStats !== null ? { stats: myStats } : {})}
                   {...(hotStat !== null ? { highlightStat: hotStat } : {})}
                   {...(armedStat !== null ? { pendingStat: armedStat } : {})}
-                  {...(move === "call" && powerMode && game.lastStat !== null
-                    ? { disabledStats: [game.lastStat] }
+                  {...(move === "call" && powerMode && game.burnedStats.length > 0
+                    ? { disabledStats: game.burnedStats }
                     : {})}
                   {...(move === "call" || (move === "answer" && armed === "drs")
                     ? { onSelectStat: armStat }

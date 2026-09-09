@@ -78,7 +78,7 @@ export const GAME_MODE_INFO: Record<
   "power-trumps": {
     name: "Power trumps",
     blurb:
-      "Pick one of your top two cards. The call rotates round the table and can't repeat. Three one-shot powers: win big, or lose one extra card.",
+      "Pick one of your top two cards. The call rotates round the table; a called stat is burned for everyone until all are used. Three one-shot powers: win big, or lose one extra card.",
     players: { min: 2, max: 6 },
     family: "trumps",
   },

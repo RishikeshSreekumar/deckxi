@@ -35,7 +35,7 @@ export interface CardDefinition {
 /**
  * Which trumps rule set a game runs under. `classic-trumps` is the plain game
  * (`docs/games/classic-trumps.md`); `power-trumps` adds card choice, the
- * no-repeat rule, rotating lead and the three power cards
+ * burned-stat rule, rotating lead and the three power cards
  * (`docs/games/power-trumps.md`). Both are variants of the one trumps state
  * machine in this package; other games (Squad Draft) are separate `GameMode`
  * plugins under `modes/`.
@@ -142,8 +142,14 @@ export interface GameState {
   /** Cards carried over from tied rounds / forfeits, oldest first. */
   pot: CardId[];
   winner: PlayerId | null;
-  /** The stat that decided the previous round; the leader may not repeat it (power trumps). */
+  /** The stat that decided the previous round (power trumps; informational). */
   lastStat: StatKey | null;
+  /**
+   * Power trumps (#137): every stat that has decided a round since the sheet
+   * last reset. Nobody may call, or review with, a burned stat. The sheet
+   * resets to empty the moment every stat in the game has been burned.
+   */
+  burnedStats: StatKey[];
   /** The round in progress, from the leader's call until the reveal (power trumps). */
   pending: PendingRound | null;
 }
@@ -184,7 +190,7 @@ export type CommandRejectionReason =
   | "not-leader"
   | "unknown-stat"
   | "stat-not-on-card"
-  | "stat-repeated"
+  | "stat-burned"
   | "bad-card-index"
   | "not-responding"
   | "already-played"

@@ -58,8 +58,10 @@ export interface ClientGameState {
   plays: Record<string, { power: DeclaredPower | null }>;
   /** Power trumps: your committed card this round, once you have played it. */
   yourPlay: { cardId: string; power: PowerPlayView | null } | null;
-  /** Power trumps: the stat that decided the last round — the leader may not call it. */
+  /** Power trumps: the stat that decided the last round. */
   lastStat: string | null;
+  /** Power trumps (#137): stats burned for everyone until every stat has been used. */
+  burnedStats: string[];
   /** Power trumps: unused powers per player (public — a spent power is seen by all). */
   powers: Record<string, PowerKindView[]>;
   lastResolved: ResolvedRound | null;
@@ -119,6 +121,7 @@ export function applyRedactedEvent(
       plays: {},
       yourPlay: null,
       lastStat: null,
+      burnedStats: [],
       powers,
       lastResolved: null,
       history: [],
@@ -223,6 +226,12 @@ export function applyRedactedEvent(
       next.plays = {};
       next.yourPlay = null;
       next.lastStat = event.stat;
+      if (state.config.mode === "power-trumps") {
+        const burned = state.burnedStats.includes(event.stat)
+          ? state.burnedStats
+          : [...state.burnedStats, event.stat];
+        next.burnedStats = state.config.stats.every((s) => burned.includes(s.key)) ? [] : burned;
+      }
       next.lastResolved = {
         seq: event.seq,
         round: event.round,

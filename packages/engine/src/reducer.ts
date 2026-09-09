@@ -14,6 +14,7 @@ import {
   type GameState,
   type PlayerId,
   type PlayerState,
+  type StatKey,
 } from "./types.js";
 
 /** Seat-order-clockwise next active player, starting after `from`. */
@@ -72,6 +73,19 @@ function applyTransfers(
   };
 }
 
+/**
+ * Power trumps (#137): the burned sheet after `stat` decides a round. A stat
+ * stays burned for everyone until every stat in the game is on the sheet,
+ * then the sheet resets to empty.
+ */
+export function burnStat(state: GameState, stat: StatKey): StatKey[] {
+  if (state.config.mode !== "power-trumps") return [];
+  const burned = state.burnedStats.includes(stat)
+    ? state.burnedStats
+    : [...state.burnedStats, stat];
+  return state.config.stats.every((s) => burned.includes(s.key)) ? [] : burned;
+}
+
 export function reduce(state: GameState | undefined, event: GameEvent): GameState {
   if (event.type === "GAME_STARTED") {
     const power = event.config.mode === "power-trumps";
@@ -92,6 +106,7 @@ export function reduce(state: GameState | undefined, event: GameEvent): GameStat
       pot: [],
       winner: null,
       lastStat: null,
+      burnedStats: [],
       pending: null,
     };
   }
@@ -186,6 +201,7 @@ export function reduce(state: GameState | undefined, event: GameEvent): GameStat
         pot,
         players,
         lastStat: event.stat,
+        burnedStats: burnStat(state, event.stat),
         pending: null,
       };
     }

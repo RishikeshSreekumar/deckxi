@@ -863,7 +863,7 @@
   background: rgba(27, 20, 16, 0.14);
 }
 
-/* Called last round: still printed, not for calling again. */
+/* Burned: still printed, not for calling until the sheet resets. */
 .stat-row--spent .stat-button {
   cursor: not-allowed;
   opacity: 0.4;

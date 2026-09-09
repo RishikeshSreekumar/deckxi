@@ -483,15 +483,16 @@ describe("power trumps mirror", () => {
         const drsTaken = Object.values(engine.pending?.plays ?? {}).some(
           (p) => p.power?.kind === "drs",
         );
-        if (wanted === "drs" && !drsTaken)
-          power = { kind: "drs", stat: called === "runs" ? "wickets" : "runs" };
+        const review = called === "runs" ? "wickets" : "runs";
+        if (wanted === "drs" && !drsTaken && !engine.burnedStats.includes(review))
+          power = { kind: "drs", stat: review };
         else if (wanted !== "drs") power = { kind: wanted };
       }
       const command = isLeader
         ? {
             type: "SELECT_STAT" as const,
             playerId: mover,
-            stat: engine.lastStat === "runs" ? "wickets" : "runs",
+            stat: engine.burnedStats.includes("runs") ? "wickets" : "runs",
             cardIndex: turn % Math.min(3, player?.hand.length ?? 1),
             power,
           }
@@ -516,6 +517,7 @@ describe("power trumps mirror", () => {
       expect(client.round).toBe(engine.round);
       expect(client.phase).toBe(engine.phase);
       expect(client.lastStat).toBe(engine.lastStat);
+      expect(client.burnedStats).toEqual(engine.burnedStats);
     }
     expect(engine.phase).toBe("finished");
     expect(client?.winner).toBe(engine.winner);

@@ -98,6 +98,7 @@ function game(overrides: Partial<ClientGameState> = {}): ClientGameState {
     plays: {},
     yourPlay: null,
     lastStat: null,
+    burnedStats: [],
     powers: {},
     lastResolved: null,
     history: [],
@@ -202,6 +203,7 @@ const SCENARIOS: Record<string, () => StoreState> = {
       phase: "responding",
       selected: { playerId: "p-asha", stat: edition?.stats[1]?.key ?? "", auto: false },
       lastStat: edition?.stats[0]?.key ?? "",
+      burnedStats: [edition?.stats[0]?.key ?? ""],
       plays: { "p-dev": { power: null } },
       powers: {
         [SELF]: ["powerplay", "drs", "super-over"],

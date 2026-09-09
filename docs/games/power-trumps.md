@@ -15,8 +15,11 @@ forfeit, the round limit, determinism — is exactly as in classic trumps.
    recorded before the field existed played with three.
 2. **The call rotates.** The lead passes one seat clockwise every round, whether the round was won
    or tied. It does not go to the winner. (Exception: a winning DRS, below.)
-3. **No repeat call.** The leader may not call the stat that decided the previous round — unless
-   it is the only stat on their chosen card.
+3. **Burned calls.** The stat that decides a round is **burned** for everyone: no leader may
+   call it, and no DRS may review on it, until every stat in the game has been burned — at which
+   point the sheet resets and every stat is open again. (Playtest 2026-09-09: a one-round
+   no-repeat rule let the same two stats alternate all game.) If every stat on the leader's
+   chosen card is burned, the whole card is open to them.
 4. **Three power cards**, each held once per player for the whole game, at most one declared per
    round, in the window between the leader's call and the reveal. Every power is the same bet —
    _"my card is strong"_: **it pays big when the round goes your way and costs exactly one extra
@@ -62,7 +65,7 @@ Declared by anyone.
 ### DRS
 
 Declared by a non-leader only (the leader has nothing to review). Names a stat that must differ
-from the call. The round is decided on the DRS stat instead of the call — for everyone.
+from the call and must not be burned. The round is decided on the DRS stat instead of the call — for everyone.
 
 - **Win** → the pot as normal, **and you lead the next round** (rotation resumes from you).
 - **Lose** → one extra card to the winner.
@@ -112,7 +115,7 @@ owner, and a DRS's `stat` is stripped for everyone but the reviewer.
 
 | #   | Case                                                  | Ruling                                                                                                                                                |
 | --- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Chosen card's only stat is last round's stat          | Leader may call it (the no-repeat rule never leaves nothing to call)                                                                                  |
+| 1   | Every stat on the chosen card is burned               | Leader may call any of them (the burn never leaves nothing to call)                                                                                   |
 | 2   | Leader declares DRS                                   | Rejected (`power-not-allowed`)                                                                                                                        |
 | 3   | DRS names the called stat                             | Rejected                                                                                                                                              |
 | 4   | Two DRS in one round                                  | Second is rejected                                                                                                                                    |

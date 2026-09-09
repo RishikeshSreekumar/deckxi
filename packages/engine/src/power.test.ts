@@ -1,6 +1,6 @@
 /**
  * Power trumps — the rules in `docs/games/power-trumps.md`, one case each:
- * card choice, the no-repeat call, rotating lead, the responding window,
+ * card choice, burned stats, rotating lead, the responding window,
  * and the three powers winning, losing and (Super Over) sitting out.
  */
 import { describe, expect, it } from "vitest";
@@ -30,7 +30,13 @@ const card = (id: string, runs: number, economy = 8): CardDefinition => ({
 
 function makeState(
   hands: Record<string, CardDefinition[]>,
-  opts: { leader?: string; pot?: CardDefinition[]; lastStat?: string; maxRounds?: number } = {},
+  opts: {
+    leader?: string;
+    pot?: CardDefinition[];
+    lastStat?: string;
+    burned?: string[];
+    maxRounds?: number;
+  } = {},
 ): GameState {
   const players = Object.keys(hands);
   const potCards = opts.pot ?? [];
@@ -57,6 +63,7 @@ function makeState(
     pot: potCards.map((c) => c.id),
     winner: null,
     lastStat: opts.lastStat ?? null,
+    burnedStats: opts.burned ?? (opts.lastStat !== undefined ? [opts.lastStat] : []),
     pending: null,
   };
 }
@@ -200,14 +207,79 @@ describe("card choice", () => {
   });
 });
 
-describe("no-repeat call and rotation", () => {
-  it("the leader may not call the stat that decided the last round", () => {
+describe("burned stats and rotation", () => {
+  it("the leader may not call a burned stat", () => {
     const s0 = makeState(three, { lastStat: "runs" });
     expect(() => applyCommand(s0, { type: "SELECT_STAT", playerId: "a", stat: "runs" })).toThrow(
-      /stat-repeated/,
+      /stat-burned/,
     );
     const { events } = play(s0, { type: "AUTO_PLAY", playerId: "a" });
     expect(events[0]).toMatchObject({ type: "STAT_SELECTED", stat: "economy", auto: true });
+  });
+
+  it("a burned stat stays burned for everyone until every stat is used, then the sheet resets (#137)", () => {
+    // Three stats in this game so the sheet does not reset after two rounds.
+    const wide: StatDefinition[] = [
+      ...stats,
+      { key: "catches", direction: "higher", min: 0, max: 50 },
+    ];
+    const c = (id: string, runs: number) => ({ id, stats: { runs, economy: 8, catches: 3 } });
+    const s0 = makeState({
+      a: [c("a1", 10), c("a2", 10), c("a3", 10), c("a4", 10)],
+      b: [c("b1", 90), c("b2", 10), c("b3", 10), c("b4", 10)],
+    });
+    s0.config.stats = wide;
+    const { state: s1 } = play(
+      s0,
+      { type: "SELECT_STAT", playerId: "a", stat: "runs" },
+      { type: "PLAY_CARD", playerId: "b", cardIndex: 0 },
+    );
+    expect(s1.burnedStats).toEqual(["runs"]);
+    // b leads now and is blocked on runs too — the burn is table-wide.
+    expect(() => applyCommand(s1, { type: "SELECT_STAT", playerId: "b", stat: "runs" })).toThrow(
+      /stat-burned/,
+    );
+    const { state: s2 } = play(
+      s1,
+      { type: "SELECT_STAT", playerId: "b", stat: "economy" },
+      { type: "PLAY_CARD", playerId: "a", cardIndex: 0 },
+    );
+    expect(s2.burnedStats).toEqual(["runs", "economy"]);
+    expect(() => applyCommand(s2, { type: "SELECT_STAT", playerId: "a", stat: "economy" })).toThrow(
+      /stat-burned/,
+    );
+    // The last fresh stat burns the whole sheet: it resets.
+    const { state: s3 } = play(
+      s2,
+      { type: "SELECT_STAT", playerId: "a", stat: "catches" },
+      { type: "PLAY_CARD", playerId: "b", cardIndex: 0 },
+    );
+    expect(s3.burnedStats).toEqual([]);
+    expect(s3.lastStat).toBe("catches");
+    expect(applyCommand(s3, { type: "SELECT_STAT", playerId: "b", stat: "runs" })).not.toHaveLength(
+      0,
+    );
+  });
+
+  it("a card whose every stat is burned may still be called on (nothing is never callable)", () => {
+    const s0 = makeState(three, { burned: ["runs", "economy"] });
+    // Both stats burned but the sheet has not reset (a state a wider game can reach).
+    expect(applyCommand(s0, { type: "SELECT_STAT", playerId: "a", stat: "runs" })).not.toHaveLength(
+      0,
+    );
+  });
+
+  it("DRS may not review on a burned stat", () => {
+    const s0 = makeState(three, { burned: ["economy"] });
+    const { state: s1 } = play(s0, { type: "SELECT_STAT", playerId: "a", stat: "runs" });
+    expect(() =>
+      applyCommand(s1, {
+        type: "PLAY_CARD",
+        playerId: "b",
+        cardIndex: 0,
+        power: { kind: "drs", stat: "economy" },
+      }),
+    ).toThrow(/burned/);
   });
 
   it("the lead rotates clockwise, tie or not, never to the winner by default", () => {
@@ -610,11 +682,12 @@ describe("powers under random declarations", () => {
         const kind =
           rnd() < 0.5 && kinds.length > 0 ? kinds[Math.floor(rnd() * kinds.length)] : null;
         const called = state.pending?.stat ?? "runs";
+        const review = called === "runs" ? "economy" : "runs";
         const power =
-          kind === null
+          kind === null || (kind === "drs" && state.burnedStats.includes(review))
             ? null
             : kind === "drs"
-              ? { kind, stat: called === "runs" ? "economy" : "runs" }
+              ? { kind, stat: review }
               : { kind };
         let events: GameEvent[];
         try {
@@ -624,7 +697,7 @@ describe("powers under random declarations", () => {
               : applyCommand(state, {
                   type: "SELECT_STAT",
                   playerId: mover.id,
-                  stat: state.lastStat === "runs" ? "economy" : "runs",
+                  stat: state.burnedStats.includes("runs") ? "economy" : "runs",
                   cardIndex,
                   power,
                 });
