@@ -54,12 +54,15 @@ export interface GameConfigInput {
   mode?: TrumpsVariant;
   /** Power trumps: cards off the top to choose from, 1–3 (default 2). Classic is always 1. */
   choiceDepth?: number;
+  /** Power trumps: when spent powers come back (default `each-cycle`). Classic is always `never`. */
+  powerRecharge?: PowerRecharge;
 }
 
 /** Normalised config as stored in the GAME_STARTED event. */
 export interface GameConfig extends GameConfigInput {
   maxRounds: number;
   choiceDepth: number;
+  powerRecharge: PowerRecharge;
 }
 
 export const DEFAULT_MAX_ROUNDS = 1000;
@@ -87,6 +90,19 @@ export const POWER_KINDS: readonly PowerKind[] = ["powerplay", "drs", "super-ove
  * field existed played with three.
  */
 export const DEFAULT_CHOICE_DEPTH = 2;
+
+/**
+ * When spent powers come back (#133). `each-cycle`: after every full pass of
+ * the deck (deck size ÷ players rounds). `each-elimination`: whenever a seat
+ * goes out. `never`: the original one-shot rule. Classic is always `never`.
+ */
+export type PowerRecharge = "never" | "each-cycle" | "each-elimination";
+export const POWER_RECHARGES: readonly PowerRecharge[] = [
+  "never",
+  "each-cycle",
+  "each-elimination",
+];
+export const DEFAULT_POWER_RECHARGE: PowerRecharge = "each-cycle";
 export const MAX_CHOICE_DEPTH = 3;
 export const LEGACY_CHOICE_DEPTH = 3;
 
@@ -311,5 +327,7 @@ export type GameEvent =
       power?: PowerRound;
     }
   | { type: "PLAYER_ELIMINATED"; playerId: PlayerId; round: number }
+  /** Power trumps (#133): every active player holds all three powers again. */
+  | { type: "POWERS_RECHARGED"; round: number }
   | { type: "PLAYER_FORFEITED"; playerId: PlayerId }
   | { type: "GAME_ENDED"; winner: PlayerId; reason: GameEndReason };

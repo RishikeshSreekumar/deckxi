@@ -64,6 +64,8 @@ export interface ClientGameState {
   burnedStats: string[];
   /** Power trumps: unused powers per player (public — a spent power is seen by all). */
   powers: Record<string, PowerKindView[]>;
+  /** Power trumps (#133): the round after which powers last came back, if ever. */
+  rechargedIn: number | null;
   lastResolved: ResolvedRound | null;
   /** Every round resolved so far, oldest first — the round log. */
   history: ResolvedRound[];
@@ -123,6 +125,7 @@ export function applyRedactedEvent(
       lastStat: null,
       burnedStats: [],
       powers,
+      rechargedIn: null,
       lastResolved: null,
       history: [],
       eliminatedIn: {},
@@ -244,6 +247,14 @@ export function applyRedactedEvent(
         power: event.power ?? null,
       };
       next.history = [...state.history, next.lastResolved];
+      return next;
+    }
+
+    case "POWERS_RECHARGED": {
+      const powers = { ...state.powers };
+      for (const id of state.config.players) if (state.active[id]) powers[id] = [...ALL_POWERS];
+      next.powers = powers;
+      next.rechargedIn = event.round;
       return next;
     }
 

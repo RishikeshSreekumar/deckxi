@@ -50,6 +50,7 @@ function makeState(
       maxRounds: opts.maxRounds ?? 1000,
       mode: "power-trumps",
       choiceDepth: 3,
+      powerRecharge: "never",
     },
     phase: "selecting",
     round: 1,
@@ -578,6 +579,80 @@ describe("super over", () => {
   });
 });
 
+describe("power recharge (#133)", () => {
+  // Six cards, two seats: a deck cycle is three rounds. a wins round 1 with a
+  // Powerplay, b takes round 2 on economy, a takes round 3 — nobody goes out.
+  const table = () => ({
+    a: [card("a1", 90), card("a2", 10), card("a3", 60)],
+    b: [card("b1", 10), card("b2", 50), card("b3", 50, 3)],
+  });
+  const threeRounds = (s0: GameState) =>
+    play(
+      s0,
+      { type: "SELECT_STAT", playerId: "a", stat: "runs", power: { kind: "powerplay" } },
+      { type: "PLAY_CARD", playerId: "b", cardIndex: 0 },
+      { type: "SELECT_STAT", playerId: "b", stat: "economy" },
+      { type: "PLAY_CARD", playerId: "a", cardIndex: 0 },
+      { type: "SELECT_STAT", playerId: "a", stat: "runs" },
+      { type: "PLAY_CARD", playerId: "b", cardIndex: 0 },
+    );
+
+  it("each-cycle: hands every power back after one pass of the deck", () => {
+    const s0 = makeState(table());
+    s0.config.powerRecharge = "each-cycle";
+    const { state, events } = threeRounds(s0);
+    const types = events.map((e) => e.type);
+    expect(types.filter((t) => t === "POWERS_RECHARGED")).toHaveLength(1);
+    expect(events.find((e) => e.type === "POWERS_RECHARGED")).toMatchObject({ round: 3 });
+    expect(state.phase).toBe("selecting");
+    expect(powers(state, "a")).toEqual([...POWER_KINDS]);
+  });
+
+  it("each-elimination: recharges the table when a seat goes out", () => {
+    const s0 = makeState({
+      a: [card("a1", 10), card("a2", 10), card("a3", 10)],
+      b: [card("b1", 90), card("b2", 5)],
+      c: [card("c1", 1)],
+    });
+    s0.config.powerRecharge = "each-elimination";
+    const { state: s1, events } = play(
+      s0,
+      { type: "SELECT_STAT", playerId: "a", stat: "runs", power: { kind: "powerplay" } },
+      { type: "PLAY_CARD", playerId: "b", cardIndex: 0 },
+      { type: "PLAY_CARD", playerId: "c", cardIndex: 0 },
+    );
+    const types = events.map((e) => e.type);
+    expect(types.indexOf("POWERS_RECHARGED")).toBeGreaterThan(types.indexOf("PLAYER_ELIMINATED"));
+    expect(powers(s1, "a")).toEqual([...POWER_KINDS]);
+    expect(s1.players.find((p) => p.id === "c")?.active).toBe(false);
+  });
+
+  it("never: the original one-shot rule, and what old logs default to", () => {
+    const { state, events } = threeRounds(makeState(table()));
+    expect(events.map((e) => e.type)).not.toContain("POWERS_RECHARGED");
+    expect(powers(state, "a")).toEqual(["drs", "super-over"]);
+
+    const cards = Object.values(table()).flat();
+    const started = initGame({ players: ["a", "b"], cards, stats, seed: 1, mode: "power-trumps" });
+    if (started.type !== "GAME_STARTED") throw new Error("expected GAME_STARTED");
+    expect(started.config.powerRecharge).toBe("each-cycle");
+    const { powerRecharge: _dropped, ...legacy } = started.config;
+    void _dropped;
+    const replayed = reduceAll([{ ...started, config: legacy as typeof started.config }]);
+    expect(replayed.config.powerRecharge).toBe("never");
+    // Classic never recharges, whatever is asked for.
+    const classic = initGame({
+      players: ["a", "b"],
+      cards,
+      stats,
+      seed: 1,
+      powerRecharge: "each-cycle",
+    });
+    if (classic.type !== "GAME_STARTED") throw new Error("expected GAME_STARTED");
+    expect(classic.config.powerRecharge).toBe("never");
+  });
+});
+
 describe("forfeit mid-round", () => {
   it("resolves the round among those still in when the last answer was theirs", () => {
     const s0 = makeState({
@@ -661,6 +736,8 @@ describe("powers under random declarations", () => {
             maxRounds: 60,
             mode: "power-trumps",
             choiceDepth: 3,
+            powerRecharge:
+              seed % 3 === 0 ? "each-cycle" : seed % 3 === 1 ? "each-elimination" : "never",
           },
           hands: Object.fromEntries(
             ids.map((id, i) => [id, cards.filter((_, j) => j % players === i).map((c) => c.id)]),

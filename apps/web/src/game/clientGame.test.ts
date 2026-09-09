@@ -518,6 +518,7 @@ describe("power trumps mirror", () => {
       expect(client.phase).toBe(engine.phase);
       expect(client.lastStat).toBe(engine.lastStat);
       expect(client.burnedStats).toEqual(engine.burnedStats);
+      for (const p of engine.players) expect(client.powers[p.id]).toEqual(p.powers);
     }
     expect(engine.phase).toBe("finished");
     expect(client?.winner).toBe(engine.winner);

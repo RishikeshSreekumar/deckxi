@@ -5,7 +5,13 @@
  * rules (host edits them in a sheet), and Start.
  */
 import { Suspense, lazy, useMemo, useRef, useState } from "react";
-import { GAME_MODES, GAME_MODE_INFO, MAX_CHAT_LENGTH, type RoomView } from "@deckxi/shared";
+import {
+  GAME_MODES,
+  GAME_MODE_INFO,
+  MAX_CHAT_LENGTH,
+  type RoomView,
+  POWER_RECHARGE_INFO,
+} from "@deckxi/shared";
 import { Dialog, PowerCard, getEdition } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
 import { inviteUrl, useCopy } from "../lib/copy.js";
@@ -66,7 +72,10 @@ function MatchSetup({
       ? ([["Cards each", String(s.cardsPerPlayer)]] as [string, string][])
       : []),
     ...(s.gameMode === "power-trumps"
-      ? ([["Pick from", `top ${s.choiceDepth}`]] as [string, string][])
+      ? ([
+          ["Pick from", `top ${s.choiceDepth}`],
+          ["Powers back", POWER_RECHARGE_INFO[s.powerRecharge].name.toLowerCase()],
+        ] as [string, string][])
       : []),
     ["Turn timer", `${s.turnTimerSeconds}s`],
     ...(info.family === "trumps"

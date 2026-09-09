@@ -138,6 +138,18 @@
   justify-content: center;
 }
 
+/* The last rounds before the cap: the tiebreak (most cards wins) is a race
+   now, so the chip says so (#133). */
+.round-chip--final {
+  color: var(--tbl-accent);
+  font-weight: var(--weight-bold);
+}
+
+.power-note--recharge {
+  color: var(--tbl-accent);
+  font-weight: var(--weight-semibold);
+}
+
 /* The bet slip: what the armed power does with your actual cards (#131). */
 .power-slip {
   flex: 1 1 100%;

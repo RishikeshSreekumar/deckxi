@@ -6,7 +6,9 @@ import { mulberry32, randomInt, shuffle } from "./rng.js";
 import {
   DEFAULT_CHOICE_DEPTH,
   DEFAULT_MAX_ROUNDS,
+  DEFAULT_POWER_RECHARGE,
   MAX_CHOICE_DEPTH,
+  POWER_RECHARGES,
   MAX_PLAYERS,
   MIN_PLAYERS,
   type CardId,
@@ -57,6 +59,9 @@ function validateConfig(config: GameConfig): void {
   if (!Number.isInteger(config.maxRounds) || config.maxRounds < 1) {
     throw new InvalidConfigError(`maxRounds must be a positive integer, got ${config.maxRounds}`);
   }
+  if (!POWER_RECHARGES.includes(config.powerRecharge)) {
+    throw new InvalidConfigError(`unknown powerRecharge ${String(config.powerRecharge)}`);
+  }
   if (
     !Number.isInteger(config.choiceDepth) ||
     config.choiceDepth < 1 ||
@@ -80,6 +85,8 @@ export function initGame(input: GameConfigInput): GameEvent {
     mode,
     // Classic always plays the top card; the setting only means anything in power trumps.
     choiceDepth: mode === "power-trumps" ? (input.choiceDepth ?? DEFAULT_CHOICE_DEPTH) : 1,
+    powerRecharge:
+      mode === "power-trumps" ? (input.powerRecharge ?? DEFAULT_POWER_RECHARGE) : "never",
   };
   validateConfig(config);
 

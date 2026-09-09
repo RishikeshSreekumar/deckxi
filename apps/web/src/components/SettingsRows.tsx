@@ -2,7 +2,13 @@
  * The match settings, editable by the host: mode, cards each, timer, round
  * limit. Lives behind "Match settings" in the lobby, so it loads on that tap.
  */
-import { GAME_MODES, GAME_MODE_INFO, type RoomSettings, type RoomView } from "@deckxi/shared";
+import {
+  GAME_MODES,
+  GAME_MODE_INFO,
+  POWER_RECHARGE_INFO,
+  type RoomSettings,
+  type RoomView,
+} from "@deckxi/shared";
 import { PowerCard, getEdition } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
 
@@ -93,9 +99,33 @@ export function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean
       )}
       {s.gameMode === "power-trumps" &&
         row("Cards to choose from", s.choiceDepth, [1, 2, 3], "choiceDepth")}
+      {s.gameMode === "power-trumps" && (
+        <label className="setting-row">
+          <span>Powers come back</span>
+          {isHost ? (
+            <select
+              value={s.powerRecharge}
+              onChange={(e) =>
+                patch({ powerRecharge: e.target.value as RoomSettings["powerRecharge"] })
+              }
+            >
+              {(Object.keys(POWER_RECHARGE_INFO) as RoomSettings["powerRecharge"][]).map((k) => (
+                <option key={k} value={k}>
+                  {POWER_RECHARGE_INFO[k].name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <strong className="chip">{POWER_RECHARGE_INFO[s.powerRecharge].name}</strong>
+          )}
+        </label>
+      )}
+      {s.gameMode === "power-trumps" && (
+        <p className="sub">{POWER_RECHARGE_INFO[s.powerRecharge].blurb}</p>
+      )}
       {row("Turn timer", s.turnTimerSeconds, [10, 15, 20, 30, 60], "turnTimerSeconds", "s")}
       {GAME_MODE_INFO[s.gameMode].family === "trumps" &&
-        row("Round limit", s.maxRounds, [10, 25, 50, 100, 1000], "maxRounds")}
+        row("Round limit", s.maxRounds, [10, 20, 25, 30, 50, 100, 1000], "maxRounds")}
       <p className="sub">
         Deck: {getEdition(s.editionId)?.name ?? s.editionId}
         {isHost ? "" : " · the host decides"}

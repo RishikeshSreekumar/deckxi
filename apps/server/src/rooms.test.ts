@@ -99,6 +99,17 @@ describe("room lifecycle", () => {
     await host.call("room:settings", { cardsPerPlayer: 7 });
     await expect.poll(() => snapshots.at(-1)?.players.some((p) => p.ready)).toBe(true);
 
+    // Switching to power trumps with the cap still at classic's default moves
+    // it to power's default (#133); a cap the host picked is left alone.
+    await host.call("room:settings", { gameMode: "power-trumps" });
+    await expect.poll(() => snapshots.at(-1)?.settings.maxRounds).toBe(30);
+    await host.call("room:settings", { gameMode: "classic-trumps" });
+    await expect.poll(() => snapshots.at(-1)?.settings.maxRounds).toBe(100);
+    await host.call("room:settings", { maxRounds: 50 });
+    await host.call("room:settings", { gameMode: "power-trumps" });
+    await expect.poll(() => snapshots.at(-1)?.settings.gameMode).toBe("power-trumps");
+    expect(snapshots.at(-1)?.settings.maxRounds).toBe(50);
+
     const denied = await guest.callRaw("room:settings", { cardsPerPlayer: 3 });
     expect(denied).toMatchObject({ ok: false, code: "not-host" });
   });

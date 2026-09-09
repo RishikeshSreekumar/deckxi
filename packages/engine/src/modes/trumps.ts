@@ -100,6 +100,7 @@ export function redactTrumpsEvent(
       choiceDepth:
         (config as Partial<GameConfig>).choiceDepth ??
         (config.mode === "power-trumps" ? LEGACY_CHOICE_DEPTH : 1),
+      powerRecharge: (config as Partial<GameConfig>).powerRecharge ?? "never",
       editionId,
     },
     firstLeader: event.firstLeader,
@@ -121,6 +122,7 @@ function trumpsMode(variant: TrumpsVariant): TrumpsMode {
         seed: setup.seed,
         ...(setup.maxRounds !== undefined ? { maxRounds: setup.maxRounds } : {}),
         ...(setup.choiceDepth !== undefined ? { choiceDepth: setup.choiceDepth } : {}),
+        ...(setup.powerRecharge !== undefined ? { powerRecharge: setup.powerRecharge } : {}),
         mode: variant,
       }),
     reduce,

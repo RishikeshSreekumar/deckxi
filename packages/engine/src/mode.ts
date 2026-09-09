@@ -27,6 +27,8 @@ export interface ModeSetup {
   maxRounds?: number;
   /** Power trumps: cards off the top to choose from (1–3). Other modes ignore it. */
   choiceDepth?: number;
+  /** Power trumps: when spent powers come back. Other modes ignore it. */
+  powerRecharge?: "never" | "each-cycle" | "each-elimination";
 }
 
 /**

@@ -89,6 +89,24 @@ Declared by anyone. Fires only if you **lost** the round outright (a single winn
 With several Super Overs in one round they resolve in seat order from the leader, each against
 whoever holds the round's winnings at that moment.
 
+## Power recharge
+
+Held once per player for the whole game, the powers were all gone by round ten and the rest of
+a long match was plain trumps (playtest 2026-09-09). The game config carries `powerRecharge`:
+
+- **`each-cycle`** (default) — after every full pass of the deck (deck size ÷ seats rounds, so a
+  five-cards-each table recharges every five rounds) every active player holds all three powers
+  again.
+- **`each-elimination`** — everyone left recharges each time a seat is eliminated by play.
+- **`never`** — the original one-shot rule. Classic trumps is always `never`.
+
+The recharge is its own event, `POWERS_RECHARGED { round }`, emitted after the round's
+eliminations and only if the game goes on (nobody recharges on the way out). Forfeits do not
+trigger `each-elimination`. Logs recorded before the field existed reduce as `never`.
+
+Rooms also start power trumps with a **30-round cap** (classic keeps 100): the round-limit tiebreak
+(most cards wins) is meant to be a visible race, not a surprise.
+
 ## Auto-play
 
 The host runs one clock per **phase**: the leader's while they call, then one for the whole

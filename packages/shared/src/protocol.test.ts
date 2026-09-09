@@ -43,7 +43,9 @@ describe("protocol schemas", () => {
       turnTimerSeconds: 20,
       maxRounds: 200,
       choiceDepth: 2,
+      powerRecharge: "each-cycle",
     };
+    expect(roomSettingsPatchSchema.safeParse({ powerRecharge: "sometimes" }).success).toBe(false);
     expect(roomSettingsSchema.safeParse(full).success).toBe(true);
     expect(roomSettingsPatchSchema.safeParse({ choiceDepth: 4 }).success).toBe(false);
     expect(roomSettingsPatchSchema.safeParse({ choiceDepth: 0 }).success).toBe(false);

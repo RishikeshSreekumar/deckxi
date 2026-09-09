@@ -71,6 +71,7 @@ function room(
       maxRounds: 25,
       // The table-power fixture shows three chips; keep it that way.
       choiceDepth: 3,
+      powerRecharge: "each-cycle",
     },
     // One player deliberately away, so the "away" tag is covered too.
     players: SEATS.map((seat, i) => ({
@@ -100,6 +101,7 @@ function game(overrides: Partial<ClientGameState> = {}): ClientGameState {
     lastStat: null,
     burnedStats: [],
     powers: {},
+    rechargedIn: null,
     lastResolved: null,
     history: [],
     eliminatedIn: {},

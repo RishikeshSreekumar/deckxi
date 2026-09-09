@@ -175,8 +175,12 @@ function TableHead({
       <span className="table-wordmark">
         Deck<span>XI</span>
       </span>
-      <span className="round-chip" data-testid="round-chip">
+      <span
+        className={`round-chip ${maxRounds - round < 5 ? "round-chip--final" : ""}`.trim()}
+        data-testid="round-chip"
+      >
         Round {round} of {maxRounds}
+        {maxRounds - round < 5 ? " · final overs" : ""}
       </span>
       <span
         className={`turn-timer ${urgent ? "turn-timer--urgent" : ""}`}
@@ -1001,6 +1005,15 @@ export function GameTable({ room }: { room: RoomView }) {
                         ? `Play this card on ${statName(editionId, hotStat)}`
                         : "Play this card"}
               </button>
+            )}
+            {current === null && game.rechargedIn === game.round - 1 && (
+              <p
+                className="power-note power-note--recharge"
+                role="status"
+                data-testid="recharge-note"
+              >
+                Powers recharged — everyone holds all three again.
+              </p>
             )}
             {move === null && game.yourPlay !== null && current === null && (
               <p className="power-note" role="status">

@@ -90,10 +90,15 @@ export function reduce(state: GameState | undefined, event: GameEvent): GameStat
   if (event.type === "GAME_STARTED") {
     const power = event.config.mode === "power-trumps";
     const powers = power ? [...POWER_KINDS] : [];
-    // Logs recorded before `choiceDepth` existed played with the top three.
-    const recorded = (event.config as Partial<GameConfig>).choiceDepth;
+    // Logs recorded before these fields existed played with the top three and
+    // one-shot powers.
+    const recorded = event.config as Partial<GameConfig>;
     return {
-      config: { ...event.config, choiceDepth: recorded ?? (power ? LEGACY_CHOICE_DEPTH : 1) },
+      config: {
+        ...event.config,
+        choiceDepth: recorded.choiceDepth ?? (power ? LEGACY_CHOICE_DEPTH : 1),
+        powerRecharge: recorded.powerRecharge ?? "never",
+      },
       phase: "selecting",
       round: 1,
       leader: event.firstLeader,
@@ -203,6 +208,13 @@ export function reduce(state: GameState | undefined, event: GameEvent): GameStat
         lastStat: event.stat,
         burnedStats: burnStat(state, event.stat),
         pending: null,
+      };
+    }
+
+    case "POWERS_RECHARGED": {
+      return {
+        ...state,
+        players: state.players.map((p) => (p.active ? { ...p, powers: [...POWER_KINDS] } : p)),
       };
     }
 

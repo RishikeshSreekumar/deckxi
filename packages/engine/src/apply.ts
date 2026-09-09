@@ -189,15 +189,24 @@ function settle(
   const events: GameEvent[] = [];
   let next = soFar.reduce(reduce, state as GameState | undefined) as GameState;
 
+  let eliminated = 0;
   for (const p of activeFrom(next, leader)) {
     if (p.hand.length === 0) {
       const event: GameEvent = { type: "PLAYER_ELIMINATED", playerId: p.id, round: state.round };
       events.push(event);
       next = reduce(next, event);
+      eliminated++;
     }
   }
 
   const active = next.players.filter((p) => p.active);
+  const goesOn = active.length > 1 && next.round <= next.config.maxRounds;
+  if (goesOn && rechargeDue(next, state.round, eliminated > 0)) {
+    const event: GameEvent = { type: "POWERS_RECHARGED", round: state.round };
+    events.push(event);
+    next = reduce(next, event);
+  }
+
   if (active.length === 1) {
     events.push({
       type: "GAME_ENDED",
@@ -222,6 +231,28 @@ function settle(
 // ---------------------------------------------------------------------------
 // Power trumps
 // ---------------------------------------------------------------------------
+
+/**
+ * Whether the round just resolved (`round`) hands every active player their
+ * powers back (#133). A deck cycle is one card per player per round: deck
+ * size ÷ seats rounds, so a 5-cards-each table recharges every 5 rounds.
+ */
+export function rechargeDue(state: GameState, round: number, someoneOut: boolean): boolean {
+  if (!isPowerMode(state)) return false;
+  switch (state.config.powerRecharge) {
+    case "each-elimination":
+      return someoneOut;
+    case "each-cycle": {
+      const cycle = Math.max(
+        1,
+        Math.floor(state.config.cards.length / state.config.players.length),
+      );
+      return round % cycle === 0;
+    }
+    default:
+      return false;
+  }
+}
 
 function validatePower(
   state: GameState,

@@ -155,6 +155,17 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   turnTimerSeconds: 20,
   maxRounds: 100,
   choiceDepth: 2,
+  powerRecharge: "each-cycle",
+};
+
+/**
+ * Round caps a fresh room starts with per mode (#133): power trumps has a
+ * decision every round and goes stale past thirty; classic keeps the long
+ * cap because its rounds are quick.
+ */
+const DEFAULT_MAX_ROUNDS_BY_MODE: Partial<Record<RoomSettings["gameMode"], number>> = {
+  "classic-trumps": 100,
+  "power-trumps": 30,
 };
 
 const DEFAULT_MAX_ROOMS = 200;
@@ -410,6 +421,17 @@ export class RoomManager {
     const changed = (Object.keys(patch) as (keyof RoomSettings)[]).some(
       (key) => patch[key] !== undefined && patch[key] !== room.settings[key],
     );
+    // Switching mode with the round cap still at the old mode's default moves
+    // it to the new mode's default; a cap the host chose is left alone.
+    if (
+      patch.gameMode !== undefined &&
+      patch.gameMode !== room.settings.gameMode &&
+      patch.maxRounds === undefined &&
+      room.settings.maxRounds === DEFAULT_MAX_ROUNDS_BY_MODE[room.settings.gameMode]
+    ) {
+      const next = DEFAULT_MAX_ROUNDS_BY_MODE[patch.gameMode];
+      if (next !== undefined) patch = { ...patch, maxRounds: next };
+    }
     room.settings = { ...room.settings, ...patch };
     // A ready tick is agreement to *these* rules. Changing them after someone
     // readied would start them into a different match than the one they
@@ -461,6 +483,7 @@ export class RoomManager {
       seed: randomInt(2 ** 31),
       maxRounds: room.settings.maxRounds,
       choiceDepth: room.settings.choiceDepth,
+      powerRecharge: room.settings.powerRecharge,
     });
 
     const game: GameInstance = {

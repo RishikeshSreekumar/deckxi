@@ -150,7 +150,23 @@ export const roomSettingsSchema = z.object({
   maxRounds: z.number().int().min(10).max(1000),
   /** Power trumps: how many cards off the top each player chooses from (#135). */
   choiceDepth: z.number().int().min(1).max(3),
+  /** Power trumps: when spent powers come back (#133). */
+  powerRecharge: z.enum(["never", "each-cycle", "each-elimination"]),
 });
+export type PowerRechargeView = RoomSettings["powerRecharge"];
+
+/** Lobby copy for the recharge setting. */
+export const POWER_RECHARGE_INFO: Record<PowerRechargeView, { name: string; blurb: string }> = {
+  never: { name: "Never", blurb: "One shot each, all game." },
+  "each-cycle": {
+    name: "Every deck cycle",
+    blurb: "All three come back after one pass of the deck (cards each = rounds).",
+  },
+  "each-elimination": {
+    name: "When someone goes out",
+    blurb: "Everyone left gets all three back each time a seat is eliminated.",
+  },
+};
 export type RoomSettings = z.infer<typeof roomSettingsSchema>;
 
 export const roomSettingsPatchSchema = roomSettingsSchema.partial();
@@ -417,6 +433,8 @@ export interface RedactedGameConfig {
   maxRounds: number;
   /** Power trumps: cards off the top to choose from. Absent on old logs (which played three). */
   choiceDepth?: number;
+  /** Power trumps: when powers come back. Absent on old logs (never). */
+  powerRecharge?: "never" | "each-cycle" | "each-elimination";
   editionId: string;
 }
 
@@ -502,6 +520,8 @@ export type TrumpsEventView =
       power?: PowerRoundView;
     }
   | { type: "PLAYER_ELIMINATED"; playerId: string; round: number }
+  /** Power trumps (#133): every active player holds all three powers again. */
+  | { type: "POWERS_RECHARGED"; round: number }
   | { type: "PLAYER_FORFEITED"; playerId: string }
   | {
       type: "GAME_ENDED";
