@@ -26,6 +26,18 @@
   color: var(--text-on-field);
 }
 
+/* What the powers did, under the verdict — the same lines the reveal showed. */
+.round-log-powers {
+  list-style: none;
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-xs);
+  opacity: 0.85;
+}
+
 .round-log-round {
   flex: none;
   font-weight: var(--weight-bold);

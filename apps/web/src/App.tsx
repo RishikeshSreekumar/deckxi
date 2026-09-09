@@ -8,7 +8,6 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { useStore } from "./store/store.js";
 import { Landing } from "./screens/Landing.js";
 import { Lobby } from "./screens/Lobby.js";
-import { GameTable } from "./screens/GameTable.js";
 import {
   ConnectionBanner,
   FloatingReactions,
@@ -56,6 +55,19 @@ const CardsGalleryScreen = lazy(() =>
  * sheet — a match's worth of reading nobody needs before the last reveal.
  */
 const Results = lazy(() => import("./screens/Results.js").then((m) => ({ default: m.Results })));
+/**
+ * The trumps table is the biggest screen and nobody sees it before the lobby,
+ * so it loads while the lobby is up (see `warmTable`) rather than with the
+ * landing page — the initial bundle sits right on the #107 budget.
+ */
+const loadGameTable = () => import("./screens/GameTable.js");
+const GameTable = lazy(() => loadGameTable().then((m) => ({ default: m.GameTable })));
+let tableWarmed = false;
+function warmTable(): void {
+  if (tableWarmed) return;
+  tableWarmed = true;
+  void loadGameTable();
+}
 const SquadDraftTable = lazy(() =>
   import("./screens/SquadDraftTable.js").then((m) => ({ default: m.SquadDraftTable })),
 );
@@ -106,7 +118,10 @@ function Screen() {
       </Suspense>
     );
   }
-  if (room.phase === "lobby") return <Lobby room={room} />;
+  if (room.phase === "lobby") {
+    warmTable();
+    return <Lobby room={room} />;
+  }
   if (room.phase === "results" && pendingReveals.length === 0 && !presenting) {
     return (
       <Suspense fallback={<main className="screen results" />}>
@@ -122,7 +137,11 @@ function Screen() {
       </Suspense>
     );
   }
-  return <GameTable room={room} />;
+  return (
+    <Suspense fallback={<main className="screen table-screen" />}>
+      <GameTable room={room} />
+    </Suspense>
+  );
 }
 
 export function App() {

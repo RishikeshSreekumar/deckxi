@@ -20,7 +20,7 @@ import { getEdition, registerEdition } from "@deckxi/ui";
 import editionFixture from "@deckxi/data/editions/edition-fixture.json";
 import type { ClientGameState, ResolvedRound } from "../game/clientGame.js";
 import { useStore } from "../store/store.js";
-import { revealTiming } from "../screens/GameTable.js";
+import { revealTiming } from "../screens/tableShared.js";
 
 const SELF = "p-self";
 const SEATS = [

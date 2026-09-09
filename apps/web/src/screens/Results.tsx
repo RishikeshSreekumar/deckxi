@@ -10,7 +10,7 @@ import { AppBar, LeaveIcon, MuteButton } from "../components/Chrome.js";
 import { LeagueTable } from "../components/LeagueTable.js";
 import { RoundLog } from "../components/RoundLog.js";
 import { GameChat } from "../components/GameChat.js";
-import { ordinal } from "./GameTable.js";
+import { ordinal } from "./tableShared.js";
 import "./results.css";
 
 /**

@@ -89,6 +89,25 @@ export function saveHaptics(enabled: boolean): void {
 }
 
 /** Defaults to on: the pulses are short, and a setting nobody finds is off forever. */
+const POWERS_SEEN_KEY = "deckxi.powersSeen";
+
+/** Whether this browser has been shown the power-card walkthrough once (#131). */
+export function loadPowersSeen(): boolean {
+  try {
+    return localStorage.getItem(POWERS_SEEN_KEY) === "1";
+  } catch {
+    return true;
+  }
+}
+
+export function savePowersSeen(): void {
+  try {
+    localStorage.setItem(POWERS_SEEN_KEY, "1");
+  } catch {
+    /* private mode: shown every time, which is fine */
+  }
+}
+
 export function loadHaptics(): boolean {
   try {
     return localStorage.getItem(HAPTICS_KEY) !== "0";

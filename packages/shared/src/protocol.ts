@@ -99,11 +99,20 @@ export const GAME_MODE_INFO: Record<
  */
 export const POWER_INFO: Record<
   PowerKindView,
-  { name: string; short: string; blurb: string; when: string; win: string; fail: string }
+  {
+    name: string;
+    short: string;
+    tag: string;
+    blurb: string;
+    when: string;
+    win: string;
+    fail: string;
+  }
 > = {
   powerplay: {
     name: "Powerplay",
     short: "PP",
+    tag: "double down",
     blurb: "Win and take one extra card from every loser. Lose and give one extra.",
     when: "Play it with your card, on your call or your answer.",
     win: "Take one extra card from every player you beat.",
@@ -112,6 +121,7 @@ export const POWER_INFO: Record<
   drs: {
     name: "DRS",
     short: "DRS",
+    tag: "switch the stat",
     blurb:
       "Overrule the call with a stat of your own. Win and you lead next. Lose one extra if not.",
     when: "Only when answering someone else's call — tap the stat you overrule with.",
@@ -121,9 +131,10 @@ export const POWER_INFO: Record<
   "super-over": {
     name: "Super Over",
     short: "SO",
+    tag: "rematch if I lose",
     blurb:
-      "If you lose, play your next card against the winner's for the lot. Lose that card too if it fails.",
-    when: "Play it with your card. It only wakes up if you lose the round.",
+      "Only if you lose: your next card plays the winner's for everything they won. Miss, and that card is gone too.",
+    when: "Only fires if you lose the round. Play it with your card; a win or a tie hands it back.",
     win: "Beat the winner head-to-head and take every card on the table.",
     fail: "That card is gone too.",
   },

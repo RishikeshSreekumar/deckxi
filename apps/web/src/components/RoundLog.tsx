@@ -7,6 +7,7 @@
  */
 import { formatStatValue, statName } from "@deckxi/ui";
 import type { ResolvedRound } from "../game/clientGame.js";
+import { powerLines } from "../game/powerLines.js";
 import "./roundLog.css";
 
 export function RoundLog({
@@ -71,6 +72,17 @@ export function RoundLog({
                   {" "}
                   (you: {formatStatValue(editionId, round.stat, yours.value)})
                 </span>
+              )}
+              {round.power !== null && round.power.outcomes.length > 0 && (
+                <ul className="round-log-powers">
+                  {powerLines(round, editionId, names, selfId)
+                    .filter(
+                      (line) => !line.startsWith(`${who(round.power?.drsBy ?? "")} called DRS`),
+                    )
+                    .map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                </ul>
               )}
             </span>
           </li>

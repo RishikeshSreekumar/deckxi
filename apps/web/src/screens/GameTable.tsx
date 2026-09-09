@@ -53,17 +53,14 @@ const HowToPlay = lazy(() =>
 );
 import { sounds } from "../lib/sounds.js";
 import { haptics } from "../lib/haptics.js";
+import { powerLines } from "../game/powerLines.js";
+import { ordinal, revealTiming } from "./tableShared.js";
+import "./gameTable.css";
+import { loadPowersSeen, savePowersSeen } from "../lib/session.js";
 
 type Stage = "flip" | "verdict";
 
 const POWER_ORDER: readonly PowerKindView[] = ["powerplay", "drs", "super-over"];
-
-/**
- * How long each beat of the reveal holds. Mutable so the visual-regression
- * fixtures can freeze the verdict for a screenshot instead of racing it;
- * nothing in the running app writes to it.
- */
-export const revealTiming = { flipMs: 1100, verdictMs: 3200 };
 
 function useRevealPresenter(selfId: string | null) {
   const pending = useStore((s) => s.pendingReveals);
@@ -114,13 +111,6 @@ function useRevealPresenter(selfId: string | null) {
   );
 
   return { current, stage };
-}
-
-/** 1 → "st", 2 → "nd" … for a placing. */
-export function ordinal(n: number): string {
-  const mod100 = n % 100;
-  if (mod100 >= 11 && mod100 <= 13) return "th";
-  return ["th", "st", "nd", "rd"][n % 10] ?? "th";
 }
 
 /** Who ended up with the round's cards once any Super Over has played out. */
@@ -255,51 +245,6 @@ function cardShortName(editionId: string, cardId: string | null): string {
   return parts.length > 1 ? (parts.at(-1) as string) : name;
 }
 
-/** The lines the verdict adds for what the powers did. */
-function powerLines(
-  round: ResolvedRound,
-  editionId: string,
-  names: Record<string, string>,
-  selfId: string | null,
-): string[] {
-  const power = round.power;
-  if (power === null) return [];
-  const who = (id: string) => (id === selfId ? "You" : (names[id] ?? id));
-  const lines: string[] = [];
-  if (power.drsBy !== null) {
-    lines.push(
-      `${who(power.drsBy)} called DRS: ${statName(editionId, round.stat)} overrules ${statName(editionId, power.calledStat)}`,
-    );
-  }
-  for (const o of power.outcomes) {
-    if (o.power === "drs") {
-      lines.push(
-        o.outcome === "won"
-          ? `DRS stands — ${who(o.playerId)} lead${o.playerId === selfId ? "" : "s"} next`
-          : `DRS fails — ${who(o.playerId)} give${o.playerId === selfId ? "" : "s"} one extra card`,
-      );
-    } else if (o.power === "powerplay") {
-      lines.push(
-        o.outcome === "won"
-          ? `Powerplay pays: ${who(o.playerId)} take${o.playerId === selfId ? "" : "s"} one extra from everyone`
-          : `Powerplay backfires: ${who(o.playerId)} give${o.playerId === selfId ? "" : "s"} one extra`,
-      );
-    } else if (o.outcome === "void") {
-      lines.push(`${who(o.playerId)}: Super Over not needed — handed back`);
-    }
-  }
-  for (const so of power.superOvers) {
-    const c = formatStatValue(editionId, round.stat, so.challengerCard.value);
-    const d = formatStatValue(editionId, round.stat, so.defenderCard.value);
-    lines.push(
-      so.winner === null
-        ? `Super Over: ${who(so.challenger)} ${c} v ${d} — falls short, card lost`
-        : `Super Over: ${who(so.challenger)} ${c} v ${d} — takes the lot!`,
-    );
-  }
-  return lines;
-}
-
 /**
  * What the local player is asked to do right now, if anything.
  * `call`: leader, pick a stat. `answer`: responding, commit a card.
@@ -332,6 +277,14 @@ export function GameTable({ room }: { room: RoomView }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [emotesOpen, setEmotesOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  // First power game in this browser: open the power cards once, before the
+  // first call, so the chips are not three cryptic badges (#131).
+  const powerModeNow = game?.config.mode === "power-trumps";
+  useEffect(() => {
+    if (!powerModeNow || spectator || loadPowersSeen()) return;
+    savePowersSeen();
+    setRulesOpen(true);
+  }, [powerModeNow, spectator]);
   const [howToOpen, setHowToOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const { current, stage } = useRevealPresenter(spectator ? null : selfId);
@@ -449,6 +402,32 @@ export function GameTable({ room }: { room: RoomView }) {
       : "100%";
 
   const myPowers = selfId === null ? [] : (game.powers[selfId] ?? []);
+  // The bet slip (#131): what the armed power will do with *your* cards. The
+  // extra card a lost bet costs is your next top card once the chosen one
+  // has gone; "the winner" is whoever that turns out to be.
+  const nextCard = hand?.filter((_, i) => i !== safePick)[0] ?? null;
+  const nextName =
+    nextCard === null || nextCard === undefined
+      ? "your next card"
+      : cardShortName(editionId, nextCard);
+  const rivals = game.config.players
+    .filter((id) => id !== selfId && game.active[id])
+    .map((id) => names[id] ?? id);
+  const rivalList =
+    rivals.length <= 3
+      ? rivals.join(", ")
+      : `${rivals.slice(0, 2).join(", ")} and ${rivals.length - 2} more`;
+  const slipStat = hotStat !== null ? statName(editionId, hotStat) : "the called stat";
+  const betSlip =
+    armed === null || move === null
+      ? null
+      : armed === "powerplay"
+        ? `Win → take 1 extra card from each of ${rivalList}. Lose → ${nextName} goes to the winner. Tie → it goes to the pot.`
+        : armed === "drs"
+          ? armedStat === null
+            ? `Tap the stat to review on. Win → your stat decides, you take the pot and lead next. Lose → ${nextName} goes to the winner.`
+            : `${statName(editionId, armedStat)} decides instead of ${slipStat}. Win → the pot, and you lead next. Lose → ${nextName} goes to the winner.`
+          : `Only if you lose: ${nextName} plays the winner's next card on ${slipStat}. Beat it → everything they won is yours. Miss → ${nextName} is theirs too.`;
   // The picker is live only while you still have a move to make with it.
   const pickerLocked = move === null || game.yourPlay !== null;
   const waitingNames = (timer?.waitingOn ?? [])
@@ -980,7 +959,10 @@ export function GameTable({ room }: { room: RoomView }) {
                     }}
                   >
                     <b>{info.short}</b>
-                    <span>{info.name}</span>
+                    <span>
+                      {info.name}
+                      <small> · {info.tag}</small>
+                    </span>
                   </button>
                 );
               })}
@@ -993,6 +975,11 @@ export function GameTable({ room }: { room: RoomView }) {
                 ?
               </button>
             </div>
+            {betSlip !== null && (
+              <p className="power-slip" role="status" data-testid="power-slip">
+                <b>{POWER_INFO[armed as PowerKindView].name}</b> {betSlip}
+              </p>
+            )}
             {move === "call" && callButton}
             {move === "answer" && (
               <button
