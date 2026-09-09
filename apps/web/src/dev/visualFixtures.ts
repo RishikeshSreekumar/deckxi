@@ -172,6 +172,17 @@ const SCENARIOS: Record<string, () => StoreState> = {
     pendingReveals: [],
   }),
 
+  /** Someone else's pick, with their clock running — the "not you" state (#136). */
+  "table-theirs": () => ({
+    connection: "online",
+    selfId: SELF,
+    spectator: false,
+    room: room("playing"),
+    game: game({ leader: "p-asha" }),
+    timer: { playerId: "p-asha", waitingOn: ["p-asha"], deadline: Date.now() + 12_000 },
+    pendingReveals: [],
+  }),
+
   /**
    * Power trumps, answering someone else's call — the busiest the table ever
    * gets, and the layout that has to hold three name chips, three power chips,

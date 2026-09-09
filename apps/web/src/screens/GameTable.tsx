@@ -382,6 +382,16 @@ export function GameTable({ room }: { room: RoomView }) {
     if (!yourTurn) nudged.current = false;
   }, [yourTurn]);
 
+  // The tab title says so too, for a player who switched away (#136).
+  const baseTitle = useRef<string | null>(null);
+  useEffect(() => {
+    baseTitle.current ??= document.title;
+    document.title = yourTurn ? `● Your move · ${baseTitle.current}` : baseTitle.current;
+    return () => {
+      if (baseTitle.current !== null) document.title = baseTitle.current;
+    };
+  }, [yourTurn]);
+
   if (game === null) {
     return (
       <main className="screen table-screen">
@@ -488,6 +498,18 @@ export function GameTable({ room }: { room: RoomView }) {
   // theirs to play.
   const out = !spectator && selfId !== null && !game.active[selfId];
   const leaderIsYou = game.leader === selfId && !spectator;
+  // One word for the whole screen to key its look off (#136): the table
+  // looks different when it is your move, not just the headline.
+  const turnState = game.finished
+    ? "over"
+    : current !== null
+      ? "reveal"
+      : move !== null
+        ? "yours"
+        : out
+          ? "out"
+          : "theirs";
+  const leaderName = names[game.leader] ?? "…";
   const headline = game.finished
     ? "Game over"
     : move === "call"
@@ -502,7 +524,7 @@ export function GameTable({ room }: { room: RoomView }) {
               : "All cards in"
             : leaderIsYou
               ? "Your call"
-              : `${names[game.leader] ?? "…"} is calling`;
+              : `Waiting for ${leaderName}`;
   const instruction = game.finished
     ? ""
     : move === "call"
@@ -521,7 +543,9 @@ export function GameTable({ room }: { room: RoomView }) {
           ? `${leaderIsYou ? "You" : (names[game.selected?.playerId ?? game.leader] ?? "They")} called ${statName(editionId, hotStat)}`
           : out
             ? "Spectating until the match ends"
-            : "Your top card plays itself — nothing to press";
+            : powerMode
+              ? `${leaderName} is picking a stat — your turn to answer comes next`
+              : `${leaderName} is picking a stat — your top card plays itself`;
 
   // The leader's send button. Disabled until a stat is armed, so its label
   // doubles as the instruction on a phone where the centre panel is small.
@@ -546,6 +570,7 @@ export function GameTable({ room }: { room: RoomView }) {
       className={`screen table-screen ${powerMode ? "table-screen--power" : ""}`.trim()}
       data-testid="game-table"
       data-mode={game.config.mode}
+      data-turn={turnState}
     >
       <TableHead
         round={current?.round ?? game.round}
@@ -592,6 +617,13 @@ export function GameTable({ room }: { room: RoomView }) {
         <div className="field-seats">
           {opponents.map((id, index) => {
             const isLeader = game.leader === id && !game.finished && current === null;
+            // Whoever the table is waiting on wears the clock: the leader while
+            // they pick, every seat still to answer while cards come in.
+            const onClock =
+              current === null &&
+              !game.finished &&
+              game.active[id] === true &&
+              (game.phase === "selecting" ? game.leader === id : !(id in game.plays));
             const away = room.players.find((p) => p.id === id)?.connected === false;
             const out = !game.active[id];
             const reveal = revealedBy[id];
@@ -625,11 +657,17 @@ export function GameTable({ room }: { room: RoomView }) {
                   "seat",
                   out ? "seat--out" : "",
                   isLeader ? "seat--leader" : "",
+                  onClock ? "seat--clock" : "",
                   stage === "verdict" && id === holderId ? "seat--winner" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
-                style={{ "--seat-index": index } as React.CSSProperties}
+                style={
+                  {
+                    "--seat-index": index,
+                    ...(onClock && seconds !== null ? { "--seat-meter": meter } : {}),
+                  } as React.CSSProperties
+                }
                 data-testid={`seat-${id}`}
               >
                 <span className="seat-avatar" aria-hidden="true">
@@ -777,6 +815,23 @@ export function GameTable({ room }: { room: RoomView }) {
             <span className="hand-count" data-testid="hand-count">
               {counts[selfId ?? ""] ?? hand.length}
               <small>in hand</small>
+            </span>
+          )}
+          {(turnState === "yours" || turnState === "theirs") && (
+            <span
+              className={`hand-turn-pill ${turnState === "yours" ? "hand-turn-pill--yours" : ""}`.trim()}
+              role="status"
+              data-testid="turn-pill"
+            >
+              {turnState === "yours"
+                ? move === "call"
+                  ? "Your call"
+                  : "Your answer"
+                : game.phase === "responding"
+                  ? waitingNames.length > 0
+                    ? `Waiting on ${waitingNames.length === 1 ? waitingNames[0] : `${waitingNames.length} players`}`
+                    : "Card in"
+                  : `${leaderName}'s call`}
             </span>
           )}
           {powerMode && !spectator && hand !== null && choices.length > 1 && (

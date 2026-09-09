@@ -1434,6 +1434,111 @@ select:focus {
   white-space: nowrap;
 }
 
+/* -- whose move (#136) ----------------------------------------------------- */
+
+/* The whole shell changes with `data-turn`, not just the headline: at the
+   playtest "my turn" and "their turn" were the same picture with a different
+   line of small text, and players jabbed at cards that were not theirs to
+   play. Yours: an accent frame, your card lit and a touch bigger, the seats
+   dimmed. Theirs: your card sits back, and the seat on the clock wears a
+   draining ring. */
+.table-screen[data-turn="yours"] {
+  box-shadow: inset 0 0 0 3px var(--tbl-accent);
+}
+
+.table-screen[data-turn="yours"] .your-area {
+  background: radial-gradient(
+    ellipse 80% 70% at 50% 100%,
+    color-mix(in srgb, var(--tbl-accent) 24%, transparent),
+    transparent 75%
+  );
+}
+
+.table-screen[data-turn="yours"] .your-area .card-scale {
+  transform: scale(1.03);
+}
+
+.your-area .card-scale {
+  transition: transform var(--dur-med) var(--ease-out);
+}
+
+.table-screen[data-turn="yours"] .field-seats .seat:not(.seat--out) {
+  opacity: 0.6;
+}
+
+.table-screen[data-turn="theirs"] .your-area .card,
+.table-screen[data-turn="out"] .your-area .card {
+  filter: saturate(0.7) brightness(0.97);
+}
+
+/* The seat the table is waiting on: a ring that drains with the clock. */
+.seat-avatar {
+  position: relative;
+  isolation: isolate;
+}
+
+.seat--clock .seat-avatar::before {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  z-index: -1;
+  border-radius: var(--radius-pill);
+  background: conic-gradient(var(--tbl-accent) var(--seat-meter, 100%), var(--tbl-line-soft) 0);
+}
+
+.seat--clock .seat-avatar {
+  animation: seat-pulse 1.6s var(--ease-out) infinite;
+}
+
+@keyframes seat-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--tbl-accent) 45%, transparent);
+  }
+  60% {
+    box-shadow: 0 0 0 9px transparent;
+  }
+}
+
+/* Beside the count over your card: whose move it is, in the place you look. */
+.hand-turn-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 var(--space-3);
+  border: var(--tbl-edge) solid var(--tbl-line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--tbl-muted);
+  white-space: nowrap;
+}
+
+.hand-turn-pill--yours {
+  border-color: var(--tbl-accent);
+  background: var(--tbl-accent);
+  color: var(--tbl-on-accent);
+}
+
+/* The one button that makes your move pulses while it is live. */
+.table-screen[data-turn="yours"] .play-button:not(:disabled) {
+  animation: cta-pulse 1.4s var(--ease-out) infinite;
+}
+
+@keyframes cta-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--tbl-accent) 50%, transparent);
+  }
+  60% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
 /* -- the reveal ------------------------------------------------------------ */
 
 /* Every card that was played, face up in the middle where the call was —
@@ -3212,6 +3317,8 @@ select:focus {
   .seat-card--up,
   .reveal-card,
   .hand-face,
+  .seat--clock .seat-avatar,
+  .table-screen[data-turn="yours"] .play-button:not(:disabled),
   .verdict-sheet,
   .results-trophy,
   .reaction-float,
