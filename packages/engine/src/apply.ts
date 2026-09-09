@@ -402,11 +402,14 @@ function resolvePower(state: GameState): GameEvent[] {
     });
     if (challengerWins) {
       outcomes.push({ playerId: p.id, power: "super-over", outcome: "won" });
-      // The winnings change hands, then both Super Over cards join them.
-      for (const cardId of winnings) move(table, cardId, holder, p.id);
-      move(table, defenderCardId, holder, p.id);
+      // The winnings change hands, then both Super Over cards join them. When
+      // the holder played their last own card, the defender's card *is* the
+      // first of the winnings (spec edge case 14) — move it once, not twice.
+      const taken = winnings.includes(defenderCardId) ? winnings : [...winnings, defenderCardId];
+      for (const cardId of taken) move(table, cardId, holder, p.id);
+      // The challenger's own card goes to the bottom of their hand.
       move(table, challengerCardId, p.id, p.id);
-      winnings = [...winnings, defenderCardId, challengerCardId];
+      winnings = [...taken, challengerCardId];
       holder = p.id;
     } else {
       outcomes.push({ playerId: p.id, power: "super-over", outcome: "lost" });

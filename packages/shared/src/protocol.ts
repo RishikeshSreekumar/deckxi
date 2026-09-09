@@ -320,6 +320,11 @@ export const ERROR_CODES = [
   "captcha-required",
   /** The requested game mode is switched off by an operator (#70). */
   "mode-disabled",
+  /**
+   * The engine threw on a legal-looking command (#132). The room is left as
+   * it was; the client may retry and the operator has a log line to chase.
+   */
+  "engine-error",
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 

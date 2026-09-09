@@ -582,7 +582,15 @@ export class RoomManager {
       if (error instanceof CommandRejectedError) {
         throw new RoomError("command-rejected", error.reason);
       }
-      throw error;
+      // A rule bug, not a bad command (#132: Super Over double-move). The
+      // state is untouched, so the table stays playable; log it loudly and
+      // tell the client rather than dropping the ack on the floor.
+      this.metrics.increment("deckxi_engine_errors_total", { mode: game.mode.id });
+      this.log.error(
+        { event: "engine.threw", roomId: room.id, mode: game.mode.id, command, err: error },
+        "engine threw on a command",
+      );
+      throw new RoomError("engine-error", error instanceof Error ? error.message : String(error));
     }
 
     let seq = (game.log.at(-1)?.seq ?? -1) + 1;

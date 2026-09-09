@@ -90,6 +90,7 @@ export function errorMessage(error: unknown): string {
       "protocol-mismatch": "Your game is out of date — refresh the page.",
       "quota-exceeded": "That's a lot of tries — give it a few minutes.",
       "captcha-required": "Confirm you're a person to carry on.",
+      "engine-error": "The table hit a rules bug — your move was not applied. Try again.",
     };
     return copy[error.code] ?? error.message;
   }

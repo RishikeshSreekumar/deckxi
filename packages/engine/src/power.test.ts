@@ -371,6 +371,71 @@ describe("super over", () => {
     expect(hand(state, "b")).toEqual(["b2", "a1", "b1", "a2"]);
   });
 
+  it("wins against a holder who played their last own card (#132)", () => {
+    // b's hand after the settle is nothing but this round's winnings, so the
+    // defender's card is the first of them. It must change hands exactly once.
+    const s0 = makeState({
+      a: [card("a1", 10), card("a2", 95), card("a3", 5)],
+      b: [card("b1", 90)],
+    });
+    const { state, events } = play(
+      s0,
+      { type: "SELECT_STAT", playerId: "a", stat: "runs", power: { kind: "super-over" } },
+      { type: "PLAY_CARD", playerId: "b", cardIndex: 0 },
+    );
+    const so = resolved(events).power?.superOvers[0];
+    expect(so).toMatchObject({ challenger: "a", defender: "b", winner: "a" });
+    expect(so?.defenderCard.cardId).toBe("a1");
+    expect(hand(state, "a")).toEqual(["a3", "a1", "b1", "a2"]);
+    expect(hand(state, "b")).toEqual([]);
+    expect(state.phase).toBe("finished");
+    expect(state.winner).toBe("a");
+    const transfers = resolved(events).power?.transfers ?? [];
+    expect(transfers.filter((t) => t.cardId === "a1")).toHaveLength(1);
+  });
+
+  it("loses against a holder who played their last own card", () => {
+    const s0 = makeState({
+      a: [card("a1", 10), card("a2", 20), card("a3", 5)],
+      b: [card("b1", 90)],
+    });
+    const { state, events } = play(
+      s0,
+      { type: "SELECT_STAT", playerId: "a", stat: "runs", power: { kind: "super-over" } },
+      { type: "PLAY_CARD", playerId: "b", cardIndex: 0 },
+    );
+    // b's next card is a1 (10): a2 (20) beats it.
+    expect(resolved(events).power?.superOvers[0]?.winner).toBe("a");
+    expect(hand(state, "a")).toEqual(["a3", "a1", "b1", "a2"]);
+    expect(hand(state, "b")).toEqual([]);
+  });
+
+  it("chains: the second challenger plays whoever holds the winnings now", () => {
+    const s0 = makeState({
+      a: [card("a1", 10), card("a2", 95), card("a3", 5)],
+      b: [card("b1", 90)],
+      c: [card("c1", 20), card("c2", 99), card("c3", 1)],
+    });
+    const { state, events } = play(
+      s0,
+      { type: "SELECT_STAT", playerId: "a", stat: "runs", power: { kind: "super-over" } },
+      { type: "PLAY_CARD", playerId: "b", cardIndex: 0 },
+      { type: "PLAY_CARD", playerId: "c", cardIndex: 0, power: { kind: "super-over" } },
+    );
+    const sos = resolved(events).power?.superOvers ?? [];
+    expect(sos.map((s) => [s.challenger, s.defender, s.winner])).toEqual([
+      ["a", "b", "a"],
+      ["c", "a", "c"],
+    ]);
+    // c's a2 (95) lost to c2 (99): c takes everything a just took, plus a's
+    // new top card, and keeps its own Super Over card at the bottom.
+    expect(hand(state, "c")).toEqual(["c3", "a1", "b1", "c1", "a2", "a3", "c2"]);
+    expect(hand(state, "a")).toEqual([]);
+    expect(hand(state, "b")).toEqual([]);
+    const all = [...state.players.flatMap((p) => p.hand), ...state.pot].sort();
+    expect(all).toEqual(["a1", "a2", "a3", "b1", "c1", "c2", "c3"]);
+  });
+
   it("is void on a tie or a win and is handed back", () => {
     const s0 = makeState({
       a: [card("a1", 50), card("a2", 1)],
@@ -445,5 +510,73 @@ describe("bot games", () => {
     const classic = reduceAll([initGame({ players: ["x", "y"], cards, stats, seed: 3 })]);
     expect(classic.players.every((p) => p.powers.length === 0)).toBe(true);
     expect(classic.config.mode).toBe("classic-trumps");
+  });
+});
+
+describe("powers under random declarations", () => {
+  /** Tiny seeded LCG so the fuzz is reproducible. */
+  const lcg = (seed: number) => () =>
+    (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+
+  it("conserve cards and never throw across 200 seeded games", () => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const rnd = lcg(seed);
+      const players = 2 + Math.floor(rnd() * 4);
+      const cards = Array.from({ length: players * (3 + Math.floor(rnd() * 3)) }, (_, i) =>
+        card(`k${i}`, Math.floor(rnd() * 101), 2 + Math.floor(rnd() * 100) / 10),
+      );
+      const ids = Array.from({ length: players }, (_, i) => `p${i}`);
+      let state = reduceAll([
+        {
+          type: "GAME_STARTED",
+          config: { players: ids, cards, stats, seed, maxRounds: 60, mode: "power-trumps" },
+          hands: Object.fromEntries(
+            ids.map((id, i) => [id, cards.filter((_, j) => j % players === i).map((c) => c.id)]),
+          ),
+          firstLeader: "p0",
+        },
+      ]);
+      const allCards = cards.map((c) => c.id).sort();
+      let guard = 0;
+      while (state.phase !== "finished" && guard++ < 2000) {
+        const mover =
+          state.phase === "responding"
+            ? state.players.find((p) => p.active && !(p.id in (state.pending?.plays ?? {})))
+            : state.players.find((p) => p.id === state.leader);
+        if (mover === undefined) throw new Error("nobody to move");
+        const depth = Math.min(3, mover.hand.length);
+        const cardIndex = Math.floor(rnd() * depth);
+        const kinds = mover.powers.filter((k) => state.phase === "responding" || k !== "drs");
+        const kind =
+          rnd() < 0.5 && kinds.length > 0 ? kinds[Math.floor(rnd() * kinds.length)] : null;
+        const called = state.pending?.stat ?? "runs";
+        const power =
+          kind === null
+            ? null
+            : kind === "drs"
+              ? { kind, stat: called === "runs" ? "economy" : "runs" }
+              : { kind };
+        let events: GameEvent[];
+        try {
+          events =
+            state.phase === "responding"
+              ? applyCommand(state, { type: "PLAY_CARD", playerId: mover.id, cardIndex, power })
+              : applyCommand(state, {
+                  type: "SELECT_STAT",
+                  playerId: mover.id,
+                  stat: state.lastStat === "runs" ? "economy" : "runs",
+                  cardIndex,
+                  power,
+                });
+        } catch (error) {
+          if (error instanceof CommandRejectedError) continue; // e.g. second DRS this round
+          throw new Error(`seed ${seed}: ${(error as Error).message}`);
+        }
+        state = reduceAll(events, state);
+        const inPlay = [...state.players.flatMap((p) => p.hand), ...state.pot].sort();
+        expect(inPlay, `seed ${seed}`).toEqual(allCards);
+      }
+      expect(state.phase, `seed ${seed} did not finish`).toBe("finished");
+    }
   });
 });

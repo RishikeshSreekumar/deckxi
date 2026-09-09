@@ -108,18 +108,19 @@ owner, and a DRS's `stat` is stripped for everyone but the reviewer.
 
 ## Edge cases decided
 
-| #   | Case                                             | Ruling                                                                   |
-| --- | ------------------------------------------------ | ------------------------------------------------------------------------ |
-| 1   | Chosen card's only stat is last round's stat     | Leader may call it (the no-repeat rule never leaves nothing to call)     |
-| 2   | Leader declares DRS                              | Rejected (`power-not-allowed`)                                           |
-| 3   | DRS names the called stat                        | Rejected                                                                 |
-| 4   | Two DRS in one round                             | Second is rejected                                                       |
-| 5   | Powerplay winner, a loser has no extra card      | That loser gives nothing                                                 |
-| 6   | Power bet lost on a tie                          | Extra card to the pot                                                    |
-| 7   | Super Over declared, round tied or won           | Void: power handed back                                                  |
-| 8   | Super Over challenger ties the defender's card   | Challenger loses the bet (must strictly beat)                            |
-| 9   | Leader forfeits while answers are outstanding    | Their play is withdrawn; rotation continues from their seat              |
-| 10  | Last outstanding answerer forfeits               | Round resolves at once among the rest                                    |
-| 11  | Everyone but the leader is gone when they call   | Round resolves immediately (the leader "wins" their own card back)       |
-| 12  | DRS winner would be eliminated                   | Impossible — a round winner always holds cards                           |
-| 13  | Rotation lands on a player eliminated this round | Lead passes to the next active seat clockwise (reducer rule, as classic) |
+| #   | Case                                                  | Ruling                                                                                                                                                |
+| --- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Chosen card's only stat is last round's stat          | Leader may call it (the no-repeat rule never leaves nothing to call)                                                                                  |
+| 2   | Leader declares DRS                                   | Rejected (`power-not-allowed`)                                                                                                                        |
+| 3   | DRS names the called stat                             | Rejected                                                                                                                                              |
+| 4   | Two DRS in one round                                  | Second is rejected                                                                                                                                    |
+| 5   | Powerplay winner, a loser has no extra card           | That loser gives nothing                                                                                                                              |
+| 6   | Power bet lost on a tie                               | Extra card to the pot                                                                                                                                 |
+| 7   | Super Over declared, round tied or won                | Void: power handed back                                                                                                                               |
+| 8   | Super Over challenger ties the defender's card        | Challenger loses the bet (must strictly beat)                                                                                                         |
+| 9   | Leader forfeits while answers are outstanding         | Their play is withdrawn; rotation continues from their seat                                                                                           |
+| 10  | Last outstanding answerer forfeits                    | Round resolves at once among the rest                                                                                                                 |
+| 11  | Everyone but the leader is gone when they call        | Round resolves immediately (the leader "wins" their own card back)                                                                                    |
+| 12  | DRS winner would be eliminated                        | Impossible — a round winner always holds cards                                                                                                        |
+| 13  | Rotation lands on a player eliminated this round      | Lead passes to the next active seat clockwise (reducer rule, as classic)                                                                              |
+| 14  | Super Over vs a winner who played their last own card | The defender plays the first card of their winnings (pot first, else the leader's reveal); if the challenger wins it changes hands once with the rest |
