@@ -5,6 +5,7 @@
 export const APP_NAME = "DeckXI";
 
 export * from "./avatars.js";
+export * from "./decks.js";
 export * from "./edition.js";
 export * from "./protocol.js";
 export * from "./squadDraft.js";

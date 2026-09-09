@@ -3,9 +3,12 @@
  * limit. Lives behind "Match settings" in the lobby, so it loads on that tap.
  */
 import {
+  DECKS,
+  DECK_IDS,
   GAME_MODES,
   GAME_MODE_INFO,
   POWER_RECHARGE_INFO,
+  deckPool,
   type RoomSettings,
   type RoomView,
 } from "@deckxi/shared";
@@ -29,6 +32,9 @@ export function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean
   const updateSettings = useStore((s) => s.updateSettings);
   const s = room.settings;
   const patch = (p: Partial<RoomSettings>) => void updateSettings(p).catch(() => undefined);
+  const edition = getEdition(s.editionId);
+  const poolSize = edition === null ? null : deckPool(edition, s.deckId).length;
+  const needed = room.players.length * s.cardsPerPlayer;
 
   const row = (
     label: string,
@@ -126,8 +132,42 @@ export function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean
       {row("Turn timer", s.turnTimerSeconds, [10, 15, 20, 30, 60], "turnTimerSeconds", "s")}
       {GAME_MODE_INFO[s.gameMode].family === "trumps" &&
         row("Round limit", s.maxRounds, [10, 20, 25, 30, 50, 100, 1000], "maxRounds")}
+      <div className="setting-row setting-row--modes" role="radiogroup" aria-label="Deck">
+        <span>Deck</span>
+        <div className="mode-picker deck-picker">
+          {DECK_IDS.map((id) => {
+            const deck = DECKS[id];
+            const on = s.deckId === id;
+            const count = edition === null ? null : deckPool(edition, id).length;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                className={on ? "mode-option mode-option--on" : "mode-option"}
+                disabled={!isHost}
+                data-testid={`deck-${id}`}
+                onClick={() => {
+                  if (isHost && !on) patch({ deckId: id });
+                }}
+              >
+                <strong>{deck.name}</strong>
+                <span className="sub">{deck.blurb}</span>
+                {count !== null && <span className="sub mode-seats">{count} cards</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {poolSize !== null && poolSize < needed && (
+        <p className="sub setting-warning" role="status">
+          {DECKS[s.deckId].name} has {poolSize} cards; {room.players.length} players ×{" "}
+          {s.cardsPerPlayer} each needs {needed}. Everyone gets fewer, or pick a bigger deck.
+        </p>
+      )}
       <p className="sub">
-        Deck: {getEdition(s.editionId)?.name ?? s.editionId}
+        Cards from {edition?.name ?? s.editionId}
         {isHost ? "" : " · the host decides"}
       </p>
     </div>

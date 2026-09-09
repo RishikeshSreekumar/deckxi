@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { RedactedGameEvent, RoomJoined, RoomView } from "@deckxi/shared";
+import { DECK_IDS, deckPool } from "@deckxi/shared";
+import { loadEdition } from "@deckxi/data";
 import { startTestServer, trumpsState, type TestClient, type TestServer } from "./testkit.js";
 
 let server: TestServer | undefined;
@@ -53,6 +55,29 @@ function gameStarted(seat: Seat): Extract<RedactedGameEvent, { type: "GAME_START
   if (event === undefined || event.type !== "GAME_STARTED") throw new Error("no GAME_STARTED");
   return event;
 }
+
+describe("decks (#134)", () => {
+  it("every deck can deal the biggest table in full", () => {
+    const edition = loadEdition();
+    for (const id of DECK_IDS) expect(deckPool(edition, id).length).toBeGreaterThanOrEqual(6 * 11);
+  });
+
+  it("deals only from the chosen deck", async () => {
+    const { seats } = await lobby(2);
+    const [host, guest] = seats as [Seat, Seat];
+    await host.client.call("room:settings", { deckId: "bowlers-union", cardsPerPlayer: 11 });
+    // A settings change clears the guest's ready tick.
+    await guest.client.call("room:ready", { ready: true });
+    await host.client.call("room:start");
+    const started = gameStarted(host);
+    const edition = loadEdition();
+    const roles = started.config.cards.map(
+      (c) => edition.players.find((p) => p.id === c.id)?.role ?? "missing",
+    );
+    expect(roles).toHaveLength(22);
+    expect(new Set(roles)).toEqual(new Set(["bowler", "all-rounder"]));
+  });
+});
 
 describe("authoritative game loop", () => {
   it("refuses to start for non-hosts, tiny lobbies and unready players", async () => {

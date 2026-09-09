@@ -18,7 +18,7 @@ import {
   type StatDefinition,
 } from "@deckxi/engine";
 import { CURRENT_EDITION_ID, loadEdition } from "@deckxi/data";
-import { REVEAL_HOLD_MS } from "@deckxi/shared";
+import { DEFAULT_DECK_ID, REVEAL_HOLD_MS, deckPool } from "@deckxi/shared";
 import type {
   ErrorCode,
   GameCommandPayload,
@@ -151,6 +151,7 @@ export interface RoomManagerOptions {
 export const DEFAULT_SETTINGS: RoomSettings = {
   gameMode: "classic-trumps",
   editionId: CURRENT_EDITION_ID,
+  deckId: DEFAULT_DECK_ID,
   cardsPerPlayer: 5,
   turnTimerSeconds: 20,
   maxRounds: 100,
@@ -998,7 +999,7 @@ function buildDeck(
   playerCount: number,
 ): { cards: CardDefinition[]; stats: StatDefinition[] } {
   const edition = loadEdition(settings.editionId);
-  const pool = [...edition.players];
+  const pool = deckPool(edition, settings.deckId);
   for (let i = pool.length - 1; i > 0; i--) {
     const j = randomInt(i + 1);
     const a = pool[i] as (typeof pool)[number];

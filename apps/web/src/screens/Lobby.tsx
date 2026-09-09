@@ -6,13 +6,14 @@
  */
 import { Suspense, lazy, useMemo, useRef, useState } from "react";
 import {
+  DECKS,
   GAME_MODES,
   GAME_MODE_INFO,
   MAX_CHAT_LENGTH,
-  type RoomView,
   POWER_RECHARGE_INFO,
+  type RoomView,
 } from "@deckxi/shared";
-import { Dialog, PowerCard, getEdition } from "@deckxi/ui";
+import { Dialog, PowerCard } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
 import { inviteUrl, useCopy } from "../lib/copy.js";
 import { LeaveIcon, Wordmark } from "../components/Chrome.js";
@@ -81,7 +82,7 @@ function MatchSetup({
     ...(info.family === "trumps"
       ? ([["Round limit", String(s.maxRounds)]] as [string, string][])
       : []),
-    ["Deck", getEdition(s.editionId)?.name ?? s.editionId],
+    ["Deck", DECKS[s.deckId].name],
   ];
 
   return (

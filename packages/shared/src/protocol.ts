@@ -9,6 +9,7 @@
  * and the RNG seed never leave the server (anti-cheat by construction).
  */
 import { z } from "zod";
+import { DECK_IDS } from "./decks.js";
 import { draftPickSchema, submitXiSchema, type SquadDraftWireEvent } from "./squadDraft.js";
 
 /** Bumped on any breaking change; the handshake rejects mismatched clients. */
@@ -144,6 +145,8 @@ export const roomSettingsSchema = z.object({
   gameMode: z.enum(GAME_MODES),
   /** Edition the game's deck is drawn from; pinned at game start. */
   editionId: z.string().regex(/^edition-\d{4}-q[1-4]$/),
+  /** Which subset of the edition the cards come from (#134). */
+  deckId: z.enum(DECK_IDS),
   /** Cards dealt per player; the deck is a random edition subset of size n×players. */
   cardsPerPlayer: z.number().int().min(3).max(11),
   turnTimerSeconds: z.number().int().min(5).max(120),

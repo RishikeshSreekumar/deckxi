@@ -66,6 +66,7 @@ function room(
     settings: {
       gameMode,
       editionId: EDITION_ID,
+      deckId: "all-stars",
       cardsPerPlayer: 7,
       turnTimerSeconds: 20,
       maxRounds: 25,

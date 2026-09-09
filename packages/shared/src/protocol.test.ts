@@ -44,7 +44,9 @@ describe("protocol schemas", () => {
       maxRounds: 200,
       choiceDepth: 2,
       powerRecharge: "each-cycle",
+      deckId: "legends",
     };
+    expect(roomSettingsPatchSchema.safeParse({ deckId: "kitchen-sink" }).success).toBe(false);
     expect(roomSettingsPatchSchema.safeParse({ powerRecharge: "sometimes" }).success).toBe(false);
     expect(roomSettingsSchema.safeParse(full).success).toBe(true);
     expect(roomSettingsPatchSchema.safeParse({ choiceDepth: 4 }).success).toBe(false);

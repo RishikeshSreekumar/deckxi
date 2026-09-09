@@ -113,6 +113,7 @@ function practiceSettings(gameMode: GameModeId): RoomSettings {
   return {
     gameMode,
     editionId: DEFAULT_EDITION_ID,
+    deckId: "all-stars",
     cardsPerPlayer: 5,
     // No clock offline: nothing is waiting on you. The table reads the room's
     // settings for copy, and 0 would fail the shared schema, so it keeps a
