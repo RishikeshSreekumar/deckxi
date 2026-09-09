@@ -78,7 +78,7 @@ export const GAME_MODE_INFO: Record<
   "power-trumps": {
     name: "Power trumps",
     blurb:
-      "Pick one of your top three cards. The call rotates round the table and can't repeat. Three one-shot powers: win big, or lose one extra card.",
+      "Pick one of your top two cards. The call rotates round the table and can't repeat. Three one-shot powers: win big, or lose one extra card.",
     players: { min: 2, max: 6 },
     family: "trumps",
   },
@@ -137,6 +137,8 @@ export const roomSettingsSchema = z.object({
   cardsPerPlayer: z.number().int().min(3).max(11),
   turnTimerSeconds: z.number().int().min(5).max(120),
   maxRounds: z.number().int().min(10).max(1000),
+  /** Power trumps: how many cards off the top each player chooses from (#135). */
+  choiceDepth: z.number().int().min(1).max(3),
 });
 export type RoomSettings = z.infer<typeof roomSettingsSchema>;
 
@@ -230,7 +232,7 @@ export type PowerPlayView = z.infer<typeof powerPlaySchema>;
 
 export const selectStatSchema = z.object({
   stat: statKeySchema,
-  /** Power trumps: which of the top three to play (default 0). */
+  /** Power trumps: which of your top cards to play (default 0); the engine caps it at the room's choice depth. */
   cardIndex: z.number().int().min(0).max(2).optional(),
   power: powerPlaySchema.nullable().optional(),
 });
@@ -402,6 +404,8 @@ export interface RedactedGameConfig {
   cards: { id: string; stats: Record<string, number> }[];
   stats: { key: string; direction: "higher" | "lower"; min: number; max: number }[];
   maxRounds: number;
+  /** Power trumps: cards off the top to choose from. Absent on old logs (which played three). */
+  choiceDepth?: number;
   editionId: string;
 }
 

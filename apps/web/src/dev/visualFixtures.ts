@@ -69,6 +69,8 @@ function room(
       cardsPerPlayer: 7,
       turnTimerSeconds: 20,
       maxRounds: 25,
+      // The table-power fixture shows three chips; keep it that way.
+      choiceDepth: 3,
     },
     // One player deliberately away, so the "away" tag is covered too.
     players: SEATS.map((seat, i) => ({

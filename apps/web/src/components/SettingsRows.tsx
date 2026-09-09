@@ -28,7 +28,7 @@ export function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean
     label: string,
     value: number,
     options: number[],
-    key: "cardsPerPlayer" | "turnTimerSeconds" | "maxRounds",
+    key: "cardsPerPlayer" | "turnTimerSeconds" | "maxRounds" | "choiceDepth",
     unit = "",
   ) => (
     <label className="setting-row">
@@ -91,6 +91,8 @@ export function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean
           {room.players.length}+ each so everyone gets a go.
         </p>
       )}
+      {s.gameMode === "power-trumps" &&
+        row("Cards to choose from", s.choiceDepth, [1, 2, 3], "choiceDepth")}
       {row("Turn timer", s.turnTimerSeconds, [10, 15, 20, 30, 60], "turnTimerSeconds", "s")}
       {GAME_MODE_INFO[s.gameMode].family === "trumps" &&
         row("Round limit", s.maxRounds, [10, 25, 50, 100, 1000], "maxRounds")}

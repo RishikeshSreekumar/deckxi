@@ -42,8 +42,11 @@ describe("protocol schemas", () => {
       cardsPerPlayer: 5,
       turnTimerSeconds: 20,
       maxRounds: 200,
+      choiceDepth: 2,
     };
     expect(roomSettingsSchema.safeParse(full).success).toBe(true);
+    expect(roomSettingsPatchSchema.safeParse({ choiceDepth: 4 }).success).toBe(false);
+    expect(roomSettingsPatchSchema.safeParse({ choiceDepth: 0 }).success).toBe(false);
     expect(roomSettingsPatchSchema.safeParse({ turnTimerSeconds: 3 }).success).toBe(false);
     expect(roomSettingsPatchSchema.safeParse({ cardsPerPlayer: 12 }).success).toBe(false);
     expect(roomSettingsPatchSchema.safeParse({ editionId: "not-an-edition" }).success).toBe(false);

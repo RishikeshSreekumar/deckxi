@@ -6,7 +6,7 @@
  * takes a column beside it.
  *
  * Power trumps adds two rows around your card: a picker for which of your
- * top three you play, and the three power chips. Every move is two taps
+ * top cards you play (two by default, the host's call), and the three power chips. Every move is two taps
  * (#130): the leader taps a stat row to arm it and a Call button to send it
  * (tapping the armed row again also sends); everyone else picks a card and
  * taps Play (with DRS armed, they tap the stat they overrule with first).
@@ -408,7 +408,9 @@ export function GameTable({ room }: { room: RoomView }) {
   const editionId = game.config.editionId;
   const opponents = game.config.players.filter((id) => id !== selfId);
   const hand = game.yourHand;
-  const choices = hand === null ? [] : hand.slice(0, powerMode ? 3 : 1);
+  // Old logs carry no choice depth; they were played with the top three.
+  const choiceDepth = powerMode ? (game.config.choiceDepth ?? 3) : 1;
+  const choices = hand === null ? [] : hand.slice(0, choiceDepth);
   const safePick = Math.min(pick, Math.max(0, choices.length - 1));
 
   // The store has already moved on to the next round while a reveal is
@@ -837,7 +839,7 @@ export function GameTable({ room }: { room: RoomView }) {
           {powerMode && !spectator && hand !== null && choices.length > 1 && (
             <div className="hand-pick-row">
               <span className="hand-pick-label">
-                {pickerLocked ? "Playing" : "Your top 3 — tap to swap"}
+                {pickerLocked ? "Playing" : `Your top ${choices.length} — tap to swap`}
               </span>
               <div
                 className={`hand-picker ${pickerLocked ? "hand-picker--locked" : ""}`.trim()}

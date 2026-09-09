@@ -5,9 +5,11 @@
  * no rule decisions (those live in `applyCommand`, which emits the events).
  */
 import {
+  LEGACY_CHOICE_DEPTH,
   POWER_KINDS,
   type CardId,
   type CardTransfer,
+  type GameConfig,
   type GameEvent,
   type GameState,
   type PlayerId,
@@ -72,9 +74,12 @@ function applyTransfers(
 
 export function reduce(state: GameState | undefined, event: GameEvent): GameState {
   if (event.type === "GAME_STARTED") {
-    const powers = event.config.mode === "power-trumps" ? [...POWER_KINDS] : [];
+    const power = event.config.mode === "power-trumps";
+    const powers = power ? [...POWER_KINDS] : [];
+    // Logs recorded before `choiceDepth` existed played with the top three.
+    const recorded = (event.config as Partial<GameConfig>).choiceDepth;
     return {
-      config: event.config,
+      config: { ...event.config, choiceDepth: recorded ?? (power ? LEGACY_CHOICE_DEPTH : 1) },
       phase: "selecting",
       round: 1,
       leader: event.firstLeader,

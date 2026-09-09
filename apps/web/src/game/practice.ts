@@ -119,6 +119,7 @@ function practiceSettings(gameMode: GameModeId): RoomSettings {
     // plausible value and simply never starts a timer.
     turnTimerSeconds: 20,
     maxRounds: 100,
+    choiceDepth: 2,
   };
 }
 

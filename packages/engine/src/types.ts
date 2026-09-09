@@ -52,11 +52,14 @@ export interface GameConfigInput {
   maxRounds?: number;
   /** Defaults to `classic-trumps`. */
   mode?: TrumpsVariant;
+  /** Power trumps: cards off the top to choose from, 1–3 (default 2). Classic is always 1. */
+  choiceDepth?: number;
 }
 
 /** Normalised config as stored in the GAME_STARTED event. */
 export interface GameConfig extends GameConfigInput {
   maxRounds: number;
+  choiceDepth: number;
 }
 
 export const DEFAULT_MAX_ROUNDS = 1000;
@@ -77,8 +80,15 @@ export const MAX_PLAYERS = 6;
 export type PowerKind = "powerplay" | "drs" | "super-over";
 export const POWER_KINDS: readonly PowerKind[] = ["powerplay", "drs", "super-over"];
 
-/** How many cards off the top a player may choose from each round. */
-export const CHOICE_DEPTH = 3;
+/**
+ * How many cards off the top a player may choose from each round (power
+ * trumps). Two by default (#135: three was too many to compare on a phone
+ * under the clock); the host may set one to three. Games recorded before the
+ * field existed played with three.
+ */
+export const DEFAULT_CHOICE_DEPTH = 2;
+export const MAX_CHOICE_DEPTH = 3;
+export const LEGACY_CHOICE_DEPTH = 3;
 
 /** A power as declared with a play. DRS names the stat it overrules with. */
 export type PowerPlay =

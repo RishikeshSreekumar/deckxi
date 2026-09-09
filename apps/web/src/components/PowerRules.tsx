@@ -21,8 +21,8 @@ export function PowerRules({
         <li>
           <strong>Your play</strong>
           <span className="sub">
-            Pick any of your top three cards. The leader calls a stat, but never the one that
-            decided the last round. The call goes round the table.
+            Pick any of your top cards (two, unless the host set otherwise). The leader calls a
+            stat, but never the one that decided the last round. The call goes round the table.
           </span>
         </li>
         <li>

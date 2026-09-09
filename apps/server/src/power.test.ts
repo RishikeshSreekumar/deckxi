@@ -38,7 +38,7 @@ async function powerLobby(
   await host.connected();
   const hostJoined = await host.call<RoomJoined>("room:create", {
     name: "P0",
-    settings: { gameMode: "power-trumps", cardsPerPlayer: 4, maxRounds: 300 },
+    settings: { gameMode: "power-trumps", cardsPerPlayer: 4, maxRounds: 300, choiceDepth: 3 },
   });
   seats.push({
     client: host,

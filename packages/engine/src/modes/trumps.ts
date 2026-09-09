@@ -11,6 +11,8 @@ import { baselineBot } from "../bot.js";
 import { reduce } from "../reducer.js";
 import { initGame } from "../setup.js";
 import {
+  LEGACY_CHOICE_DEPTH,
+  type GameConfig,
   CommandRejectedError,
   MAX_PLAYERS,
   MIN_PLAYERS,
@@ -94,6 +96,10 @@ export function redactTrumpsEvent(
         max: s.max,
       })),
       maxRounds: config.maxRounds,
+      // Logs from before the field played with the top three.
+      choiceDepth:
+        (config as Partial<GameConfig>).choiceDepth ??
+        (config.mode === "power-trumps" ? LEGACY_CHOICE_DEPTH : 1),
       editionId,
     },
     firstLeader: event.firstLeader,
@@ -114,6 +120,7 @@ function trumpsMode(variant: TrumpsVariant): TrumpsMode {
         stats: setup.stats,
         seed: setup.seed,
         ...(setup.maxRounds !== undefined ? { maxRounds: setup.maxRounds } : {}),
+        ...(setup.choiceDepth !== undefined ? { choiceDepth: setup.choiceDepth } : {}),
         mode: variant,
       }),
     reduce,

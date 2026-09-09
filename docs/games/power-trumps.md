@@ -9,8 +9,10 @@ forfeit, the round limit, determinism — is exactly as in classic trumps.
 
 ## The four changes
 
-1. **Choose your card.** Each round every active player plays one of the **top three** cards in
-   their hand (fewer if they hold fewer). The rest of the hand stays in order.
+1. **Choose your card.** Each round every active player plays one of the **top two** cards in
+   their hand (fewer if they hold fewer). The rest of the hand stays in order. The room may set
+   the choice depth to one, two or three (`choiceDepth` in the game config, default two); games
+   recorded before the field existed played with three.
 2. **The call rotates.** The lead passes one seat clockwise every round, whether the round was won
    or tied. It does not go to the winner. (Exception: a winning DRS, below.)
 3. **No repeat call.** The leader may not call the stat that decided the previous round — unless
@@ -22,10 +24,10 @@ forfeit, the round limit, determinism — is exactly as in classic trumps.
 
 ## Round flow
 
-1. **Call** — the leader commits a card (index 0–2 of their hand) and a stat on it, and may
+1. **Call** — the leader commits a card (index 0 to `choiceDepth − 1` of their hand) and a stat on it, and may
    declare **Powerplay** or **Super Over** with it. The state moves to `responding`. The call and
    the declared power are public; the card is not.
-2. **Answer** — every other active player commits a card (index 0–2) and may declare one power.
+2. **Answer** — every other active player commits a card (same index range) and may declare one power.
    Their card stays hidden; the power kind is public. A DRS's chosen stat is the reviewer's secret
    until the reveal. Answers arrive in any order. A player may not answer twice.
 3. **Reveal** — once every active player has committed, all committed cards turn face up on the

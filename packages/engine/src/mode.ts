@@ -25,6 +25,8 @@ export interface ModeSetup {
   seed: number;
   /** Trumps: the round cap. Other modes may ignore it. */
   maxRounds?: number;
+  /** Power trumps: cards off the top to choose from (1–3). Other modes ignore it. */
+  choiceDepth?: number;
 }
 
 /**

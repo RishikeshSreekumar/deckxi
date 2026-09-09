@@ -4,7 +4,9 @@
  */
 import { mulberry32, randomInt, shuffle } from "./rng.js";
 import {
+  DEFAULT_CHOICE_DEPTH,
   DEFAULT_MAX_ROUNDS,
+  MAX_CHOICE_DEPTH,
   MAX_PLAYERS,
   MIN_PLAYERS,
   type CardId,
@@ -55,6 +57,15 @@ function validateConfig(config: GameConfig): void {
   if (!Number.isInteger(config.maxRounds) || config.maxRounds < 1) {
     throw new InvalidConfigError(`maxRounds must be a positive integer, got ${config.maxRounds}`);
   }
+  if (
+    !Number.isInteger(config.choiceDepth) ||
+    config.choiceDepth < 1 ||
+    config.choiceDepth > MAX_CHOICE_DEPTH
+  ) {
+    throw new InvalidConfigError(
+      `choiceDepth must be an integer from 1 to ${MAX_CHOICE_DEPTH}, got ${config.choiceDepth}`,
+    );
+  }
 }
 
 /**
@@ -62,10 +73,13 @@ function validateConfig(config: GameConfig): void {
  * the game's first event. `reduce(undefined, event)` yields the initial state.
  */
 export function initGame(input: GameConfigInput): GameEvent {
+  const mode = input.mode ?? "classic-trumps";
   const config: GameConfig = {
     ...input,
     maxRounds: input.maxRounds ?? DEFAULT_MAX_ROUNDS,
-    mode: input.mode ?? "classic-trumps",
+    mode,
+    // Classic always plays the top card; the setting only means anything in power trumps.
+    choiceDepth: mode === "power-trumps" ? (input.choiceDepth ?? DEFAULT_CHOICE_DEPTH) : 1,
   };
   validateConfig(config);
 

@@ -43,6 +43,7 @@ function makeState(
       seed: 1,
       maxRounds: opts.maxRounds ?? 1000,
       mode: "power-trumps",
+      choiceDepth: 3,
     },
     phase: "selecting",
     round: 1,
@@ -125,6 +126,57 @@ describe("responding window", () => {
 });
 
 describe("card choice", () => {
+  it("defaults to a choice of two, and the host may set one to three (#135)", () => {
+    const cards = [
+      card("a1", 1),
+      card("a2", 2),
+      card("a3", 3),
+      card("b1", 4),
+      card("b2", 5),
+      card("b3", 6),
+    ];
+    const base = { players: ["a", "b"], cards, stats, seed: 7 };
+    const two = reduceAll([initGame({ ...base, mode: "power-trumps" })]);
+    expect(two.config.choiceDepth).toBe(2);
+    expect(() =>
+      applyCommand(two, { type: "SELECT_STAT", playerId: two.leader, stat: "runs", cardIndex: 2 }),
+    ).toThrow(/bad-card-index/);
+    expect(
+      applyCommand(two, { type: "SELECT_STAT", playerId: two.leader, stat: "runs", cardIndex: 1 }),
+    ).not.toHaveLength(0);
+
+    const three = reduceAll([initGame({ ...base, mode: "power-trumps", choiceDepth: 3 })]);
+    expect(
+      applyCommand(three, {
+        type: "SELECT_STAT",
+        playerId: three.leader,
+        stat: "runs",
+        cardIndex: 2,
+      }),
+    ).not.toHaveLength(0);
+
+    // Classic always plays the top card, whatever the setting says.
+    expect(reduceAll([initGame({ ...base, choiceDepth: 3 })]).config.choiceDepth).toBe(1);
+    expect(() => initGame({ ...base, mode: "power-trumps", choiceDepth: 4 })).toThrow(
+      /choiceDepth/,
+    );
+  });
+
+  it("reads an old log without the field as a choice of three", () => {
+    const started = initGame({
+      players: ["a", "b"],
+      cards: [card("a1", 1), card("a2", 2), card("b1", 3), card("b2", 4)],
+      stats,
+      seed: 3,
+      mode: "power-trumps",
+    });
+    if (started.type !== "GAME_STARTED") throw new Error("expected GAME_STARTED");
+    const { choiceDepth: _dropped, ...legacy } = started.config;
+    void _dropped;
+    const state = reduceAll([{ ...started, config: legacy as typeof started.config }]);
+    expect(state.config.choiceDepth).toBe(3);
+  });
+
   it("lets a player commit any of the top three", () => {
     const s0 = makeState(three);
     const { state } = play(
@@ -529,7 +581,15 @@ describe("powers under random declarations", () => {
       let state = reduceAll([
         {
           type: "GAME_STARTED",
-          config: { players: ids, cards, stats, seed, maxRounds: 60, mode: "power-trumps" },
+          config: {
+            players: ids,
+            cards,
+            stats,
+            seed,
+            maxRounds: 60,
+            mode: "power-trumps",
+            choiceDepth: 3,
+          },
           hands: Object.fromEntries(
             ids.map((id, i) => [id, cards.filter((_, j) => j % players === i).map((c) => c.id)]),
           ),

@@ -65,6 +65,9 @@ function MatchSetup({
     ...(info.family === "trumps"
       ? ([["Cards each", String(s.cardsPerPlayer)]] as [string, string][])
       : []),
+    ...(s.gameMode === "power-trumps"
+      ? ([["Pick from", `top ${s.choiceDepth}`]] as [string, string][])
+      : []),
     ["Turn timer", `${s.turnTimerSeconds}s`],
     ...(info.family === "trumps"
       ? ([["Round limit", String(s.maxRounds)]] as [string, string][])

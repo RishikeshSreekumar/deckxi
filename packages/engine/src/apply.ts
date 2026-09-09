@@ -13,7 +13,6 @@
 import { nextActivePlayer, reduce } from "./reducer.js";
 import { beats, chooseBestStat, statValue } from "./stats.js";
 import {
-  CHOICE_DEPTH,
   CommandRejectedError,
   type CardDefinition,
   type CardId,
@@ -67,9 +66,11 @@ export function callableStats(state: GameState, card: CardDefinition): StatDefin
   return fresh.length > 0 ? fresh : onCard;
 }
 
-/** The cards a player may choose from this round (power trumps: the top three). */
+/** The cards a player may choose from this round (power trumps: the top `choiceDepth`). */
 export function choosableCards(state: GameState, player: PlayerState): CardId[] {
-  return isPowerMode(state) ? player.hand.slice(0, CHOICE_DEPTH) : player.hand.slice(0, 1);
+  return isPowerMode(state)
+    ? player.hand.slice(0, state.config.choiceDepth)
+    : player.hand.slice(0, 1);
 }
 
 export function applyCommand(state: GameState, command: Command): GameEvent[] {

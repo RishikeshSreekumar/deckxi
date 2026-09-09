@@ -229,6 +229,7 @@ describe("client mirror vs real engine", () => {
             cards: e.config.cards,
             stats: e.config.stats,
             maxRounds: e.config.maxRounds,
+            choiceDepth: e.config.choiceDepth,
             editionId: "edition-2026-q3",
           },
           firstLeader: e.firstLeader,
@@ -426,6 +427,7 @@ describe("power trumps mirror", () => {
       seed: 9,
       maxRounds: 80,
       mode: "power-trumps",
+      choiceDepth: 3,
     });
     let engine = reduce(undefined, started);
     let seq = 0;

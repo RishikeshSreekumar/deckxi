@@ -154,6 +154,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   cardsPerPlayer: 5,
   turnTimerSeconds: 20,
   maxRounds: 100,
+  choiceDepth: 2,
 };
 
 const DEFAULT_MAX_ROOMS = 200;
@@ -459,6 +460,7 @@ export class RoomManager {
       stats,
       seed: randomInt(2 ** 31),
       maxRounds: room.settings.maxRounds,
+      choiceDepth: room.settings.choiceDepth,
     });
 
     const game: GameInstance = {
