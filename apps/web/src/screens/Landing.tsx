@@ -6,7 +6,7 @@
  * followed a link was invited to one table and should not be asked to
  * choose between hosting and joining.
  */
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { JOIN_CODE_LENGTH, MAX_NAME_LENGTH, type RoomClosedReason } from "@deckxi/shared";
 import { useStore } from "../store/store.js";
@@ -120,10 +120,10 @@ export function Landing() {
     };
   }, [challenge]);
 
-  const declineInvite = () => {
+  const declineInvite = useCallback(() => {
     setInvite(false);
     history.replaceState(null, "", "/");
-  };
+  }, []);
 
   // Who am I? The account's display name (generated cricket handle for fresh
   // guests, whatever you set on the profile screen since) is the name at the

@@ -27,14 +27,26 @@ export function Dialog({
   const dragFrom = useRef<number | null>(null);
   const [dragY, setDragY] = useState(0);
 
+  // Focus the sheet once, on open — and only if focus is not already inside
+  // it. Re-running this on re-render (#129: every keystroke in a field inside
+  // the sheet re-rendered the parent) stole focus from the input and closed
+  // the phone keyboard mid-word.
   useEffect(() => {
-    ref.current?.focus();
+    const el = ref.current;
+    if (el !== null && !el.contains(document.activeElement)) el.focus();
+  }, []);
+
+  // Escape closes. The handler reads the latest `onClose` through a ref so
+  // callers may pass an inline arrow without re-subscribing every render.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, []);
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     // Only drag from the top of the sheet, and only when it is scrolled to
