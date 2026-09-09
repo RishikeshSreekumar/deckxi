@@ -125,6 +125,10 @@ test("practice plays a round with the network cut", async ({ page, context }) =>
     const stat = page.locator(".your-area--turn .stat-button").first();
     if (await stat.isVisible().catch(() => false)) {
       await stat.click({ timeout: 2000 }).catch(() => undefined);
+      await page
+        .getByTestId("call-stat")
+        .click({ timeout: 2000 })
+        .catch(() => undefined);
     }
     await page.waitForTimeout(300);
   }

@@ -52,8 +52,8 @@ export function HowToPlay({
             lose — everyone gets to pick.
           </li>
           <li>
-            <strong>Your turn:</strong> tap a stat row on your card. Pick the number you think beats
-            everyone else's hidden top card.
+            <strong>Your turn:</strong> tap a stat row on your card, then <strong>Call</strong> to
+            send it. Pick the number you think beats everyone else's hidden top card.
           </li>
           <li>
             <strong>Everyone else's turn:</strong> your top card plays itself. Nothing to press —

@@ -11,11 +11,19 @@ async function readRoomCode(page: Page): Promise<string> {
   return code;
 }
 
-/** Click a stat if this page's player currently has the pick. */
+/**
+ * Make the call if this page's player currently has the pick: tap a stat to
+ * arm it, then Call to send it. A stat tap on its own must not decide the
+ * round (#130), so the Call button has to still be there after it.
+ */
 async function maybePick(page: Page): Promise<void> {
   const stat = page.locator(".your-area--turn .stat-button").first();
   if (await stat.isVisible().catch(() => false)) {
     await stat.click({ timeout: 2000 }).catch(() => undefined);
+    const call = page.getByTestId("call-stat");
+    if (await call.isEnabled().catch(() => false)) {
+      await call.click({ timeout: 2000 }).catch(() => undefined);
+    }
   }
 }
 

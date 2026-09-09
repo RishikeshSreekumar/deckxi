@@ -6,10 +6,12 @@
  * takes a column beside it.
  *
  * Power trumps adds two rows around your card: a picker for which of your
- * top three you play, and the three power chips. The leader still calls by
- * tapping a stat row; everyone else answers with a Play button (or, with
- * DRS armed, by tapping the stat they overrule with). Everything lives in
- * the same fixed shell, so a phone never has to scroll to find its move.
+ * top three you play, and the three power chips. Every move is two taps
+ * (#130): the leader taps a stat row to arm it and a Call button to send it
+ * (tapping the armed row again also sends); everyone else picks a card and
+ * taps Play (with DRS armed, they tap the stat they overrule with first).
+ * Nothing on the table is decided by a single tap. Everything lives in the
+ * same fixed shell, so a phone never has to scroll to find its move.
  *
  * The reveal happens on the table: every player's card — yours included —
  * turns face up in the middle where the call was, and the verdict rises from
@@ -338,11 +340,16 @@ export function GameTable({ room }: { room: RoomView }) {
   // for it. Both reset when the round moves on.
   const [pick, setPick] = useState(0);
   const [armed, setArmed] = useState<PowerKindView | null>(null);
+  // The stat you have tapped but not yet sent — the leader's call, or the
+  // stat a DRS reviews on. A second tap on the row, or the Call/Play button,
+  // is what commits it (#130: a mis-tap on a stat row used to decide the round).
+  const [armedStat, setArmedStat] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const roundKey = game === null ? "" : `${game.round}:${game.phase}`;
   useEffect(() => {
     setPick(0);
     setArmed(null);
+    setArmedStat(null);
     setSending(false);
   }, [roundKey]);
 
@@ -416,8 +423,11 @@ export function GameTable({ room }: { room: RoomView }) {
   }
 
   // The stat under the spotlight: the round being revealed, else your own
-  // optimistic pick, else whatever the leader has locked in.
-  const hotStat = current?.stat ?? pendingStat ?? game.selected?.stat ?? null;
+  // optimistic pick, else whatever the leader has locked in, else the stat
+  // you have armed but not sent.
+  const hotStat = current?.stat ?? pendingStat ?? game.selected?.stat ?? armedStat ?? null;
+  const armedOnly =
+    current === null && pendingStat === null && game.selected === null && armedStat !== null;
 
   // The bar drains with the turn timer.
   const totalSeconds = room.settings.turnTimerSeconds;
@@ -436,13 +446,21 @@ export function GameTable({ room }: { room: RoomView }) {
   const commit = async (stat: string | null) => {
     if (sending || move === null) return;
     const cardIndex = safePick;
+    const reviewStat = stat ?? armedStat;
+    if (armed === "drs" && reviewStat === null) return;
     const power: PowerPlayView | null =
-      armed === null ? null : armed === "drs" ? { kind: "drs", stat: stat ?? "" } : { kind: armed };
+      armed === null
+        ? null
+        : armed === "drs"
+          ? { kind: "drs", stat: reviewStat ?? "" }
+          : { kind: armed };
     haptics.tap();
     if (move === "call") {
       if (stat === null) return;
+      setSending(true);
       if (powerMode) await selectStat(stat, { cardIndex, power });
       else await selectStat(stat);
+      setSending(false);
       return;
     }
     setSending(true);
@@ -451,6 +469,16 @@ export function GameTable({ room }: { room: RoomView }) {
     } catch {
       setSending(false);
     }
+  };
+
+  // A stat row tap arms the stat; tapping the armed row again sends it.
+  const armStat = (key: string) => {
+    if (armedStat === key) {
+      void commit(key);
+      return;
+    }
+    haptics.tap();
+    setArmedStat(key);
   };
 
   // The centre of the table says two things, in this order: whose move it
@@ -478,18 +506,40 @@ export function GameTable({ room }: { room: RoomView }) {
   const instruction = game.finished
     ? ""
     : move === "call"
-      ? powerMode && game.lastStat !== null
-        ? `Tap a stat on your card — not ${statName(editionId, game.lastStat)} again`
-        : "Tap a stat on your card"
+      ? armedStat !== null
+        ? "Tap Call to lock it in — or another stat to change"
+        : powerMode && game.lastStat !== null
+          ? `Tap a stat on your card, then Call — not ${statName(editionId, game.lastStat)} again`
+          : "Tap a stat on your card, then Call"
       : move === "answer"
         ? armed === "drs"
-          ? "DRS armed — tap the stat you overrule with"
+          ? armedStat !== null
+            ? `Tap Play to review on ${statName(editionId, armedStat)}`
+            : "DRS armed — tap the stat you overrule with"
           : "Pick a card, then play it"
         : hotStat !== null
           ? `${leaderIsYou ? "You" : (names[game.selected?.playerId ?? game.leader] ?? "They")} called ${statName(editionId, hotStat)}`
           : out
             ? "Spectating until the match ends"
             : "Your top card plays itself — nothing to press";
+
+  // The leader's send button. Disabled until a stat is armed, so its label
+  // doubles as the instruction on a phone where the centre panel is small.
+  const callButton = (
+    <button
+      type="button"
+      className="button button--primary play-button call-button"
+      disabled={sending || armedStat === null}
+      data-testid="call-stat"
+      onClick={() => void commit(armedStat)}
+    >
+      {sending
+        ? "Calling…"
+        : armedStat === null
+          ? "Tap a stat to call"
+          : `Call ${statName(editionId, armedStat)}${armed !== null ? ` · ${POWER_INFO[armed].name}` : ""}`}
+    </button>
+  );
 
   return (
     <main
@@ -703,7 +753,9 @@ export function GameTable({ room }: { room: RoomView }) {
             <span className="called-stat" data-testid="turn-line">
               {hotStat !== null ? statName(editionId, hotStat) : headline}
             </span>
-            <span className="called-label">{hotStat !== null ? headline : instruction}</span>
+            <span className="called-label">
+              {hotStat !== null && !armedOnly ? headline : instruction}
+            </span>
             {waitingOnYou && (
               <span className="called-meter" aria-hidden="true">
                 <span style={{ width: meter }} />
@@ -819,15 +871,12 @@ export function GameTable({ room }: { room: RoomView }) {
                   size="full"
                   {...(myStats !== null ? { stats: myStats } : {})}
                   {...(hotStat !== null ? { highlightStat: hotStat } : {})}
+                  {...(armedStat !== null ? { pendingStat: armedStat } : {})}
                   {...(move === "call" && powerMode && game.lastStat !== null
                     ? { disabledStats: [game.lastStat] }
                     : {})}
                   {...(move === "call" || (move === "answer" && armed === "drs")
-                    ? {
-                        onSelectStat: (key: string) => {
-                          void commit(key);
-                        },
-                      }
+                    ? { onSelectStat: armStat }
                     : {})}
                 />
               </div>
@@ -880,21 +929,26 @@ export function GameTable({ room }: { room: RoomView }) {
                 ?
               </button>
             </div>
-            {move === "answer" && armed !== "drs" && (
+            {move === "call" && callButton}
+            {move === "answer" && (
               <button
                 type="button"
                 className="button button--primary play-button"
-                disabled={sending}
+                disabled={sending || (armed === "drs" && armedStat === null)}
                 data-testid="play-card"
                 onClick={() => void commit(null)}
               >
                 {sending
                   ? "Playing…"
-                  : armed !== null
-                    ? `Play · ${POWER_INFO[armed].name}`
-                    : hotStat !== null
-                      ? `Play this card on ${statName(editionId, hotStat)}`
-                      : "Play this card"}
+                  : armed === "drs"
+                    ? armedStat === null
+                      ? "Tap the stat to review on"
+                      : `Play · DRS on ${statName(editionId, armedStat)}`
+                    : armed !== null
+                      ? `Play · ${POWER_INFO[armed].name}`
+                      : hotStat !== null
+                        ? `Play this card on ${statName(editionId, hotStat)}`
+                        : "Play this card"}
               </button>
             )}
             {move === null && game.yourPlay !== null && current === null && (
@@ -904,6 +958,10 @@ export function GameTable({ room }: { room: RoomView }) {
                 {waitingNames.length > 0 ? ` Waiting on ${waitingNames.join(", ")}…` : ""}
               </p>
             )}
+          </div>
+        ) : move === "call" ? (
+          <div className="power-row call-row" data-testid="call-row">
+            {callButton}
           </div>
         ) : (
           hand !== null &&

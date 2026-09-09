@@ -1809,6 +1809,12 @@ select:focus {
   text-overflow: ellipsis;
 }
 
+/* Classic mode has no power row; while it is your call the fan gives its line
+   to the Call button (#130). */
+.call-row {
+  justify-content: center;
+}
+
 .power-note {
   flex: 1 1 100%;
   min-width: 0;
