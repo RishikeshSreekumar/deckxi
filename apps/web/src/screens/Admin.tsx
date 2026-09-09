@@ -15,6 +15,7 @@ import { Link } from "react-router-dom";
 import { AppBar } from "../components/Chrome.js";
 import { AdminFeed } from "../components/AdminFeed.js";
 import { AdminOps } from "../components/AdminOps.js";
+import { AdminDecks } from "../components/AdminDecks.js";
 import {
   fetchAdminRooms,
   fetchAdminSession,
@@ -99,6 +100,8 @@ export function AdminScreen() {
       </div>
 
       <AdminOps />
+
+      <AdminDecks />
 
       {rooms.error !== null && (
         <p className="hint" role="status">

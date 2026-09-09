@@ -6,7 +6,6 @@
  */
 import { Suspense, lazy, useMemo, useRef, useState } from "react";
 import {
-  DECKS,
   GAME_MODES,
   GAME_MODE_INFO,
   MAX_CHAT_LENGTH,
@@ -67,6 +66,9 @@ function MatchSetup({
   onEdit: () => void;
 }) {
   const s = room.settings;
+  // The server names the deck (#142): it is runtime data, so a room whose
+  // deck was renamed under it still prints what it is playing with.
+  const deckName = room.deck?.name ?? s.deckId;
   const info = GAME_MODE_INFO[s.gameMode];
   const chips: [string, string][] = [
     ...(info.family === "trumps"
@@ -82,7 +84,7 @@ function MatchSetup({
     ...(info.family === "trumps"
       ? ([["Round limit", String(s.maxRounds)]] as [string, string][])
       : []),
-    ["Deck", DECKS[s.deckId].name],
+    ["Deck", deckName],
   ];
 
   return (
@@ -188,6 +190,8 @@ export function Lobby({ room }: { room: RoomView }) {
   const startGame = useStore((s) => s.startGame);
   const leaveRoom = useStore((s) => s.leaveRoom);
   const setupChanged = useStore((s) => s.setupChanged);
+  const addBot = useStore((s) => s.addBot);
+  const removeBot = useStore((s) => s.removeBot);
   const [sheet, setSheet] = useState<"invite" | "rules" | "howto" | null>(null);
 
   const isHost = selfId === room.hostId;
@@ -199,6 +203,9 @@ export function Lobby({ room }: { room: RoomView }) {
   const notReadyNames = room.players.filter((p) => !p.ready && p.id !== selfId).map((p) => p.name);
   const players = useMemo(() => [...room.players].sort((a, b) => a.seat - b.seat), [room.players]);
   const openSeats = Math.max(0, MAX_SEATS - players.length);
+  // A bot can be seated while the mode still has room for one — the same cap
+  // the server enforces, so the button is never a promise the room refuses.
+  const canAddBot = isHost && players.length < Math.min(modeInfo.players.max, MAX_SEATS);
   const missing = Math.max(0, 2 - players.length);
   const { copied, copy } = useCopy(inviteUrl(room.code));
 
@@ -264,13 +271,15 @@ export function Lobby({ room }: { room: RoomView }) {
               // Every seat says the same two things — who, and whether they are
               // ready — so nobody has to work out what the table is waiting on.
               const readiness = p.ready ? "ready" : "not ready";
-              const status = !p.connected
-                ? "away"
-                : p.id === selfId
-                  ? `you${p.id === room.hostId ? " · host" : ""} · ${readiness}`
-                  : p.id === room.hostId
-                    ? `host · ${readiness}`
-                    : readiness;
+              const status = p.bot
+                ? "bot · plays its best stat, never bluffs"
+                : !p.connected
+                  ? "away"
+                  : p.id === selfId
+                    ? `you${p.id === room.hostId ? " · host" : ""} · ${readiness}`
+                    : p.id === room.hostId
+                      ? `host · ${readiness}`
+                      : readiness;
               return (
                 <li
                   key={p.id}
@@ -283,12 +292,24 @@ export function Lobby({ room }: { room: RoomView }) {
                     <strong>{p.name}</strong>
                     <span className="sub">{status}</span>
                   </span>
-                  <span
-                    className={p.ready ? "ready ready--yes" : "ready"}
-                    aria-label={p.ready ? "Ready" : "Not ready"}
-                  >
-                    {p.ready ? "✓" : "…"}
-                  </span>
+                  {p.bot && isHost ? (
+                    <button
+                      type="button"
+                      className="chip"
+                      data-testid={`remove-bot-${p.id}`}
+                      title={`Free ${p.name}'s seat`}
+                      onClick={() => void removeBot(p.id).catch(() => undefined)}
+                    >
+                      Remove
+                    </button>
+                  ) : (
+                    <span
+                      className={p.ready ? "ready ready--yes" : "ready"}
+                      aria-label={p.ready ? "Ready" : "Not ready"}
+                    >
+                      {p.ready ? "✓" : "…"}
+                    </span>
+                  )}
                 </li>
               );
             })}
@@ -296,7 +317,20 @@ export function Lobby({ room }: { room: RoomView }) {
               <li key={`open-${i}`} className="panel player player--open">
                 <span className="player-name">
                   <strong>Open seat</strong>
+                  {canAddBot && i === 0 && (
+                    <span className="sub">A bot plays its best stat and never bluffs.</span>
+                  )}
                 </span>
+                {canAddBot && i === 0 && (
+                  <button
+                    type="button"
+                    className="chip"
+                    data-testid="add-bot"
+                    onClick={() => void addBot().catch(() => undefined)}
+                  >
+                    Add bot
+                  </button>
+                )}
                 <button type="button" className="chip" onClick={() => setSheet("invite")}>
                   Invite
                 </button>

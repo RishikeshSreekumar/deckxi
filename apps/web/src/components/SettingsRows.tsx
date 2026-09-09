@@ -3,17 +3,15 @@
  * limit. Lives behind "Match settings" in the lobby, so it loads on that tap.
  */
 import {
-  DECKS,
-  DECK_IDS,
   GAME_MODES,
   GAME_MODE_INFO,
   POWER_RECHARGE_INFO,
-  deckPool,
   type RoomSettings,
   type RoomView,
 } from "@deckxi/shared";
 import { PowerCard, getEdition } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
+import { deckOf, useDecks } from "../lib/decks.js";
 
 /** The powers in the order the table shows them, everywhere. */
 const POWER_ORDER = ["powerplay", "drs", "super-over"] as const;
@@ -33,7 +31,10 @@ export function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean
   const s = room.settings;
   const patch = (p: Partial<RoomSettings>) => void updateSettings(p).catch(() => undefined);
   const edition = getEdition(s.editionId);
-  const poolSize = edition === null ? null : deckPool(edition, s.deckId).length;
+  // The deck list is server-curated (#142); the built-ins render until it lands.
+  const decks = useDecks(s.editionId);
+  const chosen = room.deck ?? deckOf(decks, s.deckId);
+  const poolSize = chosen.cardCount > 0 ? chosen.cardCount : null;
   const needed = room.players.length * s.cardsPerPlayer;
 
   const row = (
@@ -135,10 +136,10 @@ export function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean
       <div className="setting-row setting-row--modes" role="radiogroup" aria-label="Deck">
         <span>Deck</span>
         <div className="mode-picker deck-picker">
-          {DECK_IDS.map((id) => {
-            const deck = DECKS[id];
+          {decks.map((deck) => {
+            const id = deck.id;
             const on = s.deckId === id;
-            const count = edition === null ? null : deckPool(edition, id).length;
+            const count = deck.cardCount;
             return (
               <button
                 key={id}
@@ -154,16 +155,23 @@ export function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean
               >
                 <strong>{deck.name}</strong>
                 <span className="sub">{deck.blurb}</span>
-                {count !== null && <span className="sub mode-seats">{count} cards</span>}
+                {count > 0 && <span className="sub mode-seats">{count} cards</span>}
               </button>
             );
           })}
         </div>
       </div>
+      <p className="sub">
+        {/* A host picking a deck blind is how "Bowlers' Union" stays a mystery
+            until the cards land; the picker links at the list itself (#141). */}
+        <a href={`/deck?deck=${s.deckId}`} target="_blank" rel="noreferrer">
+          Look through {chosen.name} →
+        </a>
+      </p>
       {poolSize !== null && poolSize < needed && (
         <p className="sub setting-warning" role="status">
-          {DECKS[s.deckId].name} has {poolSize} cards; {room.players.length} players ×{" "}
-          {s.cardsPerPlayer} each needs {needed}. Everyone gets fewer, or pick a bigger deck.
+          {chosen.name} has {poolSize} cards; {room.players.length} players × {s.cardsPerPlayer}{" "}
+          each needs {needed}. Everyone gets fewer, or pick a bigger deck.
         </p>
       )}
       <p className="sub">

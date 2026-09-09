@@ -303,6 +303,104 @@ describe("replay debugger", () => {
   });
 });
 
+describe("decks (#142)", () => {
+  const send = (path: string, method: string, body?: unknown): Promise<Response> =>
+    fetch(`${server.url}${path}`, {
+      method,
+      headers: {
+        authorization: `Bearer ${TOKEN}`,
+        ...(body === undefined ? {} : { "content-type": "application/json" }),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+
+  it("is invisible without admin credentials, like everything else here", async () => {
+    expect((await get("/api/admin/decks")).status).toBe(404);
+    expect((await fetch(`${server.url}/api/admin/decks`, { method: "POST" })).status).toBe(404);
+  });
+
+  it("publishes the catalogue to everyone, definitions to operators only", async () => {
+    const publicList = (await (await get("/api/decks")).json()) as {
+      decks: { id: string; cardCount: number }[];
+    };
+    expect(publicList.decks.map((d) => d.id)).toContain("all-stars");
+    expect(publicList.decks[0]?.cardCount).toBeGreaterThan(0);
+    // The public list carries counts, not the filters behind them.
+    expect(JSON.stringify(publicList)).not.toContain("roles");
+
+    const admin = (await (
+      await get("/api/admin/decks", { authorization: `Bearer ${TOKEN}` })
+    ).json()) as {
+      decks: { id: string; roles?: string[] }[];
+    };
+    expect(admin.decks.find((d) => d.id === "batters-xi")?.roles).toEqual(["batter", "keeper"]);
+  });
+
+  it("creates a deck a host can then play with", async () => {
+    const created = await send("/api/admin/decks", "POST", {
+      id: "rivals-xi",
+      name: "Rivals XI",
+      blurb: "The needle games.",
+      rarities: ["star", "legend"],
+    });
+    expect(created.status).toBe(200);
+    expect((await created.json()) as { ok: boolean }).toMatchObject({ ok: true });
+
+    const cards = (await (await get("/api/decks/rivals-xi/cards")).json()) as {
+      cardIds: string[];
+    };
+    expect(cards.cardIds.length).toBeGreaterThan(0);
+
+    // A room can be set to it, and the game deals from it.
+    const host = server.client();
+    await host.connected();
+    const joined = await host.call<RoomJoined>("room:create", { name: "Host" });
+    await host.call("room:settings", { deckId: "rivals-xi" });
+    const guest = server.client();
+    await guest.connected();
+    await guest.call<RoomJoined>("room:join", { code: joined.room.code, name: "Guest" });
+    await guest.call("room:ready", { ready: true });
+    await host.call("room:ready", { ready: true });
+    await host.call("room:start", undefined);
+    const room = server.app.rooms.getRoom(joined.roomId);
+    const dealt = room?.game?.state.config.cards.map((c: { id: string }) => c.id) ?? [];
+    expect(dealt.length).toBeGreaterThan(0);
+    for (const id of dealt) expect(cards.cardIds).toContain(id);
+  });
+
+  it("refuses a deck that cannot seat a table, and says why", async () => {
+    const response = await send("/api/admin/decks", "POST", {
+      id: "tiny",
+      name: "Tiny",
+      blurb: "Too few.",
+      roles: ["keeper"],
+      rarities: ["legend"],
+      cardIds: ["nobody"],
+    });
+    const body = (await response.json()) as { ok: boolean; error?: string };
+    expect(body.ok).toBe(false);
+    expect(body.error).toMatch(/nobody/);
+    expect((await (await get("/api/decks")).json()) as { decks: unknown[] }).not.toMatchObject({
+      decks: [{ id: "tiny" }],
+    });
+  });
+
+  it("will not delete the deck every room falls back to", async () => {
+    const response = await send("/api/admin/decks/all-stars", "DELETE");
+    expect((await response.json()) as { ok: boolean }).toMatchObject({ ok: false });
+  });
+
+  it("refuses a room set to a deck nobody curated", async () => {
+    const host = server.client();
+    await host.connected();
+    await host.call<RoomJoined>("room:create", { name: "Host" });
+    expect(await host.callRaw("room:settings", { deckId: "no-such-deck" })).toMatchObject({
+      ok: false,
+      code: "bad-request",
+    });
+  });
+});
+
 describe("room summary", () => {
   it("counts players still inside their reconnect grace as disconnected", () => {
     const room = {

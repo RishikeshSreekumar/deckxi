@@ -16,10 +16,11 @@ import { Server, type Socket } from "socket.io";
 import {
   GAME_MODES,
   PROTOCOL_VERSION,
+  deckPool,
   type ClientToServerEvents,
   type ServerToClientEvents,
 } from "@deckxi/shared";
-import { CURRENT_EDITION_ID } from "@deckxi/data";
+import { CURRENT_EDITION_ID, loadEdition } from "@deckxi/data";
 import { findMode } from "@deckxi/engine";
 import { randomUUID } from "node:crypto";
 import { originMatcher } from "./origins.js";
@@ -27,6 +28,7 @@ import { requestId, type Logger } from "./logging.js";
 import { registerErrorTracking } from "./errors.js";
 import { createMetrics, type Metrics } from "./metrics.js";
 import { registerAdminRoutes } from "./admin.js";
+import { DeckCatalogue } from "./decks.js";
 import { EventFeed, teeLogger } from "./feed.js";
 import { InMemoryConfigStore, OpsConfig, type ConfigStore } from "./ops.js";
 import { registerSockets, type SocketOptions } from "./sockets.js";
@@ -161,7 +163,12 @@ export function buildApp(options: AppOptions = {}): App {
   const log = teeLogger(fastify.log as unknown as Logger, feed);
   const metrics = createMetrics();
   const store = options.store ?? new InMemoryMatchStore();
-  const ops = new OpsConfig(options.config ?? new InMemoryConfigStore(), log);
+  const configStore = options.config ?? new InMemoryConfigStore();
+  const ops = new OpsConfig(configStore, log);
+  // Decks are operator-curated content (#142), loaded from the same config
+  // store the ops flags use; until it answers, the built-ins are the catalogue.
+  const decks = new DeckCatalogue(configStore, log);
+  void decks.load();
   const corsOrigins = options.corsOrigins ?? ["http://localhost:5173"];
   const allowOrigin = originMatcher(corsOrigins);
 
@@ -185,7 +192,7 @@ export function buildApp(options: AppOptions = {}): App {
       cb(null, allowOrigin(origin));
     },
     credentials: true,
-    methods: ["GET", "POST", "PATCH", "DELETE"],
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
   });
 
   // Route errors, the browser's error intake, and a 500 shape that doesn't
@@ -300,6 +307,29 @@ export function buildApp(options: AppOptions = {}): App {
    * spreadsheet. Guests appear under whatever name they play as — they have
    * accounts like everyone else, they just have not signed in yet.
    */
+  /**
+   * The deck catalogue (#142). Public and unauthenticated: it is the list of
+   * decks the lobby offers, which every player already sees. The client keeps
+   * the built-ins as a fallback, so a slow or failed fetch costs a name, not
+   * a lobby.
+   */
+  fastify.get("/api/decks", (_request, reply) => reply.send({ decks: decks.catalogue() }));
+
+  /**
+   * The cards one deck resolves to, for /deck. The catalogue carries counts
+   * only — a lobby has no use for two hundred card ids, and the page that
+   * does can ask for them.
+   */
+  fastify.get("/api/decks/:id/cards", (request, reply) => {
+    const { id } = request.params as { id: string };
+    const deck = decks.get(id);
+    if (deck === undefined) return reply.status(404).send({ error: "no such deck" });
+    return reply.send({
+      deck: decks.summarise(deck),
+      cardIds: deckPool(loadEdition(), deck).map((card) => card.id),
+    });
+  });
+
   fastify.get("/api/leaderboard", async (request, reply) => {
     const query = request.query as { mode?: string; season?: string; limit?: string };
     const mode = query.mode ?? "classic-trumps";
@@ -546,6 +576,7 @@ export function buildApp(options: AppOptions = {}): App {
       logger: log,
       metrics,
       isModeEnabled: (mode) => ops.isModeEnabled(mode),
+      lookupDeck: (deckId) => decks.get(deckId),
       ...options.rooms,
     },
     limits: options.limits,
@@ -568,6 +599,7 @@ export function buildApp(options: AppOptions = {}): App {
     feed,
     store,
     ops,
+    decks,
   });
 
   // Gauges read live state, so they are registered once the owners exist.

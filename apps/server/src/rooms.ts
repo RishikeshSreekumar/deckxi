@@ -18,7 +18,15 @@ import {
   type StatDefinition,
 } from "@deckxi/engine";
 import { CURRENT_EDITION_ID, loadEdition } from "@deckxi/data";
-import { DEFAULT_DECK_ID, REVEAL_HOLD_MS, deckPool } from "@deckxi/shared";
+import {
+  BUILT_IN_DECKS,
+  DECKS,
+  DEFAULT_DECK_ID,
+  REVEAL_HOLD_MS,
+  deckPool,
+  type DeckDefinition,
+  type DeckSummary,
+} from "@deckxi/shared";
 import type {
   ErrorCode,
   GameCommandPayload,
@@ -146,6 +154,12 @@ export interface RoomManagerOptions {
   metrics?: Metrics;
   /** Game-mode kill switch (#70); everything is enabled by default. */
   isModeEnabled?: (mode: string) => boolean;
+  /**
+   * The deck catalogue (#142). Decks are operator-curated at runtime, so the
+   * manager is handed a resolver rather than reading a compiled-in table;
+   * `undefined` means the id is not a deck anyone can play.
+   */
+  lookupDeck?: (deckId: string) => DeckDefinition | undefined;
 }
 
 export const DEFAULT_SETTINGS: RoomSettings = {
@@ -154,20 +168,37 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   deckId: DEFAULT_DECK_ID,
   cardsPerPlayer: 5,
   turnTimerSeconds: 20,
-  maxRounds: 100,
+  /**
+   * One cap for every mode (#140). A table finishes by elimination around
+   * here anyway, so 25 makes the round chip mean something — "Round 7 of 25"
+   * places you in the game, where "of 100" said nothing and left the final-
+   * overs cue never firing.
+   */
+  maxRounds: 25,
   choiceDepth: 2,
   powerRecharge: "each-cycle",
 };
 
 /**
- * Round caps a fresh room starts with per mode (#133): power trumps has a
- * decision every round and goes stale past thirty; classic keeps the long
- * cap because its rounds are quick.
+ * Names for the seats the server plays itself. "(bot)" is in the name rather
+ * than only on a badge: the name is what chat, results and the share card
+ * print, and a table that cannot tell which seats are people is a table
+ * nobody can read.
  */
-const DEFAULT_MAX_ROUNDS_BY_MODE: Partial<Record<RoomSettings["gameMode"], number>> = {
-  "classic-trumps": 100,
-  "power-trumps": 30,
-};
+const BOT_NAMES = ["Nightwatch (bot)", "Googly (bot)", "Yorker (bot)", "Slip (bot)"] as const;
+
+/** The first bot name nobody in this room is already using. */
+function freeBotName(room: Room): string {
+  const taken = new Set([...room.players, ...room.spectators].map((s) => s.name));
+  const free = BOT_NAMES.find((name) => !taken.has(name));
+  if (free !== undefined) return free;
+  // More bots than names (a human sitting under one of them, say). Number the
+  // extras; MAX_PLAYERS bounds how far this ever counts.
+  for (let n = 2; ; n++) {
+    const name = `${BOT_NAMES[0]} ${n}`;
+    if (!taken.has(name)) return name;
+  }
+}
 
 const DEFAULT_MAX_ROOMS = 200;
 const DEFAULT_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
@@ -188,6 +219,7 @@ export class RoomManager {
   protected readonly log: Logger;
   protected readonly metrics: Metrics;
   private readonly isModeEnabled: (mode: string) => boolean;
+  private readonly lookupDeck: (deckId: string) => DeckDefinition | undefined;
 
   constructor(
     private readonly observer: RoomsObserver,
@@ -202,6 +234,8 @@ export class RoomManager {
     this.log = options.logger ?? nullLogger;
     this.metrics = options.metrics ?? createMetrics();
     this.isModeEnabled = options.isModeEnabled ?? (() => true);
+    // No catalogue supplied (tests, library use): the built-in decks are it.
+    this.lookupDeck = options.lookupDeck ?? ((id) => BUILT_IN_DECKS.find((d) => d.id === id));
   }
 
   get roomCount(): number {
@@ -277,15 +311,103 @@ export class RoomManager {
    * against the house beats a queue that never resolves, and the bot is the
    * engine's own baseline, so it plays by exactly the rules a human does.
    */
-  addBot(roomId: string, name = "Bot"): Session {
+  addBot(roomId: string, name?: string): Session {
     const room = this.rooms.get(roomId);
     if (room === undefined) throw new RoomError("room-not-found");
-    const session = this.addPlayer(room, name, null);
-    session.bot = true;
-    session.ready = true;
+    const session = this.seatBot(room, name);
     this.touch(room);
     this.observer.roomState(room);
     return session;
+  }
+
+  /**
+   * The host seats bots in their own room (#139). Quick match has always been
+   * able to do this; a host learning the game, testing a deck or demoing a
+   * power had no way to fill a table without finding five other people.
+   * Practice mode plays bots too, but entirely in the client — nothing
+   * shareable, spectatable or replayable comes out of it.
+   */
+  hostAddBots(sessionId: string, count = 1): Session[] {
+    const { room } = this.requireHostInLobby(sessionId);
+    const max = Math.min(getMode(room.settings.gameMode).players.max, MAX_PLAYERS);
+    if (room.players.length >= MAX_PLAYERS) throw new RoomError("room-full");
+    if (room.players.length + count > max) {
+      throw new RoomError(
+        "too-many-players",
+        `${room.settings.gameMode} seats ${max}; ${room.players.length} already sitting`,
+      );
+    }
+    const seated = Array.from({ length: count }, () => this.seatBot(room));
+    this.clearReady(room);
+    this.touch(room);
+    this.observer.roomState(room);
+    return seated;
+  }
+
+  /**
+   * Take a bot back off the table (#139). Only a bot: a human leaves by
+   * leaving, or is removed by an operator, and folding the two together would
+   * hand every host a kick button nobody asked for.
+   */
+  removeBot(sessionId: string, playerId?: string): void {
+    const { room } = this.requireHostInLobby(sessionId);
+    const target =
+      playerId === undefined
+        ? [...room.players].reverse().find((p) => p.bot)
+        : room.players.find((p) => p.id === playerId);
+    if (target === undefined || !target.bot) {
+      throw new RoomError("bad-request", "no such bot at this table");
+    }
+    this.leave(target.id);
+    this.clearReady(room);
+    this.touch(room);
+    this.observer.roomState(room);
+  }
+
+  /**
+   * The room's deck as the client prints it (#142). Decks are runtime data,
+   * so the name and blurb travel with the snapshot rather than being looked
+   * up in a table the client was built with.
+   */
+  deckFor(room: Room): DeckSummary | undefined {
+    const deck = this.lookupDeck(room.settings.deckId);
+    if (deck === undefined) return undefined;
+    try {
+      return {
+        id: deck.id,
+        name: deck.name,
+        blurb: deck.blurb,
+        cardCount: deckPool(loadEdition(room.settings.editionId), deck).length,
+        enabled: deck.enabled !== false,
+      };
+    } catch {
+      // An edition this build doesn't carry: the name still beats nothing.
+      return { id: deck.id, name: deck.name, blurb: deck.blurb, cardCount: 0, enabled: true };
+    }
+  }
+
+  private requireHostInLobby(sessionId: string): { room: Room; session: Session } {
+    const { room, session } = this.requirePlayer(sessionId);
+    if (room.hostId !== session.id) throw new RoomError("not-host");
+    if (room.phase !== "lobby") throw new RoomError("not-in-lobby");
+    return { room, session };
+  }
+
+  private seatBot(room: Room, name?: string): Session {
+    const session = this.addPlayer(room, name ?? freeBotName(room), null);
+    session.bot = true;
+    session.ready = true;
+    return session;
+  }
+
+  /**
+   * A ready tick is agreement to *this* table. Changing the rules — or the
+   * number of seats — after someone readied would start them into a different
+   * match than the one they agreed to, so every human says yes again. Bots
+   * are always ready.
+   */
+  private clearReady(room: Room): void {
+    for (const p of room.players) if (!p.bot) p.ready = false;
   }
 
   joinRoom(
@@ -401,7 +523,10 @@ export class RoomManager {
       return;
     }
     if (room.hostId === sessionId) {
-      room.hostId = (room.players[0] as Session).id;
+      // A bot cannot press Start, so the room goes to the first human left;
+      // an all-bot table keeps the seat warm and is reaped as idle.
+      const heir = room.players.find((p) => !p.bot) ?? (room.players[0] as Session);
+      room.hostId = heir.id;
     }
     this.touch(room);
     this.observer.roomState(room);
@@ -422,23 +547,12 @@ export class RoomManager {
     const changed = (Object.keys(patch) as (keyof RoomSettings)[]).some(
       (key) => patch[key] !== undefined && patch[key] !== room.settings[key],
     );
-    // Switching mode with the round cap still at the old mode's default moves
-    // it to the new mode's default; a cap the host chose is left alone.
-    if (
-      patch.gameMode !== undefined &&
-      patch.gameMode !== room.settings.gameMode &&
-      patch.maxRounds === undefined &&
-      room.settings.maxRounds === DEFAULT_MAX_ROUNDS_BY_MODE[room.settings.gameMode]
-    ) {
-      const next = DEFAULT_MAX_ROUNDS_BY_MODE[patch.gameMode];
-      if (next !== undefined) patch = { ...patch, maxRounds: next };
+    if (patch.deckId !== undefined && this.lookupDeck(patch.deckId) === undefined) {
+      throw new RoomError("bad-request", `no deck called ${patch.deckId}`);
     }
     room.settings = { ...room.settings, ...patch };
-    // A ready tick is agreement to *these* rules. Changing them after someone
-    // readied would start them into a different match than the one they
-    // agreed to (playtest B8), so every human's tick is cleared and they say
-    // yes again. Bots are always ready.
-    if (changed) for (const p of room.players) if (!p.bot) p.ready = false;
+    // Changed rules un-ready the table (playtest B8) — see clearReady.
+    if (changed) this.clearReady(room);
     this.touch(room);
     this.observer.roomState(room);
   }
@@ -476,7 +590,12 @@ export class RoomManager {
       throw new RoomError("players-not-ready", notReady.map((p) => p.name).join(", "));
     }
 
-    const { cards, stats } = buildDeck(room.settings, mode, room.players.length);
+    const { cards, stats } = buildDeck(
+      room.settings,
+      this.lookupDeck(room.settings.deckId) ?? DECKS[DEFAULT_DECK_ID],
+      mode,
+      room.players.length,
+    );
     const started: unknown = mode.init({
       players: room.players.map((p) => p.id),
       cards,
@@ -995,11 +1114,15 @@ export class RoomManager {
  */
 function buildDeck(
   settings: RoomSettings,
+  deck: DeckDefinition,
   mode: AnyGameMode,
   playerCount: number,
 ): { cards: CardDefinition[]; stats: StatDefinition[] } {
   const edition = loadEdition(settings.editionId);
-  const pool = deckPool(edition, settings.deckId);
+  // Resolved once, here: from this point the game holds concrete cards, so an
+  // operator editing the deck mid-match cannot change what is on the table
+  // (#142) — the same pinning the edition already has.
+  const pool = deckPool(edition, deck);
   for (let i = pool.length - 1; i > 0; i--) {
     const j = randomInt(i + 1);
     const a = pool[i] as (typeof pool)[number];
@@ -1023,12 +1146,13 @@ function buildDeck(
   };
 }
 
-export function toRoomView(room: Room): RoomView {
+export function toRoomView(room: Room, deck?: DeckSummary): RoomView {
   return {
     roomId: room.id,
     code: room.code,
     phase: room.phase,
     ...(room.matchmade ? { matchmade: true } : {}),
+    ...(deck !== undefined ? { deck } : {}),
     hostId: room.hostId,
     settings: room.settings,
     players: room.players.map((p) => ({

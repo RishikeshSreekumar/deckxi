@@ -39,9 +39,6 @@ import type { OpsConfig } from "./ops.js";
 
 const roomKey = (roomId: string): string => `room:${roomId}`;
 
-/** Names for backfilled seats — a bot at the table should read as one. */
-const BOT_NAMES = ["Nightwatch (bot)", "Googly (bot)", "Yorker (bot)", "Slip (bot)"] as const;
-
 function toAckError(error: unknown): { ok: false; code: ErrorCode; message: string } {
   if (error instanceof RoomError) return { ok: false, code: error.code, message: error.message };
   return { ok: false, code: "bad-request", message: "internal error" };
@@ -168,7 +165,7 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
 
   const observer: RoomsObserver = {
     roomState(room) {
-      emitToRoom(room, "room:state", toRoomView(room));
+      emitToRoom(room, "room:state", toRoomView(room, manager.deckFor(room)));
     },
     roomClosed(room, reason) {
       emitToRoom(room, "room:closed", { reason });
@@ -239,11 +236,9 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       selfId: session.id,
       spectator: session.spectator,
       resumeToken: session.resumeToken,
-      room: toRoomView(room),
+      room: toRoomView(room, manager.deckFor(room)),
     };
   };
-
-  const botName = (index: number): string => BOT_NAMES[index % BOT_NAMES.length] as string;
 
   /** Publish a locally-created room so other instances can find its owner. */
   const announce = (room: Room): void => {
@@ -353,9 +348,10 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       manager.setReady(joined.session.id, true);
       seated.push({ socket, joined: attachTo(socket, room, joined.session) });
     }
-    for (let i = 0; i < pairing.bots; i++) manager.addBot(room.id, botName(i));
+    // The manager names them, so quick-match and host-added bots read alike.
+    for (let i = 0; i < pairing.bots; i++) manager.addBot(room.id);
     for (const socket of live) queuedNames.delete(socket);
-    const view = toRoomView(room);
+    const view = toRoomView(room, manager.deckFor(room));
     for (const { socket, joined } of seated)
       socket.emit("queue:matched", { ...joined, room: view });
 
@@ -422,7 +418,7 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
               selfId: session.id,
               spectator: session.spectator,
               resumeToken: session.resumeToken,
-              room: toRoomView(room),
+              room: toRoomView(room, manager.deckFor(room)),
             } satisfies RoomJoined,
           };
         }
@@ -442,7 +438,7 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
               selfId: session.id,
               spectator: session.spectator,
               resumeToken: session.resumeToken,
-              room: toRoomView(room),
+              room: toRoomView(room, manager.deckFor(room)),
               events: game !== null ? redactLog(game.mode, game.log, viewerId, game.editionId) : [],
               timer: game !== null && room.phase === "playing" ? manager.timerView(game) : null,
             },
@@ -486,6 +482,12 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
         return null;
       case "room:start":
         manager.startGame(sessionId, (payload as { force?: boolean } | undefined)?.force === true);
+        return null;
+      case "room:addBot":
+        manager.hostAddBots(sessionId, (payload as { count?: number } | undefined)?.count ?? 1);
+        return null;
+      case "room:removeBot":
+        manager.removeBot(sessionId, (payload as { playerId?: string } | undefined)?.playerId);
         return null;
       case "room:rematch":
         manager.rematch(sessionId);
@@ -911,6 +913,16 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
 
     on("room:start", (payload: { force?: boolean } | undefined) => {
       manager.startGame(requireSessionId(), payload?.force === true);
+      return null;
+    });
+
+    on("room:addBot", (payload: { count?: number } | undefined) => {
+      manager.hostAddBots(requireSessionId(), payload?.count ?? 1);
+      return null;
+    });
+
+    on("room:removeBot", (payload: { playerId?: string } | undefined) => {
+      manager.removeBot(requireSessionId(), payload?.playerId);
       return null;
     });
 

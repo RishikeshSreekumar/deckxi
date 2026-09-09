@@ -3259,6 +3259,14 @@ select:focus {
   gap: var(--space-3);
 }
 
+/* The deck picker on /deck: the same tiles the lobby uses, laid wide. */
+.deck-picker--page {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin: var(--space-5) 0;
+}
+
 .chip--on {
   background: var(--interactive-accent);
   border-color: var(--interactive-accent);

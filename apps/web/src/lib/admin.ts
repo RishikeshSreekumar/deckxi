@@ -123,7 +123,11 @@ export interface OpsFlags {
   modes: Record<string, boolean>;
 }
 
-async function adminSend<T>(path: string, method: "POST" | "PUT", body?: unknown): Promise<T> {
+async function adminSend<T>(
+  path: string,
+  method: "POST" | "PUT" | "PATCH" | "DELETE",
+  body?: unknown,
+): Promise<T> {
   const response = await fetch(`${API_URL}/api/admin${path}`, {
     method,
     credentials: "include",
@@ -148,6 +152,48 @@ export const closeAdminRoom = (roomId: string): Promise<{ ok: boolean }> =>
 
 export const kickAdminSession = (roomId: string, sessionId: string): Promise<{ ok: boolean }> =>
   adminSend<{ ok: boolean }>(`/rooms/${encodeURIComponent(roomId)}/kick`, "POST", { sessionId });
+
+// ---------------------------------------------------------------------------
+// Decks (#142) — the operator's copy of the catalogue, definitions and all.
+// ---------------------------------------------------------------------------
+
+export interface AdminDeck {
+  id: string;
+  name: string;
+  blurb: string;
+  roles?: string[];
+  rarities?: string[];
+  cardIds?: string[];
+  enabled: boolean;
+  sort: number;
+  /** Cards it resolves to in the pinned edition. */
+  cardCount: number;
+}
+
+/** Every write answers the same way: the whole catalogue, or why not. */
+export interface DeckWriteResult {
+  ok: boolean;
+  error?: string;
+  decks?: AdminDeck[];
+}
+
+export const fetchAdminDecks = (): Promise<{ decks: AdminDeck[] }> =>
+  adminGet<{ decks: AdminDeck[] }>("/decks");
+
+export const createAdminDeck = (deck: Partial<AdminDeck>): Promise<DeckWriteResult> =>
+  adminSend<DeckWriteResult>("/decks", "POST", deck);
+
+export const patchAdminDeck = (
+  id: string,
+  patch: Record<string, unknown>,
+): Promise<DeckWriteResult> =>
+  adminSend<DeckWriteResult>(`/decks/${encodeURIComponent(id)}`, "PATCH", patch);
+
+export const setAdminDeckCards = (id: string, cardIds: string[] | null): Promise<DeckWriteResult> =>
+  adminSend<DeckWriteResult>(`/decks/${encodeURIComponent(id)}/cards`, "PUT", { cardIds });
+
+export const deleteAdminDeck = (id: string): Promise<DeckWriteResult> =>
+  adminSend<DeckWriteResult>(`/decks/${encodeURIComponent(id)}`, "DELETE");
 
 export const fetchAdminSession = (): Promise<AdminSession> => adminGet<AdminSession>("/session");
 

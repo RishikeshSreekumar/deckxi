@@ -117,6 +117,10 @@ interface AppState {
   setReady(ready: boolean): Promise<void>;
   updateSettings(patch: Partial<RoomSettings>): Promise<void>;
   startGame(force?: boolean): Promise<void>;
+  /** Host fills an open seat with a bot (#139). */
+  addBot(count?: number): Promise<void>;
+  /** Host frees a bot's seat again; no id means the last bot seated. */
+  removeBot(playerId?: string): Promise<void>;
   rematch(): Promise<void>;
   selectStat(
     stat: string,
@@ -369,6 +373,21 @@ export const useStore = create<AppState>((set, get) => {
 
     async startGame(force = false) {
       await guarded(() => call<"room:start", null>("room:start", force ? { force } : undefined));
+    },
+
+    async addBot(count) {
+      await guarded(() =>
+        call<"room:addBot", null>("room:addBot", count === undefined ? undefined : { count }),
+      );
+    },
+
+    async removeBot(playerId) {
+      await guarded(() =>
+        call<"room:removeBot", null>(
+          "room:removeBot",
+          playerId === undefined ? undefined : { playerId },
+        ),
+      );
     },
 
     async rematch() {

@@ -46,7 +46,11 @@ describe("protocol schemas", () => {
       powerRecharge: "each-cycle",
       deckId: "legends",
     };
-    expect(roomSettingsPatchSchema.safeParse({ deckId: "kitchen-sink" }).success).toBe(false);
+    // A deck id is a slug (#142): the catalogue, not the schema, says which
+    // slugs exist, so the wire only refuses ones that cannot be an id at all.
+    expect(roomSettingsPatchSchema.safeParse({ deckId: "kitchen-sink" }).success).toBe(true);
+    expect(roomSettingsPatchSchema.safeParse({ deckId: "Kitchen Sink" }).success).toBe(false);
+    expect(roomSettingsPatchSchema.safeParse({ deckId: "-nope-" }).success).toBe(false);
     expect(roomSettingsPatchSchema.safeParse({ powerRecharge: "sometimes" }).success).toBe(false);
     expect(roomSettingsSchema.safeParse(full).success).toBe(true);
     expect(roomSettingsPatchSchema.safeParse({ choiceDepth: 4 }).success).toBe(false);
@@ -86,6 +90,8 @@ describe("protocol schemas", () => {
         "room:ready",
         "room:rematch",
         "room:resume",
+        "room:addBot",
+        "room:removeBot",
         "room:settings",
         "room:start",
       ].sort(),

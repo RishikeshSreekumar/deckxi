@@ -9,7 +9,7 @@
  * and the RNG seed never leave the server (anti-cheat by construction).
  */
 import { z } from "zod";
-import { DECK_IDS } from "./decks.js";
+import { DECK_ID_PATTERN, MAX_DECK_ID_LENGTH, type DeckSummary } from "./decks.js";
 import { draftPickSchema, submitXiSchema, type SquadDraftWireEvent } from "./squadDraft.js";
 
 /** Bumped on any breaking change; the handshake rejects mismatched clients. */
@@ -145,8 +145,13 @@ export const roomSettingsSchema = z.object({
   gameMode: z.enum(GAME_MODES),
   /** Edition the game's deck is drawn from; pinned at game start. */
   editionId: z.string().regex(/^edition-\d{4}-q[1-4]$/),
-  /** Which subset of the edition the cards come from (#134). */
-  deckId: z.enum(DECK_IDS),
+  /**
+   * Which subset of the edition the cards come from (#134). A slug, not an
+   * enum: decks are operator-curated at runtime (#142), so the catalogue —
+   * not the schema — decides which slugs exist, and an unknown one is
+   * refused where the room is changed.
+   */
+  deckId: z.string().max(MAX_DECK_ID_LENGTH).regex(DECK_ID_PATTERN),
   /** Cards dealt per player; the deck is a random edition subset of size n×players. */
   cardsPerPlayer: z.number().int().min(3).max(11),
   turnTimerSeconds: z.number().int().min(5).max(120),
@@ -297,6 +302,17 @@ export const emptySchema = z.object({}).optional();
 /** Host starts the match; `force` starts it with seats still not ready. */
 export const startGameSchema = z.object({ force: z.boolean().optional() }).optional();
 
+/**
+ * Host seats bots in their own room (#139). Capped at three per message so a
+ * mistyped count cannot fill a table in one go; the seat cap still decides.
+ */
+export const addBotSchema = z
+  .object({ count: z.number().int().min(1).max(3).optional() })
+  .optional();
+
+/** Host takes a bot back off the table; no id means the last one seated. */
+export const removeBotSchema = z.object({ playerId: z.string().optional() }).optional();
+
 /** Schema per inbound event name — the server's validation table. */
 export const clientMessageSchemas = {
   "room:create": createRoomSchema,
@@ -310,6 +326,8 @@ export const clientMessageSchemas = {
   "voice:state": voiceStateSchema,
   "room:settings": roomSettingsPatchSchema,
   "room:start": startGameSchema,
+  "room:addBot": addBotSchema,
+  "room:removeBot": removeBotSchema,
   "room:rematch": emptySchema,
   "game:selectStat": selectStatSchema,
   "game:playCard": playCardSchema,
@@ -394,6 +412,13 @@ export interface SpectatorView {
 export interface RoomView {
   /** Opened by quick match: a table of strangers, so voice is off here (#89). */
   matchmade?: boolean;
+  /**
+   * The deck the room's `settings.deckId` names, resolved by the server
+   * (#142). Decks are runtime data, so the client cannot look an id up in a
+   * table it was compiled with — and a room whose deck was renamed or
+   * retired underneath it still prints what it is playing with.
+   */
+  deck?: DeckSummary;
   roomId: string;
   code: string;
   phase: RoomPhase;
@@ -654,6 +679,11 @@ export interface ClientToServerEvents {
     ack: (reply: Ack<null>) => void,
   ) => void;
   "room:start": (payload: z.input<typeof startGameSchema>, ack: (reply: Ack<null>) => void) => void;
+  "room:addBot": (payload: z.input<typeof addBotSchema>, ack: (reply: Ack<null>) => void) => void;
+  "room:removeBot": (
+    payload: z.input<typeof removeBotSchema>,
+    ack: (reply: Ack<null>) => void,
+  ) => void;
   "room:rematch": (payload: undefined, ack: (reply: Ack<null>) => void) => void;
   "game:selectStat": (
     payload: z.input<typeof selectStatSchema>,

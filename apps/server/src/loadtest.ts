@@ -117,7 +117,7 @@ async function runRoom(
         await connected(host);
         const joined = await call<RoomJoined>(host, "room:create", {
           name: `Bot-${roomIndex}-0`,
-          settings: { cardsPerPlayer: 3, turnTimerSeconds: 30, maxRounds: 100 },
+          settings: { cardsPerPlayer: 3, turnTimerSeconds: 30, maxRounds: 25 },
         });
         wire(host, joined.selfId);
 

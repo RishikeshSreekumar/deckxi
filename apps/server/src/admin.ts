@@ -27,6 +27,7 @@ import type { Logger } from "./logging.js";
 import type { EventFeed } from "./feed.js";
 import type { MatchStore } from "./store.js";
 import { opsFlagsSchema, type OpsConfig } from "./ops.js";
+import { DeckError, type DeckCatalogue } from "./decks.js";
 
 export interface AdminAccess {
   /** How this caller proved it: a signed-in admin, or the shared token. */
@@ -214,6 +215,8 @@ export interface AdminRoutesOptions {
   store: MatchStore;
   /** Maintenance notice and mode kill switches (#70). */
   ops: OpsConfig;
+  /** The operator-curated deck catalogue (#142). */
+  decks: DeckCatalogue;
 }
 
 export function registerAdminRoutes(fastify: FastifyInstance, options: AdminRoutesOptions): void {
@@ -332,6 +335,74 @@ export function registerAdminRoutes(fastify: FastifyInstance, options: AdminRout
         "ops flags changed by an operator",
       );
       return { ok: true, flags: await options.ops.update(parsed.data) };
+    }),
+  );
+
+  // -------------------------------------------------------------------------
+  // Decks (#142). Content work, behind the same auth as everything else here:
+  // a second password would be a second thing to rotate and leak. Every write
+  // is logged with the operator behind it.
+  // -------------------------------------------------------------------------
+
+  const decks = options.decks;
+
+  /** A rejected edit is the operator's mistake, not a server fault: 400, with why. */
+  const deckWrite = async (
+    request: FastifyRequest,
+    access: AdminAccess,
+    what: string,
+    apply: () => Promise<unknown>,
+  ): Promise<unknown> => {
+    try {
+      const result = await apply();
+      log.warn(
+        { event: "admin.deck_write", what, by: access.email ?? access.via, reqId: request.id },
+        "deck catalogue changed by an operator",
+      );
+      return { ok: true, deck: result ?? null, decks: decks.list() };
+    } catch (error) {
+      if (error instanceof DeckError) return { ok: false, error: error.message };
+      throw error;
+    }
+  };
+
+  fastify.get(
+    "/api/admin/decks",
+    admin(() => ({ decks: decks.list().map((deck) => ({ ...deck, ...decks.summarise(deck) })) })),
+  );
+
+  fastify.post(
+    "/api/admin/decks",
+    admin(async (request, access) =>
+      deckWrite(request, access, "create", () => decks.create(request.body)),
+    ),
+  );
+
+  fastify.patch(
+    "/api/admin/decks/:id",
+    admin(async (request, access) => {
+      const { id } = request.params as { id: string };
+      return deckWrite(request, access, `patch ${id}`, () => decks.update(id, request.body));
+    }),
+  );
+
+  fastify.put(
+    "/api/admin/decks/:id/cards",
+    admin(async (request, access) => {
+      const { id } = request.params as { id: string };
+      const { cardIds } = (request.body ?? {}) as { cardIds?: unknown };
+      return deckWrite(request, access, `cards ${id}`, () => decks.setCards(id, cardIds ?? null));
+    }),
+  );
+
+  fastify.delete(
+    "/api/admin/decks/:id",
+    admin(async (request, access) => {
+      const { id } = request.params as { id: string };
+      return deckWrite(request, access, `delete ${id}`, async () => {
+        await decks.remove(id);
+        return null;
+      });
     }),
   );
 

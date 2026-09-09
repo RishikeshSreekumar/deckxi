@@ -79,6 +79,35 @@ describe("decks (#134)", () => {
   });
 });
 
+describe("host bots (#139)", () => {
+  it("plays a whole game against bots the host seated", async () => {
+    const { s, seats } = await lobby(1);
+    const [host] = seats as [Seat];
+    await host.client.call("room:addBot", { count: 2 });
+    await host.client.call("room:ready", { ready: true });
+    await host.client.call("room:start");
+    await expect.poll(() => received(host).length).toBeGreaterThan(0);
+    expect(gameStarted(host).config.players).toHaveLength(3);
+    const stat = gameStarted(host).config.stats[0]?.key as string;
+
+    // Only the human needs driving; runBots plays the other two seats.
+    for (let i = 0; i < 2000; i++) {
+      const room = s.app.rooms.getRoom(host.joined.roomId);
+      if (room === undefined) throw new Error("room vanished");
+      if (room.phase === "results") break;
+      if (trumpsState(room).leader === host.joined.selfId) {
+        await host.client.call("game:selectStat", { stat });
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    }
+
+    expect(s.app.rooms.getRoom(host.joined.roomId)?.phase).toBe("results");
+    const ended = received(host).find((e) => e.type === "GAME_ENDED");
+    expect(ended).toMatchObject({ winner: expect.any(String) });
+  });
+});
+
 describe("authoritative game loop", () => {
   it("refuses to start for non-hosts, tiny lobbies and unready players", async () => {
     const { s, seats } = await lobby(2);

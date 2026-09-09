@@ -13,9 +13,43 @@ server draws the game's cards from that deck's pool (`deckPool` in `packages/sha
 | Batters' XI    | batters + keepers      | 92              |
 | Bowlers' Union | bowlers + all-rounders | 118             |
 
-Every deck must be able to deal the biggest table in full (6 players × 11 cards = 66); a server
-test checks that against the shipped edition. When a deck cannot cover the room's players × cards
+Every built-in deck can deal the biggest table in full (6 players × 11 cards = 66); a server test
+checks that against the shipped edition. When a deck cannot cover the room's players × cards
 each, the lobby warns and the server deals what there is.
 
-Adding a deck is one entry in `DECKS` (a name, a blurb, and role/rarity filters). A deck that needs
-cards or stats the edition does not have is a new edition, not a deck.
+## Curating decks (#142)
+
+The four decks above ship in the bundle as the defaults every deployment boots with, and are what
+the client renders before the catalogue arrives. Beyond them, decks are **runtime content**: an
+operator adds, edits, retires and deletes them from the admin console (`/admin`, behind the
+existing `ADMIN_TOKEN` / `ADMIN_EMAILS` auth — there is no separate deck password), and the
+catalogue is stored in one `app_config` row, so it survives a restart without a deploy.
+
+A deck is defined one of two ways:
+
+- a **filter** — roles and/or rarities over the pinned edition, which is what the built-ins are;
+  an absent filter matches everything;
+- an **explicit card list**, which overrides the filters when present: a hand-picked XI.
+
+Because deck ids are now open, `deckId` is a **slug on the wire** (`[a-z0-9]+(-[a-z0-9]+)*`), not
+an enum: the catalogue decides which slugs exist, and a room set to an unknown one is refused with
+`bad-request`. The catalogue reaches the client at `GET /api/decks` (public: id, name, blurb, card
+count), one deck's cards at `GET /api/decks/:id/cards`, and the room snapshot carries the resolved
+deck so a lobby still prints what it is playing with after a rename.
+
+Writes are validated whole — every card id must exist in the edition, no duplicates, and the deck
+must resolve to at least six cards (the smallest table) — and the operator behind each one is
+logged. `all-stars` cannot be deleted: it is the deck every room falls back to.
+
+**A running game never changes.** The cards are drawn and recorded in `GAME_STARTED` when the game
+starts, exactly as the edition is pinned, so editing a deck mid-match cannot touch the table.
+
+A deck that needs cards or stats the edition does not have is a new edition, not a deck.
+
+| Route                            | Does                                  |
+| -------------------------------- | ------------------------------------- |
+| `GET /api/admin/decks`           | the catalogue, definitions included   |
+| `POST /api/admin/decks`          | create                                |
+| `PATCH /api/admin/decks/:id`     | name, blurb, filters, enabled, sort   |
+| `PUT /api/admin/decks/:id/cards` | explicit membership (`null` to clear) |
+| `DELETE /api/admin/decks/:id`    | delete (refused for the default deck) |

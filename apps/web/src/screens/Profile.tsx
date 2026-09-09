@@ -280,6 +280,9 @@ export function ProfileScreen() {
           <Link className="button" to="/collection">
             Collection
           </Link>
+          <Link className="button" to="/deck">
+            The decks
+          </Link>
           <Link className="button" to="/leaderboard">
             Leaderboard
           </Link>

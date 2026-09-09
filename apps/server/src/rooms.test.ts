@@ -80,6 +80,70 @@ describe("room lifecycle", () => {
     expect(seventh.room.spectators.map((x) => x.name)).toEqual(["Late"]);
   });
 
+  it("lets the host seat and free bots, and nobody else", async () => {
+    const s = await start();
+    const { client: host, joined } = await createRoom(s);
+    const { client: guest } = await joinRoom(s, joined.room.code, "Guest");
+    const snapshots = host.collect<RoomView>("room:state");
+
+    expect(await guest.callRaw("room:addBot")).toMatchObject({ ok: false, code: "not-host" });
+
+    await guest.call("room:ready", { ready: true });
+    await host.call("room:addBot", { count: 2 });
+    await expect.poll(() => snapshots.at(-1)?.players.length).toBe(4);
+    const seated = snapshots.at(-1) as RoomView;
+    expect(seated.players.filter((p) => p.bot === true)).toHaveLength(2);
+    // Bots are always ready; the humans agreed to a smaller table, so they
+    // say yes again.
+    expect(seated.players.every((p) => p.ready === (p.bot === true))).toBe(true);
+    // Two bots, two names.
+    const botNames = seated.players.filter((p) => p.bot === true).map((p) => p.name);
+    expect(new Set(botNames).size).toBe(2);
+
+    // Six seats is the room's cap; a mode never seats more than that either.
+    expect(await host.callRaw("room:addBot", { count: 3 })).toMatchObject({
+      ok: false,
+      code: "too-many-players",
+    });
+
+    const botId = (seated.players.find((p) => p.bot === true) as { id: string }).id;
+    await host.call("room:removeBot", { playerId: botId });
+    await expect.poll(() => snapshots.at(-1)?.players.length).toBe(3);
+    expect(snapshots.at(-1)?.players.some((p) => p.id === botId)).toBe(false);
+
+    // A human is not a bot: freeing their seat is a kick, and this is not it.
+    const human = (snapshots.at(-1) as RoomView).players.find((p) => p.name === "Guest") as {
+      id: string;
+    };
+    expect(await host.callRaw("room:removeBot", { playerId: human.id })).toMatchObject({
+      ok: false,
+      code: "bad-request",
+    });
+
+    // No id: the last bot seated goes.
+    await host.call("room:removeBot");
+    await expect.poll(() => snapshots.at(-1)?.players.length).toBe(2);
+    expect(snapshots.at(-1)?.players.some((p) => p.bot === true)).toBe(false);
+    expect(await host.callRaw("room:removeBot")).toMatchObject({ ok: false, code: "bad-request" });
+  });
+
+  it("refuses to seat a bot outside the lobby", async () => {
+    const s = await start();
+    const { client: host, joined } = await createRoom(s);
+    const { client: guest } = await joinRoom(s, joined.room.code, "Guest");
+    await guest.call("room:ready", { ready: true });
+    await host.call("room:ready", { ready: true });
+    await host.call("room:start");
+    expect(await host.callRaw("room:addBot")).toMatchObject({ ok: false, code: "not-in-lobby" });
+    expect(await host.callRaw("room:removeBot")).toMatchObject({ ok: false, code: "not-in-lobby" });
+  });
+
+  it("starts a fresh room at the default round cap", async () => {
+    const s = await start();
+    const { joined } = await createRoom(s);
+    expect(joined.room.settings.maxRounds).toBe(25);
+  });
+
   it("tracks ready state, host-only settings, and rejects non-host edits", async () => {
     const s = await start();
     const { client: host, joined } = await createRoom(s);
@@ -99,12 +163,13 @@ describe("room lifecycle", () => {
     await host.call("room:settings", { cardsPerPlayer: 7 });
     await expect.poll(() => snapshots.at(-1)?.players.some((p) => p.ready)).toBe(true);
 
-    // Switching to power trumps with the cap still at classic's default moves
-    // it to power's default (#133); a cap the host picked is left alone.
+    // One cap for every mode (#140): switching mode leaves it alone.
     await host.call("room:settings", { gameMode: "power-trumps" });
-    await expect.poll(() => snapshots.at(-1)?.settings.maxRounds).toBe(30);
+    await expect.poll(() => snapshots.at(-1)?.settings.gameMode).toBe("power-trumps");
+    expect(snapshots.at(-1)?.settings.maxRounds).toBe(25);
     await host.call("room:settings", { gameMode: "classic-trumps" });
-    await expect.poll(() => snapshots.at(-1)?.settings.maxRounds).toBe(100);
+    await expect.poll(() => snapshots.at(-1)?.settings.gameMode).toBe("classic-trumps");
+    expect(snapshots.at(-1)?.settings.maxRounds).toBe(25);
     await host.call("room:settings", { maxRounds: 50 });
     await host.call("room:settings", { gameMode: "power-trumps" });
     await expect.poll(() => snapshots.at(-1)?.settings.gameMode).toBe("power-trumps");

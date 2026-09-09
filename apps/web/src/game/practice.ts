@@ -119,7 +119,8 @@ function practiceSettings(gameMode: GameModeId): RoomSettings {
     // settings for copy, and 0 would fail the shared schema, so it keeps a
     // plausible value and simply never starts a timer.
     turnTimerSeconds: 20,
-    maxRounds: gameMode === "power-trumps" ? 30 : 100,
+    // Same cap the server defaults to (#140).
+    maxRounds: 25,
     choiceDepth: 2,
     powerRecharge: "each-cycle",
   };
