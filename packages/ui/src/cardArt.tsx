@@ -3,10 +3,14 @@
  * the rating shield and the card-back crest. All drawn from primitives so
  * they inherit currentColor / CSS variables and stay theme-safe.
  */
-import type { PlayerRole } from "@deckxi/shared";
+import type { PlayerRoleId } from "@deckxi/shared";
 
-/** Small role glyphs for the card meta line. */
-export function RoleIcon({ role }: { role: PlayerRole }) {
+/**
+ * Small role glyphs for the card meta line. Roles are the edition's, so the
+ * cricket glyphs below are art for cricket role ids and anything else falls
+ * to a neutral figure rather than a blank corner (#143).
+ */
+export function RoleIcon({ role }: { role: PlayerRoleId }) {
   const common = {
     className: "role-icon",
     viewBox: "0 0 24 24",
@@ -51,11 +55,19 @@ export function RoleIcon({ role }: { role: PlayerRole }) {
           <path d="M13 2 5 14h5l-1 8 8-12h-5z" />
         </svg>
       );
+    default:
+      // A role this build has no art for: a plain figure.
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="7" r="4" />
+          <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8z" />
+        </svg>
+      );
   }
 }
 
 /** Large low-opacity silhouettes behind the card header. */
-export function RolePortrait({ role }: { role: PlayerRole }) {
+export function RolePortrait({ role }: { role: PlayerRoleId }) {
   const common = {
     className: "card-portrait",
     viewBox: "0 0 64 64",
@@ -100,6 +112,14 @@ export function RolePortrait({ role }: { role: PlayerRole }) {
           <path d="M24 24c7-3.5 15-1.5 17 6l4 14c1 4-3.5 7.5-7 5.5l-8-4.5-8 9-6-5 8-11-3-7c-1.2-3 .5-6 3-7z" />
           <circle cx="50" cy="8" r="4" />
           <rect x="12" y="40" width="4.5" height="18" rx="2.25" transform="rotate(30 14 49)" />
+        </svg>
+      );
+    default:
+      // Head and shoulders: the silhouette every sport has.
+      return (
+        <svg {...common}>
+          <circle cx="32" cy="18" r="10" />
+          <path d="M12 60c0-11 9-20 20-20s20 9 20 20z" />
         </svg>
       );
   }

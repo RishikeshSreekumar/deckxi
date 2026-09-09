@@ -44,7 +44,13 @@ function makeEdition(): Edition {
     name: "Test Edition",
     version: 1,
     generatedAt: "2026-08-29T00:00:00Z",
+    sport: "cricket",
+    supportedModes: ["classic-trumps", "power-trumps", "squad-draft"],
     stats: [...stats] as Edition["stats"],
+    roles: [
+      { id: "batter", name: "Batter", shortName: "BAT" },
+      { id: "bowler", name: "Bowler", shortName: "BWL" },
+    ],
     teams,
     players,
   };
@@ -88,6 +94,37 @@ describe("editionSchema", () => {
     failsWith((e) => {
       (e.players[0] as Edition["players"][number]).teamId = "team-zz";
     }, /unknown teamId/);
+  });
+
+  it("rejects a role the edition never declared", () => {
+    failsWith((e) => {
+      (e.players[0] as Edition["players"][number]).role = "technician";
+    }, /unknown role technician/);
+  });
+
+  it("rejects duplicate role ids", () => {
+    failsWith((e) => {
+      e.roles = [...e.roles, { id: "batter", name: "Opener", shortName: "OP" }];
+    }, /duplicate role id: batter/);
+  });
+
+  it("takes another sport's roles", () => {
+    const edition = makeEdition();
+    edition.sport = "wrestling";
+    edition.series = "Monday nights";
+    edition.supportedModes = ["classic-trumps", "power-trumps"];
+    edition.roles = [
+      { id: "main-eventer", name: "Main eventer", shortName: "ME" },
+      { id: "technician", name: "Technician", shortName: "TEC" },
+    ];
+    for (const player of edition.players) player.role = "technician";
+    expect(editionSchema.safeParse(edition).success).toBe(true);
+  });
+
+  it("rejects an edition that plays no mode at all", () => {
+    failsWith((e) => {
+      e.supportedModes = [];
+    }, /at least 1|too_small|expected array to have/i);
   });
 
   it("rejects a missing stat on a player", () => {

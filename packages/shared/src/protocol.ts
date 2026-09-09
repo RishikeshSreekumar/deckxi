@@ -144,7 +144,7 @@ export const POWER_INFO: Record<
 export const roomSettingsSchema = z.object({
   gameMode: z.enum(GAME_MODES),
   /** Edition the game's deck is drawn from; pinned at game start. */
-  editionId: z.string().regex(/^edition-\d{4}-q[1-4]$/),
+  editionId: z.string().regex(/^edition-[a-z0-9]+(-[a-z0-9]+)*$/, "edition-<slug>"),
   /**
    * Which subset of the edition the cards come from (#134). A slug, not an
    * enum: decks are operator-curated at runtime (#142), so the catalogue —
@@ -370,6 +370,12 @@ export const ERROR_CODES = [
   "captcha-required",
   /** The requested game mode is switched off by an operator (#70). */
   "mode-disabled",
+  /**
+   * The room's edition does not offer this mode (#143). Squad Draft knows
+   * about bowlers, keepers and overs; an edition of another sport declares
+   * the modes it can actually be played in, and this is the rest.
+   */
+  "mode-unsupported",
   /**
    * The engine threw on a legal-looking command (#132). The room is left as
    * it was; the client may retry and the operator has a log line to chase.

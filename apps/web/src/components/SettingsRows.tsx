@@ -36,6 +36,13 @@ export function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean
   const chosen = room.deck ?? deckOf(decks, s.deckId);
   const poolSize = chosen.cardCount > 0 ? chosen.cardCount : null;
   const needed = room.players.length * s.cardsPerPlayer;
+  // The modes this build knows, cut to the ones the pinned edition is played
+  // in (#143) — the server refuses the rest, so the picker never offers them.
+  // An edition this build doesn't bundle falls back to all of them.
+  const modes =
+    edition === null
+      ? GAME_MODES
+      : GAME_MODES.filter((mode) => edition.supportedModes.includes(mode));
 
   const row = (
     label: string,
@@ -69,7 +76,7 @@ export function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean
       <div className="setting-row setting-row--modes" role="radiogroup" aria-label="Game mode">
         <span>Game mode</span>
         <div className="mode-picker">
-          {GAME_MODES.map((mode) => {
+          {modes.map((mode) => {
             const info = GAME_MODE_INFO[mode];
             const on = s.gameMode === mode;
             return (

@@ -3,6 +3,8 @@
   "name": "Fixture Edition (fictional)",
   "version": 1,
   "generatedAt": "2026-08-29T00:00:00Z",
+  "sport": "cricket",
+  "supportedModes": ["classic-trumps", "power-trumps", "squad-draft"],
   "stats": [
     {
       "key": "battingAvg",
@@ -51,6 +53,28 @@
       "format": "integer",
       "min": 0,
       "max": 350
+    }
+  ],
+  "roles": [
+    {
+      "id": "batter",
+      "name": "Batter",
+      "shortName": "BAT"
+    },
+    {
+      "id": "bowler",
+      "name": "Bowler",
+      "shortName": "BWL"
+    },
+    {
+      "id": "all-rounder",
+      "name": "All-rounder",
+      "shortName": "AR"
+    },
+    {
+      "id": "keeper",
+      "name": "Wicketkeeper",
+      "shortName": "WK"
     }
   ],
   "teams": [

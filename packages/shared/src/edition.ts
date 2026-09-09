@@ -20,9 +20,11 @@ export const statDefinitionSchema = z
     /** Which end wins a comparison — bowling economy is "lower". */
     direction: z.enum(["higher", "lower"]),
     /**
-     * How the UI renders the value. `figures` is a bowling analysis packed
-     * into one comparable integer — `wickets * 100 + (99 - runs)` — printed
-     * as "w/r"; higher is better, and 0 means "never bowled".
+     * How the UI renders the value. `integer` and `decimal` are universal;
+     * `figures` is cricket-only — a bowling analysis packed into one
+     * comparable integer (`wickets * 100 + (99 - runs)`), printed as "w/r",
+     * higher better, 0 meaning "never bowled". An edition for another sport
+     * simply never uses it.
      */
     format: z.enum(["integer", "decimal", "figures"]),
     /** Bounds for normalisation (engine auto-play/bots) and UI bars. */
@@ -40,7 +42,21 @@ export const teamSchema = z.object({
   color: z.string().regex(/^#[0-9a-f]{6}$/i),
 });
 
-export const playerRoleSchema = z.enum(["batter", "bowler", "all-rounder", "keeper"]);
+/**
+ * What a card *does* — a batter, a bowler, a main-eventer. The vocabulary is
+ * the edition's, not the codebase's (#143): a hard-coded cricket enum here
+ * would make every other sport either a second app or a lie ("keeper" meaning
+ * "technician"). An edition declares its own roles and every card carries one
+ * of their ids; deck filters and the UI read this list.
+ */
+export const roleDefinitionSchema = z.object({
+  id: slug,
+  /** Display name, e.g. "All-rounder". */
+  name: z.string().min(1),
+  /** Short form for chips and card corners, e.g. "AR". */
+  shortName: z.string().min(1).max(12),
+});
+
 export const raritySchema = z.enum(["regular", "star", "legend"]);
 
 /**
@@ -59,7 +75,8 @@ export const photoSchema = z.object({
 export const playerSchema = z.object({
   id: slug,
   name: z.string().min(1),
-  role: playerRoleSchema,
+  /** One of the edition's `roles`; validated against them, not an enum. */
+  role: slug,
   teamId: slug,
   nationality: z.string().min(1),
   rarity: raritySchema,
@@ -90,7 +107,22 @@ export const editionSchema = z
     /** Bumped by every data refresh within the edition. */
     version: z.number().int().min(1),
     generatedAt: isoDateTime,
+    /**
+     * The sport this edition is of, e.g. `cricket`. Lets the UI pick its
+     * vocabulary and art direction without guessing from the id.
+     */
+    sport: slug,
+    /** The competition or era the cards are drawn from, where it narrows the sport. */
+    series: z.string().min(1).optional(),
+    /**
+     * The game modes this edition can be played in — the lobby offers the
+     * intersection of this and the mode registry. Squad Draft knows about
+     * bowlers, keepers and overs, so an edition that has none of those says
+     * so here rather than shipping a mode that cannot mean anything.
+     */
+    supportedModes: z.array(slug).min(1),
     stats: z.array(statDefinitionSchema).min(6).max(10),
+    roles: z.array(roleDefinitionSchema).min(1),
     teams: z.array(teamSchema).min(2),
     players: z.array(playerSchema).min(8),
     /** Absent on synthetic editions. Real ones list every dataset they draw on. */
@@ -100,6 +132,7 @@ export const editionSchema = z
     const dupes = (values: string[]) => values.filter((v, i) => values.indexOf(v) !== i);
     for (const [label, values] of [
       ["stat key", edition.stats.map((s) => s.key)],
+      ["role id", edition.roles.map((r) => r.id)],
       ["team id", edition.teams.map((t) => t.id)],
       ["player id", edition.players.map((p) => p.id)],
     ] as const) {
@@ -109,11 +142,15 @@ export const editionSchema = z
     }
 
     const teamIds = new Set(edition.teams.map((t) => t.id));
+    const roleIds = new Set(edition.roles.map((r) => r.id));
     const statByKey = new Map(edition.stats.map((s) => [s.key, s]));
     edition.players.forEach((player, i) => {
       const path = ["players", i];
       if (!teamIds.has(player.teamId)) {
         ctx.addIssue({ code: "custom", path, message: `unknown teamId ${player.teamId}` });
+      }
+      if (!roleIds.has(player.role)) {
+        ctx.addIssue({ code: "custom", path, message: `unknown role ${player.role}` });
       }
       for (const def of edition.stats) {
         const value = player.stats[def.key];
@@ -137,12 +174,22 @@ export const editionSchema = z
 
 export type StatDefinition = z.infer<typeof statDefinitionSchema>;
 export type Team = z.infer<typeof teamSchema>;
-export type PlayerRole = z.infer<typeof playerRoleSchema>;
+export type RoleDefinition = z.infer<typeof roleDefinitionSchema>;
+/** A role id: whatever the edition called it. */
+export type PlayerRoleId = string;
 export type Rarity = z.infer<typeof raritySchema>;
 export type Player = z.infer<typeof playerSchema>;
 export type PlayerPhoto = z.infer<typeof photoSchema>;
 export type EditionSource = z.infer<typeof editionSourceSchema>;
 export type Edition = z.infer<typeof editionSchema>;
+
+/** The edition's name for a role id, falling back to the id itself. */
+export function roleName(
+  edition: Pick<Edition, "roles"> | null | undefined,
+  roleId: string,
+): string {
+  return edition?.roles.find((r) => r.id === roleId)?.name ?? roleId;
+}
 
 /** Pack a bowling analysis into the comparable `figures` integer. */
 export function packFigures(wickets: number, runs: number): number {

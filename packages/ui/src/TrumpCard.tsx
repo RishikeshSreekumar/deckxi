@@ -19,6 +19,7 @@
  * bleed; without one the photo area is the striped stock with the role
  * silhouette in the team's colour. Photo credits are listed on /credits.
  */
+import { roleName } from "@deckxi/shared";
 import { getCardInfo, getEdition, formatStatValue, statName } from "./editions.js";
 import { CardBackArt, RoleIcon, RolePortrait } from "./cardArt.js";
 
@@ -44,13 +45,6 @@ export interface TrumpCardProps {
    */
   stats?: Record<string, number> | undefined;
 }
-
-const ROLE_LABELS: Record<string, string> = {
-  batter: "Batter",
-  bowler: "Bowler",
-  "all-rounder": "All-rounder",
-  keeper: "Keeper",
-};
 
 /**
  * Which column a stat prints in, and the short label the table uses. The
@@ -223,7 +217,7 @@ export function TrumpCard({
             {player !== null && player.jerseyNumber !== undefined && (
               <span
                 className="card-jersey"
-                title={`${ROLE_LABELS[player.role] ?? player.role} · shirt ${player.jerseyNumber}`}
+                title={`${roleName(edition, player.role)} · shirt ${player.jerseyNumber}`}
               >
                 <span className="card-jersey-number">{player.jerseyNumber}</span>
               </span>
@@ -231,7 +225,7 @@ export function TrumpCard({
             {player !== null && player.jerseyNumber === undefined && (
               <span
                 className="card-jersey card-jersey--rating"
-                title={`${ROLE_LABELS[player.role] ?? player.role} · rating ${Math.round(player.rating)}`}
+                title={`${roleName(edition, player.role)} · rating ${Math.round(player.rating)}`}
               >
                 <span className="card-jersey-number">{Math.round(player.rating)}</span>
                 <RoleIcon role={player.role} />

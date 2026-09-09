@@ -12,7 +12,8 @@
  * not start.
  */
 import { useEffect, useState } from "react";
-import { playerRoleSchema, raritySchema } from "@deckxi/shared";
+import { raritySchema } from "@deckxi/shared";
+import { DEFAULT_EDITION_ID, getEdition } from "@deckxi/ui";
 import {
   createAdminDeck,
   deleteAdminDeck,
@@ -23,7 +24,11 @@ import {
   type DeckWriteResult,
 } from "../lib/admin.js";
 
-const ROLES = playerRoleSchema.options;
+/**
+ * The role filter offers the edition's own roles (#143), not a compiled-in
+ * cricket enum — an edition of another sport lists its own words here.
+ */
+const ROLES = (getEdition(DEFAULT_EDITION_ID)?.roles ?? []).map((r) => r.id);
 const RARITIES = raritySchema.options;
 
 function slug(name: string): string {

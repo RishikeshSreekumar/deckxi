@@ -11,11 +11,11 @@
 import {
   packFigures,
   type Player,
-  type PlayerRole,
   type Rarity,
   type StatDefinition,
   type Team,
 } from "@deckxi/shared";
+import type { CricketRole } from "../cricket.js";
 import type { PlayerAggregate } from "./cricsheet.js";
 
 export interface SquadShape {
@@ -31,7 +31,7 @@ export interface SelectionConfig {
   minMatches: number;
   squad: SquadShape;
   /** Cricsheet id → forced role (for the cases the heuristic gets wrong). */
-  roleOverrides: Record<string, PlayerRole>;
+  roleOverrides: Record<string, CricketRole>;
   /** Share of the deck in each tier; the remainder is regular. */
   tiers: { legend: number; star: number };
   /**
@@ -66,7 +66,7 @@ export function deriveStats(agg: PlayerAggregate): Record<string, number> {
  * bowlers bowl most overs and bat little; all-rounders do a meaningful
  * amount of both; everyone else is a batter.
  */
-export function inferRole(agg: PlayerAggregate): PlayerRole {
+export function inferRole(agg: PlayerAggregate): CricketRole {
   const ballsPerMatch = agg.ballsBowled / agg.matches;
   const runsPerMatch = agg.runs / agg.matches;
   if (agg.stumpings >= 2 && agg.stumpings + agg.catches >= agg.matches * 0.4) return "keeper";
@@ -91,7 +91,7 @@ function modalTeam(agg: PlayerAggregate): string {
 }
 
 /** Sort key for a role's shortlist: what that role is picked for. */
-function roleRank(role: PlayerRole, agg: PlayerAggregate): number {
+function roleRank(role: CricketRole, agg: PlayerAggregate): number {
   switch (role) {
     case "batter":
       return agg.runs;
@@ -107,7 +107,7 @@ function roleRank(role: PlayerRole, agg: PlayerAggregate): number {
 export interface Selected {
   agg: PlayerAggregate;
   team: Team;
-  role: PlayerRole;
+  role: CricketRole;
 }
 
 /** Pick a squad per team. Short roles are back-filled by overall involvement. */
@@ -141,7 +141,7 @@ export function selectSquads(
       everyone.filter((a) => deprioritized.has(a.id)),
     ];
     for (const pool of pools) {
-      for (const r of Object.keys(config.squad) as PlayerRole[]) {
+      for (const r of Object.keys(config.squad) as CricketRole[]) {
         const have = picked.filter((p) => p.team.id === team.id && p.role === r).length;
         const shortlist = pool
           .filter((a) => !taken.has(a.id) && role(a) === r)

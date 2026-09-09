@@ -28,7 +28,9 @@ catalogue is stored in one `app_config` row, so it survives a restart without a 
 A deck is defined one of two ways:
 
 - a **filter** — roles and/or rarities over the pinned edition, which is what the built-ins are;
-  an absent filter matches everything;
+  an absent filter matches everything. Role ids are the edition's own vocabulary
+  (`docs/editions.md`), so a role the pinned edition never declared is refused at write time, and
+  the four built-in decks above are cricket ones;
 - an **explicit card list**, which overrides the filters when present: a hand-picked XI.
 
 Because deck ids are now open, `deckId` is a **slug on the wire** (`[a-z0-9]+(-[a-z0-9]+)*`), not

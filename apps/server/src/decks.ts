@@ -27,7 +27,6 @@ import {
   DEFAULT_DECK_ID,
   MAX_DECK_ID_LENGTH,
   deckPool,
-  playerRoleSchema,
   raritySchema,
   sortDecks,
   type DeckDefinition,
@@ -50,7 +49,9 @@ export const deckRecordSchema = z.object({
   id: z.string().max(MAX_DECK_ID_LENGTH).regex(DECK_ID_PATTERN),
   name: z.string().trim().min(1).max(40),
   blurb: z.string().trim().min(1).max(160),
-  roles: z.array(playerRoleSchema).min(1).optional(),
+  // Role ids are the edition's vocabulary (#143), so the wire validates the
+  // shape and `validate` checks them against the pinned edition.
+  roles: z.array(z.string().regex(DECK_ID_PATTERN)).min(1).optional(),
   rarities: z.array(raritySchema).min(1).optional(),
   cardIds: z.array(z.string()).min(1).optional(),
   enabled: z.boolean().default(true),
@@ -67,7 +68,7 @@ export const deckPatchSchema = deckRecordSchema
   // `null` clears a filter back to "matches everything" — a JSON body has no
   // way to say "remove this key", and dropping it would mean "leave it alone".
   .extend({
-    roles: z.array(playerRoleSchema).min(1).nullable().optional(),
+    roles: z.array(z.string().regex(DECK_ID_PATTERN)).min(1).nullable().optional(),
     rarities: z.array(raritySchema).min(1).nullable().optional(),
   });
 
@@ -226,6 +227,13 @@ export class DeckCatalogue {
       }
       if (new Set(deck.cardIds).size !== deck.cardIds.length) {
         throw new DeckError("the same card is listed twice");
+      }
+    }
+    if (deck.roles !== undefined) {
+      const known = new Set(edition.roles.map((r) => r.id));
+      const unknown = deck.roles.filter((role) => !known.has(role));
+      if (unknown.length > 0) {
+        throw new DeckError(`${edition.id} has no role ${unknown.join(", ")}`);
       }
     }
     const count = deckPool(edition, deck).length;

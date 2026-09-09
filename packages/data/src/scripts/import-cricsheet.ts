@@ -28,7 +28,8 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { editionSchema, type Edition, type Player, type PlayerRole } from "@deckxi/shared";
+import { editionSchema, type Edition, type Player } from "@deckxi/shared";
+import { CRICKET_MODES, CRICKET_ROLES, CRICKET_SPORT, type CricketRole } from "../cricket.js";
 import { CURRENT_EDITION_ID, editionPath } from "../editions.js";
 import { analyzeBalance, formatBalanceReport } from "../balance.js";
 import { regenerateRatings } from "../rating.js";
@@ -96,7 +97,7 @@ function cricinfoKeys(csvPath: string): Map<string, string> {
 }
 
 interface Overrides {
-  roles: Record<string, PlayerRole>;
+  roles: Record<string, CricketRole>;
   names: Record<string, string>;
   photos: Record<string, string | null>;
   /** Shirt numbers, hand-curated: no open dataset carries them. */
@@ -262,7 +263,11 @@ async function main(): Promise<void> {
     name: `T20 Internationals — ${editionId.replace(/^edition-(\d{4})-q(\d)$/, "$1 Q$2")}`,
     version: prev === undefined ? 1 : same ? prev.version : prev.version + 1,
     generatedAt: same ? prev.generatedAt : new Date().toISOString().replace(/\.\d+Z$/, "Z"),
+    sport: CRICKET_SPORT,
+    series: "Men's T20 internationals",
+    supportedModes: CRICKET_MODES,
     stats,
+    roles: CRICKET_ROLES,
     teams: T20I_SELECTION.teams,
     players,
     sources: [

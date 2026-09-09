@@ -34,7 +34,7 @@ import {
   type SquadDraftState,
 } from "@deckxi/engine";
 import { Dialog, RoleIcon, TrumpCard, getCardInfo } from "@deckxi/ui";
-import type { PlayerRole } from "@deckxi/shared";
+import type { PlayerRoleId } from "@deckxi/shared";
 import { useStore } from "../store/store.js";
 import { MuteButton } from "../components/Chrome.js";
 import { LeagueTable } from "../components/LeagueTable.js";
@@ -49,7 +49,7 @@ import {
   type SquadClientState,
 } from "../game/squadClient.js";
 
-type RoleFilter = "all" | PlayerRole;
+type RoleFilter = "all" | PlayerRoleId;
 type SortKey = "overall" | "batting" | "bowling" | "fielding";
 
 const ROLE_FILTERS: { key: RoleFilter; label: string }[] = [
@@ -137,7 +137,7 @@ interface CardRowProps {
 /** One card as a row: role, name, nation, the three bars. */
 function CardRow({ card, editionId, config, action, note, dim, onOpen, extra }: CardRowProps) {
   const { player } = getCardInfo(editionId, card.id);
-  const role = roleOf(card) as PlayerRole;
+  const role = roleOf(card);
   return (
     <li className={`pool-row ${dim ? "pool-row--dim" : ""}`.trim()} data-testid={`pool-${card.id}`}>
       <button

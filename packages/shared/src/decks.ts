@@ -13,7 +13,7 @@
  * and the client falls back to — a deck list that needs a server round-trip
  * before the lobby can print a name is a lobby that flickers.
  */
-import type { Edition, Player, PlayerRole, Rarity } from "./edition.js";
+import type { Edition, Player, PlayerRoleId, Rarity } from "./edition.js";
 
 /**
  * A deck id is a slug, not an enum: the set is open, so the wire validates
@@ -33,8 +33,12 @@ export interface DeckDefinition {
   id: DeckId;
   name: string;
   blurb: string;
-  /** Cards must match every filter present. Absent filters match everything. */
-  roles?: readonly PlayerRole[] | undefined;
+  /**
+   * Cards must match every filter present. Absent filters match everything.
+   * Role ids are the edition's (#143), so a role filter only means anything
+   * on an edition that declares that role — the built-ins below are cricket.
+   */
+  roles?: readonly PlayerRoleId[] | undefined;
   rarities?: readonly Rarity[] | undefined;
   /**
    * Explicit membership (#142). When present the filters are ignored and the

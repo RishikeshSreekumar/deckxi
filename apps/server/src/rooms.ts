@@ -281,6 +281,10 @@ export class RoomManager {
     if (!this.isModeEnabled(mode)) {
       throw new RoomError("mode-disabled", `${mode} is switched off right now`);
     }
+    assertModeSupported({
+      gameMode: mode,
+      editionId: settings?.editionId ?? DEFAULT_SETTINGS.editionId,
+    });
     const room: Room = {
       id: randomUUID(),
       code: generateJoinCode(new Set(this.roomIdByCode.keys())),
@@ -550,7 +554,9 @@ export class RoomManager {
     if (patch.deckId !== undefined && this.lookupDeck(patch.deckId) === undefined) {
       throw new RoomError("bad-request", `no deck called ${patch.deckId}`);
     }
-    room.settings = { ...room.settings, ...patch };
+    const next = { ...room.settings, ...patch };
+    if (patch.gameMode !== undefined || patch.editionId !== undefined) assertModeSupported(next);
+    room.settings = next;
     // Changed rules un-ready the table (playtest B8) — see clearReady.
     if (changed) this.clearReady(room);
     this.touch(room);
@@ -575,6 +581,7 @@ export class RoomManager {
       // Killed after the lobby formed: the room stays, the game cannot start.
       throw new RoomError("mode-disabled", `${room.settings.gameMode} is switched off right now`);
     }
+    assertModeSupported(room.settings);
     const mode = getMode(room.settings.gameMode);
     if (room.players.length < mode.players.min) {
       throw new RoomError("not-enough-players", `need at least ${mode.players.min} players`);
@@ -1102,6 +1109,28 @@ export class RoomManager {
     room.spectators.push(session);
     this.sessions.set(session.id, session);
     return session;
+  }
+}
+
+/**
+ * An edition declares the modes it can be played in (#143): Squad Draft reads
+ * roles, bowling and overs, so an edition of another sport says so rather
+ * than shipping a mode whose rules its cards cannot mean anything under. An
+ * edition this server cannot load is left to fail where it already does, with
+ * a better message than this one.
+ */
+function assertModeSupported(settings: Pick<RoomSettings, "gameMode" | "editionId">): void {
+  let supported: readonly string[];
+  try {
+    supported = loadEdition(settings.editionId).supportedModes;
+  } catch {
+    return;
+  }
+  if (!supported.includes(settings.gameMode)) {
+    throw new RoomError(
+      "mode-unsupported",
+      `${settings.editionId} is not played in ${settings.gameMode}`,
+    );
   }
 }
 

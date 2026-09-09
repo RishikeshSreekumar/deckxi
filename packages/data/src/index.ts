@@ -11,6 +11,13 @@ export {
   listEditionIds,
   loadEdition,
 } from "./editions.js";
+export {
+  CRICKET_MODES,
+  CRICKET_ROLES,
+  CRICKET_ROLE_IDS,
+  CRICKET_SPORT,
+  type CricketRole,
+} from "./cricket.js";
 export { computeRating, normalizedStat, regenerateRatings } from "./rating.js";
 export { analyzeBalance, dominates, formatBalanceReport, type BalanceReport } from "./balance.js";
 export { driftEdition, topMovers, type DriftResult } from "./drift.js";

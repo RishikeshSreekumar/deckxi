@@ -42,6 +42,18 @@ describe("deck catalogue", () => {
     expect(decks.get("keepers-only")).toBeUndefined();
   });
 
+  it("refuses a role the edition never declared", async () => {
+    const decks = catalogue();
+    await expect(
+      decks.create({
+        id: "technicians",
+        name: "Technicians",
+        blurb: "A role from another sport.",
+        roles: ["technician"],
+      }),
+    ).rejects.toThrow(/has no role technician/);
+  });
+
   it("clears a filter when it is explicitly nulled, and leaves it alone otherwise", async () => {
     const decks = catalogue();
     await decks.update("legends", { blurb: "Still the legends." });

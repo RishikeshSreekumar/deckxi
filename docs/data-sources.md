@@ -3,6 +3,9 @@
 Status: **authoritative** for where card data comes from and what we owe for it (#88). The
 importer in `packages/data/src/import/` implements this document.
 
+The shape of the file it produces — stats, roles, `sport`, `supportedModes` — is
+`docs/editions.md`; this document is where a _cricket_ edition's numbers come from.
+
 ## Summary
 
 | What                    | Source                                                                                                                                          | Licence                                                                                                | Obligation                                                    |

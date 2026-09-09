@@ -11,22 +11,26 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { DEFAULT_EDITION_ID, TrumpCard, getEdition } from "@deckxi/ui";
-import { DEFAULT_DECK_ID, type DeckId, type Player } from "@deckxi/shared";
+import { DEFAULT_DECK_ID, type DeckId, type Edition, type Player } from "@deckxi/shared";
 import { AppBar } from "../components/Chrome.js";
 import { deckOf, useDecks } from "../lib/decks.js";
 import { useDeckCards } from "../lib/deckCards.js";
 
 type Filter = "all" | Player["role"] | Player["rarity"];
 
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "batter", label: "Batters" },
-  { key: "bowler", label: "Bowlers" },
-  { key: "all-rounder", label: "All-rounders" },
-  { key: "keeper", label: "Keepers" },
-  { key: "star", label: "Stars" },
-  { key: "legend", label: "Legends" },
-];
+/**
+ * The role chips are the edition's own roles (#143) — a cricket edition
+ * offers batters and keepers, another sport offers whatever it declared —
+ * followed by the two rarity cuts every edition has.
+ */
+function filtersFor(edition: Edition): { key: Filter; label: string }[] {
+  return [
+    { key: "all", label: "All" },
+    ...edition.roles.map((r) => ({ key: r.id as Filter, label: r.name })),
+    { key: "star", label: "Stars" },
+    { key: "legend", label: "Legends" },
+  ];
+}
 
 export function DeckScreen() {
   const [params, setParams] = useSearchParams();
@@ -56,6 +60,7 @@ export function DeckScreen() {
     );
   }
 
+  const filters = filtersFor(edition);
   const keep = (p: Player) => filter === "all" || p.role === filter || p.rarity === filter;
   const shown = pool.filter(keep);
 
@@ -78,7 +83,7 @@ export function DeckScreen() {
           <p className="sub">{deck.blurb}</p>
         </div>
         <div className="deck-filters" role="group" aria-label="Filter cards">
-          {FILTERS.map((f) => (
+          {filters.map((f) => (
             <button
               key={f.key}
               type="button"
