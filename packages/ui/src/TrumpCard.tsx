@@ -150,10 +150,21 @@ export function TrumpCard({
     const highlighted = highlightStat === def.key || pendingStat === def.key;
     const disabled = disabledStats?.includes(def.key) ?? false;
     const label = STAT_LAYOUT[def.key]?.label ?? statName(editionId, def.key);
+    // Lower-wins is the exception on a cricket card (economy), and the one
+    // rule nobody guessed at the playtest: the row says so with an arrow.
+    const lower = def.direction === "lower";
     const row = (
       <>
-        <span className="stat-name" title={statName(editionId, def.key)}>
+        <span
+          className="stat-name"
+          title={`${statName(editionId, def.key)} — ${lower ? "lower" : "higher"} wins`}
+        >
           {label}
+          {lower && (
+            <span className="stat-dir" aria-hidden="true">
+              ↓
+            </span>
+          )}
         </span>
         <span className="stat-leader" aria-hidden="true" />
         <span className="stat-value">{display}</span>
@@ -176,7 +187,7 @@ export function TrumpCard({
             className="stat-button"
             data-stat={def.key}
             disabled={disabled}
-            aria-label={`${statName(editionId, def.key)}${disabled ? " (called last round)" : ""} ${display}`}
+            aria-label={`${statName(editionId, def.key)}${disabled ? " (called last round)" : ""} ${display}${lower ? ", lower wins" : ""}`}
             onClick={() => onSelectStat(def.key)}
           >
             {row}

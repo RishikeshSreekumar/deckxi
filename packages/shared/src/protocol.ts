@@ -27,6 +27,15 @@ export const MAX_CHAT_LENGTH = 280;
 
 export const EMOTES = ["👏", "😂", "😮", "🔥", "😭", "🏏"] as const;
 
+/**
+ * How long the table holds a resolved round on screen before the next call
+ * is live. The server starts the next turn's clock this much later, so a
+ * caller gets the whole timer *after* the reveal, not what is left of it
+ * once the cards have flipped (playtest M1). The client's flip + verdict
+ * hold fits inside it.
+ */
+export const REVEAL_HOLD_MS = 4500;
+
 export const playerNameSchema = z
   .string()
   .trim()
@@ -61,7 +70,8 @@ export const GAME_MODE_INFO: Record<
 > = {
   "classic-trumps": {
     name: "Classic trumps",
-    blurb: "Call a stat from your top card. Best number takes the cards. Winner calls next.",
+    blurb:
+      "Call a stat from your top card. Best number takes every card played. The call goes round the table.",
     players: { min: 2, max: 6 },
     family: "trumps",
   },
@@ -252,6 +262,9 @@ export const chatReactSchema = z.object({ emote: z.enum(EMOTES) });
 
 export const emptySchema = z.object({}).optional();
 
+/** Host starts the match; `force` starts it with seats still not ready. */
+export const startGameSchema = z.object({ force: z.boolean().optional() }).optional();
+
 /** Schema per inbound event name — the server's validation table. */
 export const clientMessageSchemas = {
   "room:create": createRoomSchema,
@@ -264,7 +277,7 @@ export const clientMessageSchemas = {
   "voice:signal": voiceSignalSchema,
   "voice:state": voiceStateSchema,
   "room:settings": roomSettingsPatchSchema,
-  "room:start": emptySchema,
+  "room:start": startGameSchema,
   "room:rematch": emptySchema,
   "game:selectStat": selectStatSchema,
   "game:playCard": playCardSchema,
@@ -597,7 +610,7 @@ export interface ClientToServerEvents {
     payload: z.input<typeof roomSettingsPatchSchema>,
     ack: (reply: Ack<null>) => void,
   ) => void;
-  "room:start": (payload: undefined, ack: (reply: Ack<null>) => void) => void;
+  "room:start": (payload: z.input<typeof startGameSchema>, ack: (reply: Ack<null>) => void) => void;
   "room:rematch": (payload: undefined, ack: (reply: Ack<null>) => void) => void;
   "game:selectStat": (
     payload: z.input<typeof selectStatSchema>,

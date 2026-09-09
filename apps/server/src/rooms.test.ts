@@ -92,9 +92,27 @@ describe("room lifecycle", () => {
     // async — poll briefly for the settings snapshot to arrive.
     await expect.poll(() => snapshots.at(-1)?.settings.cardsPerPlayer).toBe(7);
     expect(snapshots.some((v) => v.players.some((p) => p.ready))).toBe(true);
+    // The guest readied to the old rules; a change un-readies everyone.
+    expect(snapshots.at(-1)?.players.every((p) => !p.ready)).toBe(true);
+    await guest.call("room:ready", { ready: true });
+    // Re-sending the same settings is not a change, so the tick stays.
+    await host.call("room:settings", { cardsPerPlayer: 7 });
+    await expect.poll(() => snapshots.at(-1)?.players.some((p) => p.ready)).toBe(true);
 
     const denied = await guest.callRaw("room:settings", { cardsPerPlayer: 3 });
     expect(denied).toMatchObject({ ok: false, code: "not-host" });
+  });
+
+  it("lets the host start anyway with a seat still not ready", async () => {
+    const s = await start();
+    const { client: host, joined } = await createRoom(s);
+    const { client: guest } = await joinRoom(s, joined.room.code, "Guest");
+    const states = host.collect<RoomView>("room:state");
+    const refused = await host.callRaw("room:start", undefined);
+    expect(refused).toMatchObject({ ok: false, code: "players-not-ready" });
+    await host.call("room:start", { force: true });
+    await expect.poll(() => states.at(-1)?.phase).toBe("playing");
+    guest.disconnect();
   });
 
   it("transfers host when the host leaves and closes the room when empty", async () => {

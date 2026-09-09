@@ -12,7 +12,8 @@
     "export:cards": "node scripts/export-cards.mjs",
     "icons": "node scripts/generate-icons.mjs",
     "budget": "node scripts/check-budget.mjs",
-    "budget:check": "node scripts/check-budget.mjs --check"
+    "budget:check": "node scripts/check-budget.mjs --check",
+    "playtest": "node playtest/daemon.mjs"
   },
   "dependencies": {
     "@deckxi/data": "workspace:*",

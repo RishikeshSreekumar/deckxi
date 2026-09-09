@@ -1,0 +1,32 @@
+/* The round log (lazy with its component, so it costs the initial CSS nothing). */
+
+.round-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 50vh;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.round-log-row {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: var(--edge) solid var(--ink-line);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+
+.round-log-row--won {
+  background: var(--surface-field);
+  color: var(--text-on-field);
+}
+
+.round-log-round {
+  flex: none;
+  font-weight: var(--weight-bold);
+}

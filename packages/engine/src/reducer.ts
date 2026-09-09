@@ -141,20 +141,21 @@ export function reduce(state: GameState | undefined, event: GameEvent): GameStat
 
       const revealedCards = event.revealed.map((r) => r.cardId);
       let pot: CardId[];
-      let leader: PlayerId;
+      // The call goes round the table: one seat clockwise from the round's
+      // leader, won or tied. Eliminations have not been applied yet, so this
+      // may land on a seat that is about to go out; the PLAYER_ELIMINATED
+      // that follows passes it on again.
+      let leader: PlayerId = nextActivePlayer(state.players, state.leader) ?? state.leader;
 
       if (event.result.kind === "won") {
         const winnerId = event.result.winner;
         pot = [];
-        leader = winnerId;
         players = players.map((p) =>
           p.id === winnerId ? { ...p, hand: [...p.hand, ...state.pot, ...revealedCards] } : p,
         );
       } else {
-        // Tie: everything revealed joins the pot; leader unchanged here (a
-        // following PLAYER_ELIMINATED event reassigns it if the leader is out).
+        // Tie: everything revealed joins the pot.
         pot = [...state.pot, ...revealedCards];
-        leader = state.leader;
       }
 
       if (event.power !== undefined) {

@@ -4,145 +4,29 @@
  * them on a phone, and one row of actions along the bottom — ready, the deck
  * rules (host edits them in a sheet), and Start.
  */
-import { useEffect, useMemo, useState } from "react";
-import {
-  GAME_MODES,
-  GAME_MODE_INFO,
-  MAX_CHAT_LENGTH,
-  type RoomSettings,
-  type RoomView,
-} from "@deckxi/shared";
-import { Avatar, Dialog, PowerCard, RoomCode, getEdition } from "@deckxi/ui";
+import { Suspense, lazy, useMemo, useRef, useState } from "react";
+import { GAME_MODES, GAME_MODE_INFO, MAX_CHAT_LENGTH, type RoomView } from "@deckxi/shared";
+import { Dialog, PowerCard, getEdition } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
-import { fetchFriends, type PlayerSummary } from "../lib/api.js";
+import { inviteUrl, useCopy } from "../lib/copy.js";
 import { LeaveIcon, Wordmark } from "../components/Chrome.js";
 
 const MAX_SEATS = 6;
 
+const HowToPlay = lazy(() =>
+  import("../components/HowToPlay.js").then((m) => ({ default: m.HowToPlay })),
+);
+/** The invite sheet draws a QR and lists your saved players; both wait for the tap. */
+/** The host's settings sheet: three selects and the mode picker, one tap in. */
+const SettingsRows = lazy(() =>
+  import("../components/SettingsRows.js").then((m) => ({ default: m.SettingsRows })),
+);
+const InviteDialog = lazy(() =>
+  import("../components/InviteDialog.js").then((m) => ({ default: m.InviteDialog })),
+);
+
 /** The powers in the order the table shows them, everywhere. */
 const POWER_ORDER = ["powerplay", "drs", "super-over"] as const;
-
-function inviteUrl(code: string): string {
-  return `${location.origin}/join/${code}`;
-}
-
-function useCopy(text: string): { copied: boolean; copy: () => void } {
-  const [copied, setCopied] = useState(false);
-  return {
-    copied,
-    copy: () => {
-      void navigator.clipboard
-        .writeText(text)
-        .then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        })
-        .catch(() => undefined);
-    },
-  };
-}
-
-/** The invite sheet: code, link, share, and the QR for a phone across the table. */
-function InviteDialog({ code, onClose }: { code: string; onClose: () => void }) {
-  const [qr, setQr] = useState<string | null>(null);
-  const [friends, setFriends] = useState<PlayerSummary[]>([]);
-  const url = inviteUrl(code);
-  const { copied, copy } = useCopy(url);
-  const message = `Join my DeckXI table — code ${code}. ${url}`;
-
-  // Your saved players (#82), so inviting the people you actually play with
-  // is one tap rather than a hunt through a chat app. Best-effort: signed out
-  // or offline, the sheet is exactly what it was.
-  useEffect(() => {
-    let cancelled = false;
-    void fetchFriends()
-      .then((data) => {
-        if (!cancelled) setFriends(data.friends);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    // qrcode is ~40kB and only ever renders here, so it loads when the sheet
-    // opens rather than riding in the initial bundle (#107).
-    void import("qrcode")
-      .then(({ default: QRCode }) => QRCode.toDataURL(url, { margin: 1, width: 176 }))
-      .then((dataUrl) => {
-        if (!cancelled) setQr(dataUrl);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [url]);
-
-  return (
-    <Dialog title="Invite friends" onClose={onClose}>
-      <RoomCode code={code} />
-      {qr !== null && <img className="invite-qr" src={qr} alt={`QR code for ${url}`} />}
-      <div className="invite-actions">
-        <button type="button" className="button" onClick={copy}>
-          {copied ? "Copied!" : "Copy link"}
-        </button>
-        {"share" in navigator && (
-          <button
-            type="button"
-            className="button"
-            onClick={() =>
-              void navigator
-                .share({ title: "Play DeckXI", text: message, url })
-                .catch(() => undefined)
-            }
-          >
-            Share
-          </button>
-        )}
-      </div>
-
-      {friends.length > 0 && (
-        <div className="invite-friends" data-testid="invite-friends">
-          <span className="label">Your players</span>
-          <ul className="friend-list">
-            {friends.slice(0, 5).map((friend) => (
-              <li key={friend.userId} className="friend-row">
-                <Avatar image={friend.image} name={friend.name} size={28} />
-                <div className="friend-detail">
-                  <strong>{friend.name}</strong>
-                </div>
-                <button
-                  type="button"
-                  className="button button--sm"
-                  onClick={() => {
-                    // No push channel exists, and inventing one for an invite
-                    // would be a notification nobody asked for: this hands the
-                    // message to whatever app they already talk in.
-                    const share = navigator.share?.bind(navigator);
-                    if (share !== undefined) {
-                      void share({ title: `Invite ${friend.name}`, text: message, url }).catch(
-                        () => undefined,
-                      );
-                      return;
-                    }
-                    void navigator.clipboard?.writeText(message).catch(() => undefined);
-                  }}
-                >
-                  Invite
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      <button type="button" className="button button--ghost" onClick={onClose}>
-        Done
-      </button>
-    </Dialog>
-  );
-}
 
 /**
  * The three power cards, laid out as cards. A power that only ever appears as
@@ -224,85 +108,14 @@ function MatchSetup({
         ))}
       </dl>
 
+      {info.family === "trumps" && s.cardsPerPlayer < room.players.length && (
+        <p className="sub setting-warning" role="status" data-testid="cards-warning">
+          Only {s.cardsPerPlayer} cards each for {room.players.length} players: the last seats can
+          be out before their first call.{isHost ? " Deal more — tap Change." : ""}
+        </p>
+      )}
       {s.gameMode === "power-trumps" && <PowerCardRow />}
     </section>
-  );
-}
-
-function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean }) {
-  const updateSettings = useStore((s) => s.updateSettings);
-  const s = room.settings;
-  const patch = (p: Partial<RoomSettings>) => void updateSettings(p).catch(() => undefined);
-
-  const row = (
-    label: string,
-    value: number,
-    options: number[],
-    key: "cardsPerPlayer" | "turnTimerSeconds" | "maxRounds",
-    unit = "",
-  ) => (
-    <label className="setting-row">
-      <span>{label}</span>
-      {isHost ? (
-        <select value={value} onChange={(e) => patch({ [key]: Number(e.target.value) })}>
-          {options.map((o) => (
-            <option key={o} value={o}>
-              {o}
-              {unit}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <strong className="chip">
-          {value}
-          {unit}
-        </strong>
-      )}
-    </label>
-  );
-
-  return (
-    <div className="setting-rows">
-      <div className="setting-row setting-row--modes" role="radiogroup" aria-label="Game mode">
-        <span>Game mode</span>
-        <div className="mode-picker">
-          {GAME_MODES.map((mode) => {
-            const info = GAME_MODE_INFO[mode];
-            const on = s.gameMode === mode;
-            return (
-              <button
-                key={mode}
-                type="button"
-                role="radio"
-                aria-checked={on}
-                className={on ? "mode-option mode-option--on" : "mode-option"}
-                disabled={!isHost && !on}
-                data-testid={`mode-${mode}`}
-                onClick={() => {
-                  if (isHost && !on) patch({ gameMode: mode });
-                }}
-              >
-                <strong>{info.name}</strong>
-                <span className="sub">{info.blurb}</span>
-                <span className="sub mode-seats">
-                  {info.players.min}–{info.players.max} players
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      {s.gameMode === "power-trumps" && <PowerCardRow />}
-      {GAME_MODE_INFO[s.gameMode].family === "trumps" &&
-        row("Cards per player", s.cardsPerPlayer, [3, 4, 5, 7, 9, 11], "cardsPerPlayer")}
-      {row("Turn timer", s.turnTimerSeconds, [10, 15, 20, 30, 60], "turnTimerSeconds", "s")}
-      {GAME_MODE_INFO[s.gameMode].family === "trumps" &&
-        row("Round limit", s.maxRounds, [10, 25, 50, 100, 1000], "maxRounds")}
-      <p className="sub">
-        Deck: {getEdition(s.editionId)?.name ?? s.editionId}
-        {isHost ? "" : " · the host decides"}
-      </p>
-    </div>
   );
 }
 
@@ -310,11 +123,15 @@ function LobbyChat() {
   const chat = useStore((s) => s.chat);
   const sendChat = useStore((s) => s.sendChat);
   const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
+  // The field's own value, not only the state: a Send that lands before
+  // React has folded the last keystroke in must still post what is typed.
   const send = () => {
-    const text = draft.trim();
+    const text = (inputRef.current?.value ?? draft).trim();
     if (text.length === 0) return;
     setDraft("");
+    if (inputRef.current !== null) inputRef.current.value = "";
     void sendChat(text).catch(() => undefined);
   };
 
@@ -333,6 +150,7 @@ function LobbyChat() {
       </ul>
       <div className="chat-row">
         <input
+          ref={inputRef}
           value={draft}
           maxLength={MAX_CHAT_LENGTH}
           placeholder="Say something…"
@@ -356,14 +174,16 @@ export function Lobby({ room }: { room: RoomView }) {
   const setReady = useStore((s) => s.setReady);
   const startGame = useStore((s) => s.startGame);
   const leaveRoom = useStore((s) => s.leaveRoom);
-  const [sheet, setSheet] = useState<"invite" | "rules" | null>(null);
+  const setupChanged = useStore((s) => s.setupChanged);
+  const [sheet, setSheet] = useState<"invite" | "rules" | "howto" | null>(null);
 
   const isHost = selfId === room.hostId;
   const self = room.players.find((p) => p.id === selfId);
   const modeInfo = GAME_MODE_INFO[room.settings.gameMode];
   const tooMany = room.players.length > modeInfo.players.max;
-  const everyoneReady =
-    room.players.length >= modeInfo.players.min && !tooMany && room.players.every((p) => p.ready);
+  const enoughPlayers = room.players.length >= modeInfo.players.min && !tooMany;
+  const everyoneReady = enoughPlayers && room.players.every((p) => p.ready);
+  const notReadyNames = room.players.filter((p) => !p.ready && p.id !== selfId).map((p) => p.name);
   const players = useMemo(() => [...room.players].sort((a, b) => a.seat - b.seat), [room.players]);
   const openSeats = Math.max(0, MAX_SEATS - players.length);
   const missing = Math.max(0, 2 - players.length);
@@ -413,6 +233,12 @@ export function Lobby({ room }: { room: RoomView }) {
             {room.spectators.length > 0 && (
               <p className="sub">{room.spectators.length} watching.</p>
             )}
+            {setupChanged && !spectator && self?.ready === false && (
+              <p className="notice" role="status" data-testid="setup-changed">
+                The host changed the setup and cleared your ready tick — check it, then ready up
+                again.
+              </p>
+            )}
           </div>
 
           {/* Above the seats, not under them: on a phone the seat list is
@@ -422,15 +248,16 @@ export function Lobby({ room }: { room: RoomView }) {
 
           <ul className="player-list seat-grid" aria-label={`Players (${players.length}/6)`}>
             {players.map((p) => {
+              // Every seat says the same two things — who, and whether they are
+              // ready — so nobody has to work out what the table is waiting on.
+              const readiness = p.ready ? "ready" : "not ready";
               const status = !p.connected
                 ? "away"
                 : p.id === selfId
-                  ? `you${p.id === room.hostId ? " · host" : ""}`
+                  ? `you${p.id === room.hostId ? " · host" : ""} · ${readiness}`
                   : p.id === room.hostId
-                    ? "host"
-                    : p.ready
-                      ? "ready"
-                      : "not ready";
+                    ? `host · ${readiness}`
+                    : readiness;
               return (
                 <li
                   key={p.id}
@@ -472,19 +299,37 @@ export function Lobby({ room }: { room: RoomView }) {
             {!spectator && self !== undefined && (
               <button
                 type="button"
-                className={self.ready ? "button button--on" : "button"}
+                className={self.ready ? "button button--on" : "button button--primary"}
+                aria-pressed={self.ready}
+                data-testid="ready-toggle"
                 onClick={() => void setReady(!self.ready).catch(() => undefined)}
               >
-                {self.ready ? "Not ready" : "I'm ready"}
+                {self.ready ? "✓ You're ready" : "I'm ready"}
               </button>
             )}
-            <button type="button" className="button" onClick={() => setSheet("rules")}>
-              Deck rules
+            <button type="button" className="button" onClick={() => setSheet("howto")}>
+              How to play
             </button>
+            <button type="button" className="button" onClick={() => setSheet("rules")}>
+              {isHost ? "Match settings" : "View settings"}
+            </button>
+            {isHost && !everyoneReady && enoughPlayers && notReadyNames.length > 0 && (
+              <button
+                type="button"
+                className="button button--ghost"
+                data-testid="start-anyway"
+                title={`Start without waiting for ${notReadyNames.join(", ")}`}
+                onClick={() => void startGame(true).catch(() => undefined)}
+              >
+                Start anyway
+              </button>
+            )}
             {isHost && (
               <button
                 type="button"
-                className="button button--primary button--start"
+                className={
+                  everyoneReady ? "button button--primary button--start" : "button button--start"
+                }
                 disabled={!everyoneReady}
                 onClick={() => void startGame().catch(() => undefined)}
               >
@@ -503,10 +348,25 @@ export function Lobby({ room }: { room: RoomView }) {
         <LobbyChat />
       </div>
 
-      {sheet === "invite" && <InviteDialog code={room.code} onClose={() => setSheet(null)} />}
+      {sheet === "invite" && (
+        <Suspense fallback={null}>
+          <InviteDialog code={room.code} onClose={() => setSheet(null)} />
+        </Suspense>
+      )}
+      {sheet === "howto" && (
+        <Suspense fallback={null}>
+          <HowToPlay
+            editionId={room.settings.editionId}
+            gameMode={room.settings.gameMode}
+            onClose={() => setSheet(null)}
+          />
+        </Suspense>
+      )}
       {sheet === "rules" && (
-        <Dialog title="Deck rules" onClose={() => setSheet(null)}>
-          <SettingsRows room={room} isHost={isHost} />
+        <Dialog title="Match settings" onClose={() => setSheet(null)}>
+          <Suspense fallback={null}>
+            <SettingsRows room={room} isHost={isHost} />
+          </Suspense>
           <button type="button" className="button" onClick={() => setSheet(null)}>
             Done
           </button>

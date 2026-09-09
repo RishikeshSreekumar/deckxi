@@ -43,7 +43,7 @@ describe("reduce", () => {
     ).toThrow(/before GAME_STARTED/);
   });
 
-  it("ROUND_RESOLVED (won): winner takes pot + revealed to hand bottom, leads next", () => {
+  it("ROUND_RESOLVED (won): winner takes pot + revealed to hand bottom; call passes clockwise", () => {
     const state = { ...start(), pot: ["p1"] };
     const next = reduce(state, {
       type: "ROUND_RESOLVED",
@@ -51,21 +51,22 @@ describe("reduce", () => {
       stat: "runs",
       revealed: [
         { playerId: "a", cardId: "c1", value: 50 },
-        { playerId: "b", cardId: "c3", value: 90 },
-        { playerId: "c", cardId: "c5", value: 10 },
+        { playerId: "b", cardId: "c3", value: 10 },
+        { playerId: "c", cardId: "c5", value: 90 },
       ],
-      result: { kind: "won", winner: "b" },
+      result: { kind: "won", winner: "c" },
     });
     expect(next.round).toBe(2);
+    // The seat after a, not the winner.
     expect(next.leader).toBe("b");
     expect(next.pot).toEqual([]);
     // pot first (oldest first), then revealed in seat order from the leader
-    expect(next.players[1]?.hand).toEqual(["c4", "p1", "c1", "c3", "c5"]);
+    expect(next.players[2]?.hand).toEqual(["c6", "p1", "c1", "c3", "c5"]);
     expect(next.players[0]?.hand).toEqual(["c2"]);
-    expect(next.players[2]?.hand).toEqual(["c6"]);
+    expect(next.players[1]?.hand).toEqual(["c4"]);
   });
 
-  it("ROUND_RESOLVED (tie): all revealed cards join the pot, leader unchanged", () => {
+  it("ROUND_RESOLVED (tie): all revealed cards join the pot, the call still passes", () => {
     const next = reduce(start(), {
       type: "ROUND_RESOLVED",
       round: 1,
@@ -78,7 +79,7 @@ describe("reduce", () => {
       result: { kind: "tie", tiedPlayers: ["a", "b"] },
     });
     expect(next.pot).toEqual(["c1", "c3", "c5"]);
-    expect(next.leader).toBe("a");
+    expect(next.leader).toBe("b");
     expect(next.round).toBe(2);
     expect(next.players.map((p) => p.hand)).toEqual([["c2"], ["c4"], ["c6"]]);
   });

@@ -9,7 +9,6 @@ import { useStore } from "./store/store.js";
 import { Landing } from "./screens/Landing.js";
 import { Lobby } from "./screens/Lobby.js";
 import { GameTable } from "./screens/GameTable.js";
-import { Results } from "./screens/Results.js";
 import {
   ConnectionBanner,
   FloatingReactions,
@@ -52,6 +51,11 @@ const CardsGalleryScreen = lazy(() =>
   import("./screens/CardsGallery.js").then((m) => ({ default: m.CardsGalleryScreen })),
 );
 /** The draft board is only on the path into a Squad Draft room; trumps never pays for it. */
+/**
+ * The results screen carries the round log, the league table and the chat
+ * sheet — a match's worth of reading nobody needs before the last reveal.
+ */
+const Results = lazy(() => import("./screens/Results.js").then((m) => ({ default: m.Results })));
 const SquadDraftTable = lazy(() =>
   import("./screens/SquadDraftTable.js").then((m) => ({ default: m.SquadDraftTable })),
 );
@@ -104,7 +108,11 @@ function Screen() {
   }
   if (room.phase === "lobby") return <Lobby room={room} />;
   if (room.phase === "results" && pendingReveals.length === 0 && !presenting) {
-    return <Results room={room} />;
+    return (
+      <Suspense fallback={<main className="screen results" />}>
+        <Results room={room} />
+      </Suspense>
+    );
   }
   // Each mode ships its own table; the room's mode picks it (ADR 0001).
   if (room.settings.gameMode === "squad-draft") {

@@ -33,8 +33,8 @@ test("two browsers play a full game", async ({ browser }) => {
   const code = await readRoomCode(host);
 
   // Short game: 3 cards each, 10-round cap, quick timer as a safety net. The
-  // rules live in a sheet behind "Deck rules".
-  await host.getByRole("button", { name: "Deck rules" }).click();
+  // settings live in a sheet behind "Match settings".
+  await host.getByRole("button", { name: "Match settings" }).click();
   await host.locator(".setting-row select").nth(0).selectOption("3");
   await host.locator(".setting-row select").nth(1).selectOption("10");
   await host.locator(".setting-row select").nth(2).selectOption("10");

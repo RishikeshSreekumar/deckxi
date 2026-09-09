@@ -98,6 +98,8 @@ function game(overrides: Partial<ClientGameState> = {}): ClientGameState {
     lastStat: null,
     powers: {},
     lastResolved: null,
+    history: [],
+    eliminatedIn: {},
     finished: false,
     winner: null,
     endReason: null,
@@ -122,6 +124,8 @@ const resolvedRound: ResolvedRound = {
   })),
   result: { kind: "won", winner: "p-asha" },
   potTaken: 2,
+  auto: false,
+  countsBefore: { [SELF]: 7, "p-asha": 8, "p-dev": 8, "p-nour": 7 },
   power: null,
 };
 

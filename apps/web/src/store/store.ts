@@ -30,7 +30,7 @@ import {
   type ResolvedRound,
 } from "../game/clientGame.js";
 import { applySquadEvents, type SquadClientState } from "../game/squadClient.js";
-import { call, errorMessage, getSocket } from "../lib/socket.js";
+import { AckError, call, errorMessage, getSocket } from "../lib/socket.js";
 import type * as PracticeModule from "../game/practice.js";
 import type { PracticeOptions } from "../game/practice.js";
 import { clearSession, loadSession, saveSession, savePlayerName } from "../lib/session.js";
@@ -90,6 +90,8 @@ interface AppState {
   presenting: boolean;
   /** Optimistic stat pick awaiting server confirmation. */
   pendingStat: string | null;
+  /** The host changed the setup since you last readied (your tick was cleared). */
+  setupChanged: boolean;
   chat: ChatMessageView[];
   reactions: FloatingReaction[];
   toasts: Toast[];
@@ -114,7 +116,7 @@ interface AppState {
   leaveRoom(): Promise<void>;
   setReady(ready: boolean): Promise<void>;
   updateSettings(patch: Partial<RoomSettings>): Promise<void>;
-  startGame(): Promise<void>;
+  startGame(force?: boolean): Promise<void>;
   rematch(): Promise<void>;
   selectStat(
     stat: string,
@@ -219,6 +221,7 @@ export const useStore = create<AppState>((set, get) => {
     pendingReveals: [],
     presenting: false,
     pendingStat: null,
+    setupChanged: false,
     chat: [],
     reactions: [],
     toasts: [],
@@ -357,14 +360,15 @@ export const useStore = create<AppState>((set, get) => {
 
     async setReady(ready) {
       await guarded(() => call<"room:ready", null>("room:ready", { ready }));
+      if (ready) set({ setupChanged: false });
     },
 
     async updateSettings(patch) {
       await guarded(() => call<"room:settings", null>("room:settings", patch));
     },
 
-    async startGame() {
-      await guarded(() => call<"room:start", null>("room:start", undefined));
+    async startGame(force = false) {
+      await guarded(() => call<"room:start", null>("room:start", force ? { force } : undefined));
     },
 
     async rematch() {
@@ -393,7 +397,13 @@ export const useStore = create<AppState>((set, get) => {
         });
       } catch (error) {
         set({ pendingStat: previous }); // rollback
-        get().toast(errorMessage(error), "error");
+        // The round moved on under the tap — the timer picked, or the reveal
+        // is up. Say that, not "not-leader".
+        const late = error instanceof AckError && error.code === "command-rejected";
+        get().toast(
+          late ? "Too late — the timer already picked for you." : errorMessage(error),
+          "error",
+        );
       }
     },
 
@@ -560,10 +570,26 @@ export function initSocket(): void {
   socket.on("room:state", (room: RoomView) => {
     const previous = get().room;
     set({ room });
+    // The host changed the rules after you readied: the server has cleared
+    // your tick, and this says why rather than leaving the tick to vanish.
+    if (
+      previous?.phase === "lobby" &&
+      room.phase === "lobby" &&
+      previous.roomId === room.roomId &&
+      get().selfId !== room.hostId &&
+      JSON.stringify(previous.settings) !== JSON.stringify(room.settings)
+    ) {
+      const wasReady = previous.players.find((p) => p.id === get().selfId)?.ready === true;
+      // Readied players get a notice in the lobby itself; a toast on top of
+      // it just covers the ready button.
+      if (wasReady) set({ setupChanged: true });
+      else get().toast("The host changed the setup.", "info");
+    }
     // Rematch: server flips results → lobby and clears the old game.
     if (previous?.phase === "results" && room.phase === "lobby") {
       set({ game: null, squad: null, timer: null, pendingReveals: [], pendingStat: null });
     }
+    if (room.phase !== "lobby") set({ setupChanged: false });
   });
 
   socket.on("room:closed", ({ reason }) => {

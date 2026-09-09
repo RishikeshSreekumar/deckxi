@@ -485,7 +485,7 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
         manager.updateSettings(sessionId, payload as Partial<RoomSettings>);
         return null;
       case "room:start":
-        manager.startGame(sessionId);
+        manager.startGame(sessionId, (payload as { force?: boolean } | undefined)?.force === true);
         return null;
       case "room:rematch":
         manager.rematch(sessionId);
@@ -909,8 +909,8 @@ export function registerSockets(io: GameServer, options: SocketOptions = {}): Ro
       return null;
     });
 
-    on("room:start", () => {
-      manager.startGame(requireSessionId());
+    on("room:start", (payload: { force?: boolean } | undefined) => {
+      manager.startGame(requireSessionId(), payload?.force === true);
       return null;
     });
 

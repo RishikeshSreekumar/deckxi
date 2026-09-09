@@ -6,7 +6,7 @@
  * followed a link was invited to one table and should not be asked to
  * choose between hosting and joining.
  */
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { JOIN_CODE_LENGTH, MAX_NAME_LENGTH, type RoomClosedReason } from "@deckxi/shared";
 import { useStore } from "../store/store.js";
@@ -17,6 +17,10 @@ import { solveCaptcha } from "../lib/captcha.js";
 import { authClient, ensureSession } from "../lib/auth.js";
 import { Avatar, Dialog, RoomCode } from "@deckxi/ui";
 import { AppBar, CodeSlots } from "../components/Chrome.js";
+
+const HowToPlay = lazy(() =>
+  import("../components/HowToPlay.js").then((m) => ({ default: m.HowToPlay })),
+);
 
 const CLOSED_COPY: Record<RoomClosedReason, string> = {
   "host-left": "The host left, so the table closed.",
@@ -72,6 +76,7 @@ export function Landing() {
   const [busy, setBusy] = useState<"create" | "join" | null>(null);
   const [offerSpectate, setOfferSpectate] = useState(false);
   const [me, setMe] = useState<ProfileUser | null>(null);
+  const [howToOpen, setHowToOpen] = useState(false);
   // The invitation sheet: open on arrival from a link, closed by joining or
   // by "not now", which drops back to the page with the code kept.
   const [invite, setInvite] = useState(
@@ -277,8 +282,25 @@ export function Landing() {
       <div className="landing-body">
         <div className="landing-intro">
           <h1 className="headline">Start playing</h1>
-          <p className="sub">Host a table for your group, or drop into one with a code.</p>
+          <p className="sub">
+            Cricket top trumps for your group: call a stat from your top card, best number takes the
+            cards. Host a table, or drop into one with a code.{" "}
+            <button
+              type="button"
+              className="link-button"
+              data-testid="how-to-play-link"
+              onClick={() => setHowToOpen(true)}
+            >
+              How to play
+            </button>
+          </p>
         </div>
+
+        {howToOpen && (
+          <Suspense fallback={null}>
+            <HowToPlay onClose={() => setHowToOpen(false)} />
+          </Suspense>
+        )}
 
         {roomClosedReason !== null && (
           <p className="notice" role="status">
@@ -446,7 +468,12 @@ export function Landing() {
         {connection !== "online" ? (
           <p className="sub landing-foot">Waiting for the server…</p>
         ) : (
-          me !== null && <p className="sub landing-foot">Signed in as {me.name}</p>
+          me !== null && (
+            <p className="sub landing-foot">
+              You'll play as <strong>{name.trim() === "" ? me.name : name.trim()}</strong> — change
+              the name above if that's not you.
+            </p>
+          )
         )}
       </div>
     </main>

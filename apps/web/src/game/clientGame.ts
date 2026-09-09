@@ -29,6 +29,10 @@ export interface ResolvedRound {
   result: RoundResultView;
   /** How many pot cards the winner swept along with the reveal. */
   potTaken: number;
+  /** The call was the timer's, not the leader's. */
+  auto: boolean;
+  /** Hand counts as they stood before this round — the table shows these while the cards flip. */
+  countsBefore: Record<string, number>;
   /** Power trumps: what the powers did. */
   power: PowerRoundView | null;
 }
@@ -59,6 +63,10 @@ export interface ClientGameState {
   /** Power trumps: unused powers per player (public — a spent power is seen by all). */
   powers: Record<string, PowerKindView[]>;
   lastResolved: ResolvedRound | null;
+  /** Every round resolved so far, oldest first — the round log. */
+  history: ResolvedRound[];
+  /** The round each player went out in (eliminated or forfeited). */
+  eliminatedIn: Record<string, number>;
   finished: boolean;
   winner: string | null;
   endReason: "last-standing" | "opponents-forfeited" | "round-limit" | "final-tie" | null;
@@ -113,6 +121,8 @@ export function applyRedactedEvent(
       lastStat: null,
       powers,
       lastResolved: null,
+      history: [],
+      eliminatedIn: {},
       finished: false,
       winner: null,
       endReason: null,
@@ -146,6 +156,8 @@ export function applyRedactedEvent(
       return next;
 
     case "ROUND_RESOLVED": {
+      // Diagnostics only, and loaded on demand — see invariants.ts.
+      void import("./invariants.js").then((m) => m.checkReveal(state, event));
       const handCounts = { ...state.handCounts };
       for (const r of event.revealed) {
         handCounts[r.playerId] = Math.max(0, (handCounts[r.playerId] ?? 0) - 1);
@@ -169,10 +181,12 @@ export function applyRedactedEvent(
           yourHand = [...yourHand, ...pot, ...revealedIds];
         }
         pot = [];
-        next.leader = winnerId;
       } else {
         pot = [...pot, ...revealedIds];
       }
+      // The call goes round the table, won or tied — mirrors the reducer.
+      // Eliminations follow as their own events and pass it on again.
+      next.leader = nextActive(state.config.players, state.active, state.leader) ?? state.leader;
 
       if (event.power !== undefined) {
         // The ledger names every card that moved, so even a card we never
@@ -216,16 +230,25 @@ export function applyRedactedEvent(
         revealed: event.revealed,
         result: event.result,
         potTaken,
+        auto: state.selected?.auto ?? false,
+        countsBefore: state.handCounts,
         power: event.power ?? null,
       };
+      next.history = [...state.history, next.lastResolved];
       return next;
     }
 
     case "PLAYER_ELIMINATED": {
       const active = { ...state.active, [event.playerId]: false };
       next.active = active;
+      next.eliminatedIn = { ...state.eliminatedIn, [event.playerId]: event.round };
       if (state.leader === event.playerId) {
         next.leader = nextActive(state.config.players, active, event.playerId) ?? state.leader;
+      }
+      if (!active[next.leader]) {
+        void import("./invariants.js").then((m) =>
+          m.invariant(`leader ${next.leader} is out after ${event.playerId} was eliminated`),
+        );
       }
       return next;
     }
@@ -237,6 +260,7 @@ export function applyRedactedEvent(
       handCounts[event.playerId] = 0;
       next.active = active;
       next.handCounts = handCounts;
+      next.eliminatedIn = { ...state.eliminatedIn, [event.playerId]: state.round };
       if (state.yourHand !== null && selfId === event.playerId) {
         // Our own hand joins the pot face-down, but we know the cards.
         next.pot = [...state.pot, ...state.yourHand];

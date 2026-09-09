@@ -57,15 +57,16 @@ const select = (playerId: string, stat: string): Command => ({
 });
 
 describe("round resolution", () => {
-  it("higher-wins stat: best value takes revealed cards and leads", () => {
+  it("higher-wins stat: best value takes revealed cards; the call passes clockwise", () => {
     const state = makeState({
       a: [card("a1", 50), card("a2", 10)],
-      b: [card("b1", 90), card("b2", 20)],
-      c: [card("c1", 30), card("c2", 40)],
+      b: [card("b1", 30), card("b2", 20)],
+      c: [card("c1", 90), card("c2", 40)],
     });
     const next = play(state, select("a", "runs"));
+    // c won, but the next call is b's — the seat after the leader.
     expect(next.leader).toBe("b");
-    expect(next.players[1]?.hand).toEqual(["b2", "a1", "b1", "c1"]);
+    expect(next.players[2]?.hand).toEqual(["c2", "a1", "b1", "c1"]);
     expect(next.round).toBe(2);
     expect(next.phase).toBe("selecting");
   });
@@ -86,7 +87,8 @@ describe("round resolution", () => {
     });
     // economy: a has 11.9 (bad but present), b missing → treated as 12
     const next = play(state, select("a", "economy"));
-    expect(next.leader).toBe("a");
+    expect(next.players[0]?.hand).toEqual(["a2", "a1", "b1"]);
+    expect(next.leader).toBe("b");
   });
 
   it("leader cannot select a stat their card lacks", () => {
@@ -102,7 +104,7 @@ describe("round resolution", () => {
     }
   });
 
-  it("tie for best: all revealed cards join the pot, same leader", () => {
+  it("tie for best: all revealed cards join the pot, the call still passes", () => {
     const state = makeState({
       a: [card("a1", 50), card("a2", 1)],
       b: [card("b1", 50), card("b2", 1)],
@@ -110,7 +112,7 @@ describe("round resolution", () => {
     });
     const next = play(state, select("a", "runs"));
     expect(next.pot).toEqual(["a1", "b1", "c1"]);
-    expect(next.leader).toBe("a");
+    expect(next.leader).toBe("b");
     expect(next.phase).toBe("selecting");
   });
 

@@ -1,0 +1,71 @@
+/* The rules sheet (lazy with its component, so it costs the initial CSS nothing). */
+
+.rules-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  text-align: left;
+}
+
+.rules-steps {
+  margin: 0;
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.rules-heading {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+}
+
+.rules-glossary {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3);
+}
+
+.rules-stat {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--edge) solid var(--ink-line);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+
+.rules-stat-dir {
+  flex: none;
+  width: 1.6em;
+  height: 1.6em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--surface-field);
+  color: var(--text-on-field);
+  font-weight: var(--weight-bold);
+}
+
+.rules-stat-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.rules-stat-body em {
+  font-style: normal;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--text-secondary);
+}
+
+.rules-stat-body .sub {
+  padding: 0;
+}

@@ -7,7 +7,8 @@ wins and the engine has a bug. Rule changes land here first, then in code.
 
 2–6 players. A deck of cards is dealt out evenly. Each round, the **leader** picks a stat from
 their top card; every player reveals their top card; the best value on that stat takes all
-revealed cards (plus any carried pot). The last player holding cards wins.
+revealed cards (plus any carried pot). The call then passes one seat clockwise, so every player
+gets to pick in turn. The last player holding cards wins.
 
 ## Terminology
 
@@ -42,13 +43,15 @@ deterministic from this point on.
 3. **Resolve** — the best value wins (respecting stat direction):
    - **Single best** → that player wins the round. All revealed cards plus the entire pot go to
      the bottom of the winner's hand, in this exact order: pot cards first (oldest first), then
-     revealed cards in seat order starting from the round's leader. The winner leads the next
-     round.
+     revealed cards in seat order starting from the round's leader.
    - **Tie for best** (two or more players share the best value) → **all** revealed cards (from
      every player, not just the tied ones) are appended to the pot, in seat order starting from
-     the leader. The leader stays the same — unless the leader was eliminated by the tie (played
-     their last card), in which case leadership passes to the next active player clockwise (by
-     seat order).
+     the leader.
+   - **Next leader** — either way, the call passes to the next active player clockwise (by seat
+     order) from the round's leader. Winning a round does not earn the next call: a player who
+     wins early and keeps calling turns the game into a spectator sport for everyone else
+     (playtest 2026-09-04, blocker B1). If the next seat is eliminated by this round, the call
+     passes on again to the next active seat.
 4. **Eliminate** — any player whose hand is now empty becomes inactive. The round winner can never
    be eliminated (they just received cards).
 5. **Win check** — see win conditions.
@@ -109,8 +112,8 @@ Exactly one winner, always:
 | 1   | Deck doesn't divide evenly                                    | Deal everything; earlier seats get one extra card                                                                                                                                                                                                                                                                                             |
 | 2   | Card missing the selected stat                                | Treated as worst possible value for that stat                                                                                                                                                                                                                                                                                                 |
 | 3   | Stat missing on the **leader's** card                         | Leader may not select it (rejected)                                                                                                                                                                                                                                                                                                           |
-| 4   | All revealed values tie                                       | Everything to pot, same leader (unless eliminated)                                                                                                                                                                                                                                                                                            |
-| 5   | Leader's last card enters pot on a tie                        | Leader eliminated; leadership passes clockwise                                                                                                                                                                                                                                                                                                |
+| 4   | All revealed values tie                                       | Everything to pot; the call still passes clockwise                                                                                                                                                                                                                                                                                            |
+| 5   | Leader's last card enters pot on a tie                        | Leader eliminated; the call passes clockwise as normal                                                                                                                                                                                                                                                                                        |
 | 6   | Tie between exactly the last two players, both play last card | Both eliminated would leave no winner → the round-limit rule can't apply; ruling: **both survive is impossible**, so the tie stands, both are eliminated, and the winner is decided as in the round-limit rule among the just-eliminated tied players: most cards (0 each) → lowest seat index of the tied players wins (reason: `final-tie`) |
 | 7   | Forfeit while not the leader                                  | Allowed; hand to pot; play continues                                                                                                                                                                                                                                                                                                          |
 | 8   | Forfeit leaving one player                                    | Immediate win for the remaining player                                                                                                                                                                                                                                                                                                        |

@@ -25,7 +25,7 @@ import {
   type TurnTimerView,
 } from "@deckxi/shared";
 import type { ClientGameState, DeclaredPower, ResolvedRound } from "../game/clientGame.js";
-import { Dialog, PowerCard, TrumpCard, formatStatValue, getCardInfo, statName } from "@deckxi/ui";
+import { Dialog, TrumpCard, formatStatValue, getCardInfo, statName } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
 import { EmoteBar } from "../components/EmoteBar.js";
 /**
@@ -38,6 +38,17 @@ const VoiceControls = lazy(() =>
 );
 import { GameChat } from "../components/GameChat.js";
 import { MuteButton, SmileIcon } from "../components/Chrome.js";
+/** The log and the rules sheet: reading matter, loaded when someone asks. */
+const RoundLog = lazy(() =>
+  import("../components/RoundLog.js").then((m) => ({ default: m.RoundLog })),
+);
+/** The power-card legend: only power trumps, only on the "?" tap. */
+const PowerRules = lazy(() =>
+  import("../components/PowerRules.js").then((m) => ({ default: m.PowerRules })),
+);
+const HowToPlay = lazy(() =>
+  import("../components/HowToPlay.js").then((m) => ({ default: m.HowToPlay })),
+);
 import { sounds } from "../lib/sounds.js";
 import { haptics } from "../lib/haptics.js";
 
@@ -50,7 +61,7 @@ const POWER_ORDER: readonly PowerKindView[] = ["powerplay", "drs", "super-over"]
  * fixtures can freeze the verdict for a screenshot instead of racing it;
  * nothing in the running app writes to it.
  */
-export const revealTiming = { flipMs: 1100, verdictMs: 2100 };
+export const revealTiming = { flipMs: 1100, verdictMs: 3200 };
 
 function useRevealPresenter(selfId: string | null) {
   const pending = useStore((s) => s.pendingReveals);
@@ -101,6 +112,13 @@ function useRevealPresenter(selfId: string | null) {
   );
 
   return { current, stage };
+}
+
+/** 1 → "st", 2 → "nd" … for a placing. */
+export function ordinal(n: number): string {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return "th";
+  return ["th", "st", "nd", "rd"][n % 10] ?? "th";
 }
 
 /** Who ended up with the round's cards once any Super Over has played out. */
@@ -312,6 +330,8 @@ export function GameTable({ room }: { room: RoomView }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [emotesOpen, setEmotesOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [howToOpen, setHowToOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
   const { current, stage } = useRevealPresenter(spectator ? null : selfId);
 
   // Power trumps: which of your top cards is face up, and the power armed
@@ -333,7 +353,11 @@ export function GameTable({ room }: { room: RoomView }) {
   const yourTurn = move !== null;
 
   const activeTimer: TurnTimerView | null = current === null ? timer : null;
-  const seconds = useCountdown(activeTimer?.deadline ?? null);
+  // The server's deadline includes the reveal hold, so the raw count can
+  // read 34s on a 30s timer; the display never exceeds the setting.
+  const rawSeconds = useCountdown(activeTimer?.deadline ?? null);
+  const seconds =
+    rawSeconds === null ? null : Math.min(rawSeconds, Math.max(1, room.settings.turnTimerSeconds));
   const waitingOnYou =
     activeTimer !== null &&
     selfId !== null &&
@@ -360,6 +384,10 @@ export function GameTable({ room }: { room: RoomView }) {
   }
 
   const powerMode = game.config.mode === "power-trumps";
+  // While the cards are still flipping the tallies stay as they were: the
+  // playtest's whole table read the winner off the score strip before a
+  // single card turned. They catch up with the verdict.
+  const counts = current !== null && stage === "flip" ? current.countsBefore : game.handCounts;
   const editionId = game.config.editionId;
   const opponents = game.config.players.filter((id) => id !== selfId);
   const hand = game.yourHand;
@@ -375,7 +403,6 @@ export function GameTable({ room }: { room: RoomView }) {
       ? (current.revealed.find((r) => r.playerId === selfId)?.cardId ?? null)
       : null;
   const topCard = playedCard ?? game.yourPlay?.cardId ?? choices[safePick] ?? hand?.[0] ?? null;
-  const leaderName = game.leader === selfId ? "you" : (names[game.leader] ?? "…");
 
   // The engine's own numbers, not the edition's — the config is what resolved
   // the round, so the bars and the result can never disagree.
@@ -426,19 +453,43 @@ export function GameTable({ room }: { room: RoomView }) {
     }
   };
 
-  const callLabel = game.finished
-    ? "game over"
+  // The centre of the table says two things, in this order: whose move it
+  // is (big), then what to do about it (small). The playtest had it the other
+  // way round — "Pick a stat" in bold on every screen with a draining bar
+  // under it — and three players spent turns jabbing at a card that was not
+  // theirs to play.
+  const out = !spectator && selfId !== null && !game.active[selfId];
+  const leaderIsYou = game.leader === selfId && !spectator;
+  const headline = game.finished
+    ? "Game over"
     : move === "call"
-      ? "Your call — tap a stat"
+      ? "Your call"
+      : move === "answer"
+        ? "Your answer"
+        : out
+          ? "You're out"
+          : game.phase === "responding"
+            ? waitingNames.length > 0
+              ? `Waiting on ${waitingNames.join(", ")}`
+              : "All cards in"
+            : leaderIsYou
+              ? "Your call"
+              : `${names[game.leader] ?? "…"} is calling`;
+  const instruction = game.finished
+    ? ""
+    : move === "call"
+      ? powerMode && game.lastStat !== null
+        ? `Tap a stat on your card — not ${statName(editionId, game.lastStat)} again`
+        : "Tap a stat on your card"
       : move === "answer"
         ? armed === "drs"
           ? "DRS armed — tap the stat you overrule with"
-          : "Your answer — pick a card, then play"
-        : game.phase === "responding"
-          ? waitingNames.length > 0
-            ? `Waiting on ${waitingNames.join(", ")}…`
-            : "All cards in…"
-          : `Waiting on ${leaderName}…`;
+          : "Pick a card, then play it"
+        : hotStat !== null
+          ? `${leaderIsYou ? "You" : (names[game.selected?.playerId ?? game.leader] ?? "They")} called ${statName(editionId, hotStat)}`
+          : out
+            ? "Spectating until the match ends"
+            : "Your top card plays itself — nothing to press";
 
   return (
     <main
@@ -466,7 +517,7 @@ export function GameTable({ room }: { room: RoomView }) {
         {!spectator && (
           <ScoreChip
             name="You"
-            count={game.handCounts[selfId ?? ""] ?? 0}
+            count={counts[selfId ?? ""] ?? 0}
             powers={powerMode ? myPowers.length : undefined}
             className="score-chip--mine"
           />
@@ -475,7 +526,7 @@ export function GameTable({ room }: { room: RoomView }) {
           <ScoreChip
             key={id}
             name={names[id] ?? id}
-            count={game.handCounts[id] ?? 0}
+            count={counts[id] ?? 0}
             powers={powerMode ? (game.powers[id] ?? []).length : undefined}
             className={game.active[id] ? "" : "score-chip--out"}
             testId={`cards-${id}`}
@@ -507,7 +558,7 @@ export function GameTable({ room }: { room: RoomView }) {
                       ? "tie"
                       : id === holderId
                         ? "takes it"
-                        : "short"
+                        : "beaten"
                   : isLeader
                     ? game.phase === "responding"
                       ? "called"
@@ -579,9 +630,12 @@ export function GameTable({ room }: { room: RoomView }) {
             <span className="called-label" data-testid="turn-line">
               {current.power?.drsBy != null
                 ? `DRS · ${statName(editionId, current.stat)} overrules ${statName(editionId, current.power.calledStat)}`
-                : `${statName(editionId, current.stat)} · cards on the table`}
+                : `${statName(editionId, current.stat)}${current.auto ? " · the timer's pick" : ""} · cards on the table`}
             </span>
-            <ul className="reveal-cards">
+            <ul
+              className={`reveal-cards ${current.revealed.length > 3 ? "reveal-cards--many" : ""}`.trim()}
+              style={{ "--reveal-count": current.revealed.length } as React.CSSProperties}
+            >
               {current.revealed.map((r, index) => {
                 const isSelf = r.playerId === selfId && !spectator;
                 const won = stage === "verdict" && r.playerId === winnerId;
@@ -620,22 +674,41 @@ export function GameTable({ room }: { room: RoomView }) {
                 );
               })}
             </ul>
+            {/* The same reveal as a line each, for a phone with five cards on
+                it — and a comparison anyone can read at a glance. */}
+            <ol className="reveal-values" aria-label="Values played">
+              {current.revealed.map((r) => {
+                const isSelf = r.playerId === selfId && !spectator;
+                const won = stage === "verdict" && r.playerId === winnerId;
+                return (
+                  <li
+                    key={r.playerId}
+                    className={won ? "reveal-value reveal-value--win" : "reveal-value"}
+                  >
+                    <span className="reveal-value-who">
+                      {isSelf ? "You" : (names[r.playerId] ?? r.playerId)}
+                    </span>
+                    <span className="reveal-value-card">{cardShortName(editionId, r.cardId)}</span>
+                    <b>{formatStatValue(editionId, current.stat, r.value)}</b>
+                  </li>
+                );
+              })}
+            </ol>
           </div>
         ) : (
-          <div className="called-panel">
-            <span className="called-label" data-testid="turn-line">
-              {callLabel}
+          <div
+            className={`called-panel ${yourTurn ? "called-panel--yours" : ""}`.trim()}
+            data-turn={yourTurn ? "yours" : "theirs"}
+          >
+            <span className="called-stat" data-testid="turn-line">
+              {hotStat !== null ? statName(editionId, hotStat) : headline}
             </span>
-            <span className="called-stat">
-              {hotStat !== null
-                ? statName(editionId, hotStat)
-                : powerMode && game.lastStat !== null
-                  ? `Not ${statName(editionId, game.lastStat)} again`
-                  : "Pick a stat"}
-            </span>
-            <span className="called-meter" aria-hidden="true">
-              <span style={{ width: meter }} />
-            </span>
+            <span className="called-label">{hotStat !== null ? headline : instruction}</span>
+            {waitingOnYou && (
+              <span className="called-meter" aria-hidden="true">
+                <span style={{ width: meter }} />
+              </span>
+            )}
             {game.pot.length > 0 && (
               <span className="called-pot">{game.pot.length} in the pot</span>
             )}
@@ -650,7 +723,7 @@ export function GameTable({ room }: { room: RoomView }) {
         <div className="hand-top">
           {!spectator && hand !== null && hand.length > 0 && (
             <span className="hand-count" data-testid="hand-count">
-              {hand.length}
+              {counts[selfId ?? ""] ?? hand.length}
               <small>in hand</small>
             </span>
           )}
@@ -703,9 +776,40 @@ export function GameTable({ room }: { room: RoomView }) {
           {spectator || hand === null ? (
             <p className="hint">Spectating — {game.config.players.length} players in the match.</p>
           ) : hand.length === 0 ? (
-            <p className="hint">
-              You're out of cards{game.active[selfId ?? ""] ? "" : " — eliminated"}.
-            </p>
+            <div className="out-panel" role="status" data-testid="out-panel">
+              <p className="out-title">
+                {game.active[selfId ?? ""] ? "Out of cards" : "You're out"}
+              </p>
+              <p className="out-sub">
+                {(() => {
+                  const inRound = game.eliminatedIn[selfId ?? ""];
+                  // Fixed at the moment you went out — everyone who outlasted
+                  // you, plus one — so it agrees with the results screen.
+                  const outlasted = game.config.players.filter((id) => {
+                    const theirs = game.eliminatedIn[id];
+                    return id !== selfId && (theirs === undefined || theirs > (inRound ?? 0));
+                  }).length;
+                  const place = outlasted + 1;
+                  const shared = game.config.players.some(
+                    (id) => id !== selfId && game.eliminatedIn[id] === inRound,
+                  );
+                  const total = game.config.players.length;
+                  return inRound === undefined
+                    ? "Your last card is on the table."
+                    : `Eliminated in round ${inRound} · ${shared ? "=" : ""}${place}${ordinal(place)} of ${total}`;
+                })()}
+              </p>
+              <p className="sub">Spectating until the match ends.</p>
+              <div className="out-actions">
+                <button
+                  type="button"
+                  className="button button--sm"
+                  onClick={() => setLogOpen(true)}
+                >
+                  Round log
+                </button>
+              </div>
+            </div>
           ) : (
             <>
               <div className="hand-face" key={topCard ?? "none"}>
@@ -860,6 +964,16 @@ export function GameTable({ room }: { room: RoomView }) {
         <button
           type="button"
           className="icon-button"
+          aria-label="Round log"
+          title="Round log"
+          data-testid="open-log"
+          onClick={() => setLogOpen(true)}
+        >
+          ≡
+        </button>
+        <button
+          type="button"
+          className="icon-button"
           aria-label="Menu"
           onClick={() => setMenuOpen(true)}
         >
@@ -880,41 +994,49 @@ export function GameTable({ room }: { room: RoomView }) {
       </div>
 
       {rulesOpen && (
-        <Dialog title="Power trumps" onClose={() => setRulesOpen(false)}>
-          <ul className="power-legend">
-            <li>
-              <strong>Your play</strong>
-              <span className="sub">
-                Pick any of your top three cards. The leader calls a stat, but never the one that
-                decided the last round. The call goes round the table.
-              </span>
-            </li>
-            <li>
-              <strong>Every power is a bet</strong>
-              <span className="sub">
-                Works: a big win. Fails: exactly one extra card. One power per round, each once a
-                game.
-              </span>
-            </li>
-          </ul>
-          <div className="power-card-row-strip" aria-label="Power cards">
-            {POWER_ORDER.map((kind) => (
-              <PowerCard
-                key={kind}
-                kind={kind}
-                size="full"
-                spent={!spectator && !myPowers.includes(kind)}
-              />
-            ))}
-          </div>
-          <button type="button" className="button" onClick={() => setRulesOpen(false)}>
-            Got it
+        <Suspense fallback={null}>
+          <PowerRules myPowers={spectator ? null : myPowers} onClose={() => setRulesOpen(false)} />
+        </Suspense>
+      )}
+
+      {logOpen && (
+        <Dialog title="Round log" onClose={() => setLogOpen(false)}>
+          <Suspense fallback={null}>
+            <RoundLog
+              history={game.history}
+              editionId={editionId}
+              names={names}
+              selfId={spectator ? null : selfId}
+            />
+          </Suspense>
+          <button type="button" className="button" onClick={() => setLogOpen(false)}>
+            Back to the game
           </button>
         </Dialog>
       )}
 
+      {howToOpen && (
+        <Suspense fallback={null}>
+          <HowToPlay
+            editionId={editionId}
+            gameMode={room.settings.gameMode}
+            onClose={() => setHowToOpen(false)}
+          />
+        </Suspense>
+      )}
+
       {menuOpen && (
         <Dialog title="Game menu" onClose={() => setMenuOpen(false)}>
+          <button
+            type="button"
+            className="button"
+            onClick={() => {
+              setMenuOpen(false);
+              setHowToOpen(true);
+            }}
+          >
+            How to play
+          </button>
           {!spectator && !game.finished && (
             <button
               type="button"

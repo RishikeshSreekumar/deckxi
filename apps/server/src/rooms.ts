@@ -18,6 +18,7 @@ import {
   type StatDefinition,
 } from "@deckxi/engine";
 import { CURRENT_EDITION_ID, loadEdition } from "@deckxi/data";
+import { REVEAL_HOLD_MS } from "@deckxi/shared";
 import type {
   ErrorCode,
   GameCommandPayload,
@@ -405,7 +406,15 @@ export class RoomManager {
     const { room, session } = this.requirePlayer(sessionId);
     if (room.hostId !== session.id) throw new RoomError("not-host");
     if (room.phase !== "lobby") throw new RoomError("not-in-lobby");
+    const changed = (Object.keys(patch) as (keyof RoomSettings)[]).some(
+      (key) => patch[key] !== undefined && patch[key] !== room.settings[key],
+    );
     room.settings = { ...room.settings, ...patch };
+    // A ready tick is agreement to *these* rules. Changing them after someone
+    // readied would start them into a different match than the one they
+    // agreed to (playtest B8), so every human's tick is cleared and they say
+    // yes again. Bots are always ready.
+    if (changed) for (const p of room.players) if (!p.bot) p.ready = false;
     this.touch(room);
     this.observer.roomState(room);
   }
@@ -414,7 +423,13 @@ export class RoomManager {
   // Game loop (authoritative: clients send commands, engine decides)
   // -------------------------------------------------------------------------
 
-  startGame(sessionId: string): void {
+  /**
+   * `force` lets the host start with seats still not ready — the playtest
+   * host sat two minutes behind a greyed button with no move but to nag in
+   * chat. Enough players for the mode is still required; a not-ready player
+   * is dealt in like anyone else.
+   */
+  startGame(sessionId: string, force = false): void {
     const { room, session } = this.requirePlayer(sessionId);
     if (room.hostId !== session.id) throw new RoomError("not-host");
     if (room.phase !== "lobby") throw new RoomError("not-in-lobby");
@@ -433,7 +448,7 @@ export class RoomManager {
       );
     }
     const notReady = room.players.filter((p) => p.id !== room.hostId && !p.ready);
-    if (notReady.length > 0) {
+    if (notReady.length > 0 && !force) {
       throw new RoomError("players-not-ready", notReady.map((p) => p.name).join(", "));
     }
 
@@ -758,7 +773,14 @@ export class RoomManager {
     // to answer: a phase gets one clock, started when it opens.
     if (key !== game.turnKey || game.turnTimer === null) {
       this.clearTurn(game);
-      const durationMs = this.turnTimerMsOverride ?? room.settings.turnTimerSeconds * 1000;
+      // A round has just resolved: the table is showing the reveal, and the
+      // next caller's clock waits for it. (Not under the test override, which
+      // exists to make timers fast.)
+      const status = statusOf(game);
+      const afterReveal = status.phase === "selecting" && status.round > 1;
+      const holdMs = afterReveal && this.turnTimerMsOverride === undefined ? REVEAL_HOLD_MS : 0;
+      const durationMs =
+        (this.turnTimerMsOverride ?? room.settings.turnTimerSeconds * 1000) + holdMs;
       const deadline = Date.now() + durationMs;
       game.turnDeadline = deadline;
       game.turnKey = key;

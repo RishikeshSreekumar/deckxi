@@ -1394,7 +1394,6 @@ select:focus {
 }
 
 .called-label {
-  grid-column: 1 / -1;
   font-family: var(--font-label);
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
@@ -1404,6 +1403,7 @@ select:focus {
 }
 
 .called-stat {
+  grid-column: 1 / -1;
   font-family: var(--font-display);
   font-size: var(--text-lg);
   font-weight: var(--weight-bold);
@@ -1450,30 +1450,26 @@ select:focus {
   color: var(--tbl-ink);
 }
 
+/* Every card on one row, shrunk to fit: the playtest's phone had the winner's
+   card off the right edge behind a swipe nobody knew to make. */
 .reveal-cards {
   list-style: none;
-  margin: 0 calc(-1 * var(--tbl-inline));
-  padding: var(--space-2) var(--tbl-inline) var(--space-3);
+  margin: 0;
+  padding: var(--space-2) 0 var(--space-3);
   display: flex;
-  gap: var(--space-4);
-  max-width: calc(100% + 2 * var(--tbl-inline));
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
-  scrollbar-width: none;
-}
-
-.reveal-cards::-webkit-scrollbar {
-  display: none;
+  justify-content: center;
+  gap: var(--space-3);
+  width: 100%;
 }
 
 .reveal-card {
-  flex: 0 0 auto;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 150px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
-  scroll-snap-align: center;
   animation: flip-in var(--dur-slow) var(--ease-spring) both;
   animation-delay: calc(var(--seat-index, 0) * 130ms);
   backface-visibility: hidden;
@@ -1481,11 +1477,11 @@ select:focus {
 }
 
 .reveal-card .card-scale {
-  width: 150px;
+  width: 100%;
 }
 
 .reveal-card-owner {
-  max-width: 176px;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2161,7 +2157,8 @@ select:focus {
   margin-left: auto;
 }
 
-.table-screen .chat-log {
+.table-screen .chat-log,
+.results .chat-log {
   flex: 1 1 auto;
   min-height: 0;
   max-height: none;
@@ -2518,7 +2515,7 @@ select:focus {
   }
 
   .reveal-card {
-    flex: 0 1 124px;
+    max-width: 176px;
   }
 
   /* The tray hangs off the reactions button on the right, not across the
@@ -2552,11 +2549,6 @@ select:focus {
   /* The verdict rises over the field, not over your card. */
   .verdict-sheet {
     right: calc(320px + var(--space-7));
-  }
-
-  /* The column has the height for the whole photo. */
-  .reveal-card .card-scale {
-    width: 176px;
   }
 }
 
@@ -3730,4 +3722,136 @@ select:focus {
 
 .voice-hint {
   max-width: 34ch;
+}
+
+/* -- your turn: the rows are buttons, and look it ------------------------- */
+
+/* On your call the stat rows wear a button's edge and drop; off it they are
+   print. The one screen where "which of these do I press" cost three turns. */
+.your-area--turn .card-stats {
+  gap: 0.22em;
+}
+
+.your-area--turn .stat-button {
+  border: 0.12em solid var(--ink-line);
+  border-radius: 0.3em;
+  background: var(--surface-raised);
+  box-shadow: 0 0.14em 0 var(--ink-line);
+}
+
+.your-area--turn .stat-row--hot .stat-button {
+  border-color: var(--surface-field);
+}
+
+.your-area--turn .card {
+  outline: 3px solid var(--tbl-accent);
+  outline-offset: 4px;
+}
+
+.called-panel--yours .called-stat {
+  color: var(--tbl-accent);
+}
+
+/* -- out of the game -------------------------------------------------------- */
+
+.out-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  border: var(--tbl-edge) solid var(--tbl-line);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+  color: var(--tbl-ink);
+  text-align: center;
+  box-shadow: var(--elevation-card);
+}
+
+.out-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-display);
+}
+
+.out-sub {
+  margin: 0;
+  font-weight: var(--weight-semibold);
+}
+
+.out-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: var(--weight-semibold);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* -- the reveal as a list --------------------------------------------------- */
+
+.reveal-values {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-sm);
+}
+
+.reveal-value {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.reveal-value-who {
+  flex: 0 0 5.5em;
+  font-weight: var(--weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reveal-value-card {
+  flex: 1;
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reveal-value--win {
+  background: var(--surface-field);
+  color: var(--text-on-field);
+}
+
+/* Four or more cards on a phone are ant-sized: the list is the reveal there. */
+@media (max-width: 767px) {
+  .reveal-cards--many {
+    display: none;
+  }
+}
+
+.setting-warning {
+  padding: var(--space-3) var(--space-4);
+  border: var(--edge) solid var(--ink-line);
+  border-radius: var(--radius-sm);
 }

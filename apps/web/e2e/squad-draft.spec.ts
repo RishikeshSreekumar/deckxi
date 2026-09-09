@@ -37,7 +37,7 @@ test("two browsers draft squads, name XIs and play the league", async ({ browser
   const code = (await host.locator(".lobby-code").innerText()).replace(/\s+/g, "");
 
   // Switch the room to Squad Draft; the trumps-only rows disappear.
-  await host.getByRole("button", { name: "Deck rules" }).click();
+  await host.getByRole("button", { name: "Match settings" }).click();
   await host.getByTestId("mode-squad-draft").click();
   await expect(host.getByTestId("mode-squad-draft")).toHaveAttribute("aria-checked", "true");
   await expect(host.getByText("Cards per player")).toHaveCount(0);

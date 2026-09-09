@@ -1,0 +1,31 @@
+/* Results-only additions: the log, the chat sheet's colours, placings. */
+.results-log {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  text-align: left;
+}
+
+.results-chat {
+  display: flex;
+  justify-content: center;
+  --tbl-paper: var(--surface-raised);
+  --tbl-line: var(--ink-line);
+  --tbl-edge: var(--edge);
+  --tbl-ink: var(--text-primary);
+  --tbl-muted: var(--text-secondary);
+  --tbl-inline: var(--space-6);
+}
+
+.standing-place {
+  flex: none;
+  min-width: 3ch;
+  text-align: left;
+}
+
+.standing-note {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  opacity: 0.8;
+}

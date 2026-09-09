@@ -3,7 +3,7 @@
  * hidden information — driven here with hand-built redacted event logs and a
  * cross-check against the real engine playing a full game.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { applyCommand, initGame, reduce, type GameState } from "@deckxi/engine";
 import type { RedactedGameEvent } from "@deckxi/shared";
 import { applyRedactedEvent, applyRedactedEvents, type ClientGameState } from "./clientGame.js";
@@ -112,6 +112,60 @@ describe("applyRedactedEvent", () => {
     expect(s.handCounts).toEqual({ a: 4, b: 0 });
     expect(s.pot).toEqual([]);
     expect(s.lastResolved?.potTaken).toBe(2);
+  });
+
+  it("passes the call one seat on, whoever won", () => {
+    let s = applyRedactedEvent(null, started(["c1", "c3"]), "a");
+    s = applyRedactedEvent(
+      s,
+      {
+        seq: 1,
+        type: "ROUND_RESOLVED",
+        round: 1,
+        stat: "runs",
+        revealed: [
+          { playerId: "a", cardId: "c1", value: 30 },
+          { playerId: "b", cardId: "c2", value: 20 },
+        ],
+        result: { kind: "won", winner: "a" },
+      },
+      "a",
+    );
+    expect(s.leader).toBe("b");
+    expect(s.history).toHaveLength(1);
+    expect(s.history[0]?.result).toEqual({ kind: "won", winner: "a" });
+  });
+
+  it("records the round a player went out in", () => {
+    let s = applyRedactedEvent(null, started(["c1", "c3"]), "a");
+    s = applyRedactedEvent(s, { seq: 1, type: "PLAYER_ELIMINATED", playerId: "b", round: 3 }, "a");
+    expect(s.eliminatedIn).toEqual({ b: 3 });
+  });
+
+  it("reports a reveal that cannot be right without refusing it", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    let s = applyRedactedEvent(null, started(["c1", "c3"]), "a");
+    s = applyRedactedEvent(
+      s,
+      {
+        seq: 1,
+        type: "ROUND_RESOLVED",
+        round: 1,
+        stat: "runs",
+        // b never played, and a "won" with the lower value.
+        revealed: [{ playerId: "a", cardId: "c1", value: 10 }],
+        result: { kind: "won", winner: "b" },
+      },
+      "a",
+    );
+    expect(s.round).toBe(2);
+    // The checks load on demand, so they land a tick after the event.
+    await vi.waitFor(() => {
+      const messages = spy.mock.calls.map((c) => String(c[0]));
+      expect(messages.some((m) => m.includes("b is in the game but played no card"))).toBe(true);
+      expect(messages.some((m) => m.includes("b took it on runs"))).toBe(true);
+    });
+    spy.mockRestore();
   });
 
   it("tracks a forfeited hidden hand as unknown pot cards", () => {
