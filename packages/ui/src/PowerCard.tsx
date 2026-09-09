@@ -10,11 +10,14 @@
  * drawn like the stat table so the two cards read as one deck. It scales from
  * its own width exactly like a TrumpCard, so `size` is the same vocabulary.
  */
-import { POWER_INFO, type PowerKindView } from "@deckxi/shared";
+import { powerInfo, type PowerKindView } from "@deckxi/shared";
+import { getEdition } from "./editions.js";
 import type { CardSize } from "./TrumpCard.js";
 
 export interface PowerCardProps {
   kind: PowerKindView;
+  /** The edition whose words to print it in; the defaults without one. */
+  editionId?: string | undefined;
   size?: CardSize;
   /** Spent this game — printed, not hidden, so the count stays readable. */
   spent?: boolean;
@@ -34,13 +37,14 @@ const POWER_COLOR: Record<PowerKindView, string> = {
 
 export function PowerCard({
   kind,
+  editionId,
   size = "full",
   spent = false,
   armed = false,
   onSelect,
   disabled = false,
 }: PowerCardProps) {
-  const info = POWER_INFO[kind];
+  const info = powerInfo(editionId === undefined ? null : getEdition(editionId), kind);
   const rows: [string, string][] = [
     ["When", info.when],
     ["If it works", info.win],

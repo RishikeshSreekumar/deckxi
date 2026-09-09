@@ -29,12 +29,18 @@ import {
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { editionSchema, type Edition, type Player } from "@deckxi/shared";
-import { CRICKET_MODES, CRICKET_ROLES, CRICKET_SPORT, type CricketRole } from "../cricket.js";
+import {
+  CRICKET_DECKS,
+  CRICKET_MODES,
+  CRICKET_ROLES,
+  CRICKET_SPORT,
+  type CricketRole,
+} from "../cricket.js";
 import { CURRENT_EDITION_ID, editionPath } from "../editions.js";
 import { analyzeBalance, formatBalanceReport } from "../balance.js";
 import { regenerateRatings } from "../rating.js";
 import { aggregateDirectory } from "../import/cricsheet.js";
-import { T20I_SELECTION, T20I_STATS } from "../import/config.js";
+import { T20I_SELECTION, T20I_STATS, T20I_STAT_GROUPS } from "../import/config.js";
 import { enrichPeople, type PersonInfo } from "../import/enrich.js";
 import { fetchAndCropPhoto, PHOTO_WIDTH } from "../import/photos.js";
 import { assignRarity, deriveStats, fitBounds, selectSquads, slugify } from "../import/select.js";
@@ -267,7 +273,9 @@ async function main(): Promise<void> {
     series: "Men's T20 internationals",
     supportedModes: CRICKET_MODES,
     stats,
+    statGroups: T20I_STAT_GROUPS,
     roles: CRICKET_ROLES,
+    decks: CRICKET_DECKS,
     teams: T20I_SELECTION.teams,
     players,
     sources: [

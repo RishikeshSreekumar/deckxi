@@ -1,0 +1,1121 @@
+{
+  "note": "Hand-curated WWE roster (#143). Reigns, WrestleMania wins, debut year and billed measurements are public record; mic skill and finisher impact are DeckXI's own 0-100 ratings. Photos are resolved from Wikimedia Commons by the importer.",
+  "wrestlers": [
+    {
+      "id": "roman-reigns",
+      "name": "Roman Reigns",
+      "teamId": "smackdown",
+      "role": "main-eventer",
+      "nationality": "United States",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 6,
+        "titleDays": 1316,
+        "maniaWins": 6,
+        "debutYear": 2010,
+        "micSkill": 88,
+        "impact": 92,
+        "heightCm": 191,
+        "weightKg": 120
+      }
+    },
+    {
+      "id": "cody-rhodes",
+      "name": "Cody Rhodes",
+      "teamId": "raw",
+      "role": "main-eventer",
+      "nationality": "United States",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 217,
+        "maniaWins": 5,
+        "debutYear": 2006,
+        "micSkill": 90,
+        "impact": 85,
+        "heightCm": 185,
+        "weightKg": 100
+      }
+    },
+    {
+      "id": "seth-rollins",
+      "name": "Seth Rollins",
+      "teamId": "raw",
+      "role": "high-flyer",
+      "nationality": "United States",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 6,
+        "titleDays": 220,
+        "maniaWins": 6,
+        "debutYear": 2005,
+        "micSkill": 92,
+        "impact": 88,
+        "heightCm": 185,
+        "weightKg": 98
+      }
+    },
+    {
+      "id": "cm-punk",
+      "name": "CM Punk",
+      "teamId": "raw",
+      "role": "technician",
+      "nationality": "United States",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 5,
+        "titleDays": 434,
+        "maniaWins": 3,
+        "debutYear": 1999,
+        "micSkill": 97,
+        "impact": 84,
+        "heightCm": 188,
+        "weightKg": 98
+      }
+    },
+    {
+      "id": "randy-orton",
+      "name": "Randy Orton",
+      "teamId": "smackdown",
+      "role": "technician",
+      "nationality": "United States",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 14,
+        "titleDays": 210,
+        "maniaWins": 8,
+        "debutYear": 2000,
+        "micSkill": 85,
+        "impact": 90,
+        "heightCm": 196,
+        "weightKg": 113
+      }
+    },
+    {
+      "id": "john-cena",
+      "name": "John Cena",
+      "teamId": "raw",
+      "role": "main-eventer",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 16,
+        "titleDays": 380,
+        "maniaWins": 9,
+        "debutYear": 1999,
+        "micSkill": 93,
+        "impact": 88,
+        "heightCm": 185,
+        "weightKg": 114
+      }
+    },
+    {
+      "id": "brock-lesnar",
+      "name": "Brock Lesnar",
+      "teamId": "legends",
+      "role": "powerhouse",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 10,
+        "titleDays": 224,
+        "maniaWins": 6,
+        "debutYear": 2002,
+        "micSkill": 60,
+        "impact": 99,
+        "heightCm": 191,
+        "weightKg": 130
+      }
+    },
+    {
+      "id": "drew-mcintyre",
+      "name": "Drew McIntyre",
+      "teamId": "raw",
+      "role": "powerhouse",
+      "nationality": "Scotland",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 202,
+        "maniaWins": 2,
+        "debutYear": 2001,
+        "micSkill": 86,
+        "impact": 90,
+        "heightCm": 196,
+        "weightKg": 120
+      }
+    },
+    {
+      "id": "gunther",
+      "name": "Gunther",
+      "teamId": "raw",
+      "role": "powerhouse",
+      "nationality": "Austria",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 112,
+        "maniaWins": 1,
+        "debutYear": 2005,
+        "micSkill": 78,
+        "impact": 93,
+        "heightCm": 198,
+        "weightKg": 133
+      }
+    },
+    {
+      "id": "damian-priest",
+      "name": "Damian Priest",
+      "teamId": "smackdown",
+      "role": "powerhouse",
+      "nationality": "United States",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 110,
+        "maniaWins": 2,
+        "debutYear": 2004,
+        "micSkill": 80,
+        "impact": 85,
+        "heightCm": 201,
+        "weightKg": 111
+      }
+    },
+    {
+      "id": "la-knight",
+      "name": "LA Knight",
+      "teamId": "smackdown",
+      "role": "main-eventer",
+      "nationality": "United States",
+      "rarity": "regular",
+      "stats": {
+        "worldTitles": 0,
+        "titleDays": 0,
+        "maniaWins": 1,
+        "debutYear": 2003,
+        "micSkill": 94,
+        "impact": 78,
+        "heightCm": 185,
+        "weightKg": 105
+      }
+    },
+    {
+      "id": "jey-uso",
+      "name": "Jey Uso",
+      "teamId": "raw",
+      "role": "high-flyer",
+      "nationality": "United States",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 91,
+        "maniaWins": 3,
+        "debutYear": 2007,
+        "micSkill": 82,
+        "impact": 80,
+        "heightCm": 185,
+        "weightKg": 114
+      }
+    },
+    {
+      "id": "jimmy-uso",
+      "name": "Jimmy Uso",
+      "teamId": "smackdown",
+      "role": "high-flyer",
+      "nationality": "United States",
+      "rarity": "regular",
+      "stats": {
+        "worldTitles": 0,
+        "titleDays": 0,
+        "maniaWins": 2,
+        "debutYear": 2007,
+        "micSkill": 76,
+        "impact": 78,
+        "heightCm": 185,
+        "weightKg": 114
+      }
+    },
+    {
+      "id": "solo-sikoa",
+      "name": "Solo Sikoa",
+      "teamId": "smackdown",
+      "role": "powerhouse",
+      "nationality": "United States",
+      "rarity": "regular",
+      "stats": {
+        "worldTitles": 0,
+        "titleDays": 0,
+        "maniaWins": 1,
+        "debutYear": 2021,
+        "micSkill": 68,
+        "impact": 84,
+        "heightCm": 188,
+        "weightKg": 116
+      }
+    },
+    {
+      "id": "kevin-owens",
+      "name": "Kevin Owens",
+      "teamId": "smackdown",
+      "role": "powerhouse",
+      "nationality": "Canada",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 188,
+        "maniaWins": 2,
+        "debutYear": 2000,
+        "micSkill": 93,
+        "impact": 87,
+        "heightCm": 183,
+        "weightKg": 120
+      }
+    },
+    {
+      "id": "sami-zayn",
+      "name": "Sami Zayn",
+      "teamId": "raw",
+      "role": "technician",
+      "nationality": "Canada",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 0,
+        "titleDays": 0,
+        "maniaWins": 3,
+        "debutYear": 2002,
+        "micSkill": 90,
+        "impact": 80,
+        "heightCm": 185,
+        "weightKg": 96
+      }
+    },
+    {
+      "id": "aj-styles",
+      "name": "AJ Styles",
+      "teamId": "smackdown",
+      "role": "technician",
+      "nationality": "United States",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 371,
+        "maniaWins": 3,
+        "debutYear": 1998,
+        "micSkill": 80,
+        "impact": 92,
+        "heightCm": 180,
+        "weightKg": 99
+      }
+    },
+    {
+      "id": "finn-balor",
+      "name": "Finn Bálor",
+      "teamId": "raw",
+      "role": "high-flyer",
+      "nationality": "Ireland",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 1,
+        "maniaWins": 2,
+        "debutYear": 2000,
+        "micSkill": 79,
+        "impact": 86,
+        "heightCm": 180,
+        "weightKg": 86
+      }
+    },
+    {
+      "id": "bron-breakker",
+      "name": "Bron Breakker",
+      "teamId": "raw",
+      "role": "powerhouse",
+      "nationality": "United States",
+      "rarity": "regular",
+      "stats": {
+        "worldTitles": 0,
+        "titleDays": 259,
+        "maniaWins": 1,
+        "debutYear": 2021,
+        "micSkill": 72,
+        "impact": 90,
+        "heightCm": 190,
+        "weightKg": 116
+      }
+    },
+    {
+      "id": "chad-gable",
+      "name": "Chad Gable",
+      "teamId": "raw",
+      "role": "technician",
+      "nationality": "United States",
+      "rarity": "regular",
+      "stats": {
+        "worldTitles": 0,
+        "titleDays": 0,
+        "maniaWins": 1,
+        "debutYear": 2013,
+        "micSkill": 84,
+        "impact": 82,
+        "heightCm": 173,
+        "weightKg": 91
+      }
+    },
+    {
+      "id": "rhea-ripley",
+      "name": "Rhea Ripley",
+      "teamId": "raw",
+      "role": "powerhouse",
+      "nationality": "Australia",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 380,
+        "maniaWins": 3,
+        "debutYear": 2013,
+        "micSkill": 84,
+        "impact": 91,
+        "heightCm": 173,
+        "weightKg": 62
+      }
+    },
+    {
+      "id": "bianca-belair",
+      "name": "Bianca Belair",
+      "teamId": "smackdown",
+      "role": "powerhouse",
+      "nationality": "United States",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 3,
+        "titleDays": 420,
+        "maniaWins": 4,
+        "debutYear": 2016,
+        "micSkill": 86,
+        "impact": 88,
+        "heightCm": 170,
+        "weightKg": 60
+      }
+    },
+    {
+      "id": "becky-lynch",
+      "name": "Becky Lynch",
+      "teamId": "raw",
+      "role": "technician",
+      "nationality": "Ireland",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 7,
+        "titleDays": 398,
+        "maniaWins": 4,
+        "debutYear": 2002,
+        "micSkill": 93,
+        "impact": 85,
+        "heightCm": 168,
+        "weightKg": 61
+      }
+    },
+    {
+      "id": "charlotte-flair",
+      "name": "Charlotte Flair",
+      "teamId": "smackdown",
+      "role": "technician",
+      "nationality": "United States",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 14,
+        "titleDays": 148,
+        "maniaWins": 5,
+        "debutYear": 2012,
+        "micSkill": 87,
+        "impact": 89,
+        "heightCm": 180,
+        "weightKg": 65
+      }
+    },
+    {
+      "id": "bayley",
+      "name": "Bayley",
+      "teamId": "smackdown",
+      "role": "technician",
+      "nationality": "United States",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 4,
+        "titleDays": 380,
+        "maniaWins": 3,
+        "debutYear": 2008,
+        "micSkill": 85,
+        "impact": 82,
+        "heightCm": 165,
+        "weightKg": 54
+      }
+    },
+    {
+      "id": "asuka",
+      "name": "Asuka",
+      "teamId": "smackdown",
+      "role": "technician",
+      "nationality": "Japan",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 3,
+        "titleDays": 510,
+        "maniaWins": 2,
+        "debutYear": 2004,
+        "micSkill": 70,
+        "impact": 89,
+        "heightCm": 160,
+        "weightKg": 61
+      }
+    },
+    {
+      "id": "iyo-sky",
+      "name": "Iyo Sky",
+      "teamId": "raw",
+      "role": "high-flyer",
+      "nationality": "Japan",
+      "rarity": "star",
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 168,
+        "maniaWins": 2,
+        "debutYear": 2007,
+        "micSkill": 66,
+        "impact": 90,
+        "heightCm": 155,
+        "weightKg": 54
+      }
+    },
+    {
+      "id": "liv-morgan",
+      "name": "Liv Morgan",
+      "teamId": "raw",
+      "role": "high-flyer",
+      "nationality": "United States",
+      "rarity": "regular",
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 154,
+        "maniaWins": 2,
+        "debutYear": 2014,
+        "micSkill": 80,
+        "impact": 76,
+        "heightCm": 160,
+        "weightKg": 54
+      }
+    },
+    {
+      "id": "jade-cargill",
+      "name": "Jade Cargill",
+      "teamId": "smackdown",
+      "role": "powerhouse",
+      "nationality": "United States",
+      "rarity": "regular",
+      "stats": {
+        "worldTitles": 0,
+        "titleDays": 0,
+        "maniaWins": 1,
+        "debutYear": 2021,
+        "micSkill": 74,
+        "impact": 86,
+        "heightCm": 178,
+        "weightKg": 72
+      }
+    },
+    {
+      "id": "tiffany-stratton",
+      "name": "Tiffany Stratton",
+      "teamId": "smackdown",
+      "role": "high-flyer",
+      "nationality": "United States",
+      "rarity": "regular",
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 112,
+        "maniaWins": 1,
+        "debutYear": 2021,
+        "micSkill": 78,
+        "impact": 80,
+        "heightCm": 168,
+        "weightKg": 57
+      }
+    },
+    {
+      "id": "nia-jax",
+      "name": "Nia Jax",
+      "teamId": "smackdown",
+      "role": "powerhouse",
+      "nationality": "United States",
+      "rarity": "regular",
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 133,
+        "maniaWins": 2,
+        "debutYear": 2014,
+        "micSkill": 72,
+        "impact": 88,
+        "heightCm": 183,
+        "weightKg": 122
+      }
+    },
+    {
+      "id": "ilja-dragunov",
+      "name": "Ilja Dragunov",
+      "teamId": "nxt",
+      "role": "technician",
+      "nationality": "Germany",
+      "rarity": "regular",
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 168,
+        "maniaWins": 0,
+        "debutYear": 2011,
+        "micSkill": 74,
+        "impact": 88,
+        "heightCm": 178,
+        "weightKg": 89
+      }
+    },
+    {
+      "id": "oba-femi",
+      "name": "Oba Femi",
+      "teamId": "nxt",
+      "role": "powerhouse",
+      "nationality": "Nigeria",
+      "rarity": "regular",
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 210,
+        "maniaWins": 0,
+        "debutYear": 2022,
+        "micSkill": 66,
+        "impact": 92,
+        "heightCm": 196,
+        "weightKg": 125
+      }
+    },
+    {
+      "id": "trick-williams",
+      "name": "Trick Williams",
+      "teamId": "nxt",
+      "role": "high-flyer",
+      "nationality": "United States",
+      "rarity": "regular",
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 152,
+        "maniaWins": 0,
+        "debutYear": 2021,
+        "micSkill": 84,
+        "impact": 80,
+        "heightCm": 188,
+        "weightKg": 105
+      }
+    },
+    {
+      "id": "ethan-page",
+      "name": "Ethan Page",
+      "teamId": "nxt",
+      "role": "technician",
+      "nationality": "Canada",
+      "rarity": "regular",
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 105,
+        "maniaWins": 0,
+        "debutYear": 2007,
+        "micSkill": 78,
+        "impact": 76,
+        "heightCm": 188,
+        "weightKg": 100
+      }
+    },
+    {
+      "id": "jevon-evans",
+      "name": "Je'Von Evans",
+      "teamId": "nxt",
+      "role": "high-flyer",
+      "nationality": "United States",
+      "rarity": "regular",
+      "stats": {
+        "worldTitles": 0,
+        "titleDays": 0,
+        "maniaWins": 0,
+        "debutYear": 2022,
+        "micSkill": 70,
+        "impact": 82,
+        "heightCm": 180,
+        "weightKg": 79
+      }
+    },
+    {
+      "id": "roxanne-perez",
+      "name": "Roxanne Perez",
+      "teamId": "nxt",
+      "role": "technician",
+      "nationality": "United States",
+      "rarity": "regular",
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 217,
+        "maniaWins": 0,
+        "debutYear": 2019,
+        "micSkill": 76,
+        "impact": 78,
+        "heightCm": 157,
+        "weightKg": 52
+      }
+    },
+    {
+      "id": "giulia",
+      "name": "Giulia",
+      "teamId": "nxt",
+      "role": "technician",
+      "nationality": "Japan",
+      "rarity": "regular",
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 126,
+        "maniaWins": 0,
+        "debutYear": 2018,
+        "micSkill": 72,
+        "impact": 86,
+        "heightCm": 168,
+        "weightKg": 57
+      }
+    },
+    {
+      "id": "the-undertaker",
+      "name": "The Undertaker",
+      "teamId": "legends",
+      "role": "powerhouse",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 7,
+        "titleDays": 280,
+        "maniaWins": 25,
+        "debutYear": 1987,
+        "micSkill": 85,
+        "impact": 97,
+        "heightCm": 208,
+        "weightKg": 136
+      }
+    },
+    {
+      "id": "steve-austin",
+      "name": "Stone Cold Steve Austin",
+      "teamId": "legends",
+      "role": "main-eventer",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 6,
+        "titleDays": 175,
+        "maniaWins": 5,
+        "debutYear": 1989,
+        "micSkill": 99,
+        "impact": 92,
+        "heightCm": 188,
+        "weightKg": 114
+      }
+    },
+    {
+      "id": "the-rock",
+      "name": "The Rock",
+      "teamId": "legends",
+      "role": "main-eventer",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 10,
+        "titleDays": 119,
+        "maniaWins": 5,
+        "debutYear": 1996,
+        "micSkill": 100,
+        "impact": 90,
+        "heightCm": 196,
+        "weightKg": 118
+      }
+    },
+    {
+      "id": "hulk-hogan",
+      "name": "Hulk Hogan",
+      "teamId": "legends",
+      "role": "powerhouse",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 12,
+        "titleDays": 1474,
+        "maniaWins": 7,
+        "debutYear": 1977,
+        "micSkill": 95,
+        "impact": 88,
+        "heightCm": 201,
+        "weightKg": 137
+      }
+    },
+    {
+      "id": "ric-flair",
+      "name": "Ric Flair",
+      "teamId": "legends",
+      "role": "technician",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 16,
+        "titleDays": 795,
+        "maniaWins": 3,
+        "debutYear": 1972,
+        "micSkill": 96,
+        "impact": 85,
+        "heightCm": 185,
+        "weightKg": 110
+      }
+    },
+    {
+      "id": "shawn-michaels",
+      "name": "Shawn Michaels",
+      "teamId": "legends",
+      "role": "high-flyer",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 4,
+        "titleDays": 231,
+        "maniaWins": 6,
+        "debutYear": 1984,
+        "micSkill": 92,
+        "impact": 96,
+        "heightCm": 185,
+        "weightKg": 102
+      }
+    },
+    {
+      "id": "triple-h",
+      "name": "Triple H",
+      "teamId": "legends",
+      "role": "main-eventer",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 14,
+        "titleDays": 280,
+        "maniaWins": 8,
+        "debutYear": 1992,
+        "micSkill": 91,
+        "impact": 89,
+        "heightCm": 193,
+        "weightKg": 116
+      }
+    },
+    {
+      "id": "bret-hart",
+      "name": "Bret Hart",
+      "teamId": "legends",
+      "role": "technician",
+      "nationality": "Canada",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 7,
+        "titleDays": 245,
+        "maniaWins": 4,
+        "debutYear": 1976,
+        "micSkill": 82,
+        "impact": 94,
+        "heightCm": 183,
+        "weightKg": 106
+      }
+    },
+    {
+      "id": "randy-savage",
+      "name": "Randy Savage",
+      "teamId": "legends",
+      "role": "high-flyer",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 6,
+        "titleDays": 371,
+        "maniaWins": 5,
+        "debutYear": 1973,
+        "micSkill": 94,
+        "impact": 92,
+        "heightCm": 180,
+        "weightKg": 112
+      }
+    },
+    {
+      "id": "andre-the-giant",
+      "name": "André the Giant",
+      "teamId": "legends",
+      "role": "powerhouse",
+      "nationality": "France",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 1,
+        "maniaWins": 3,
+        "debutYear": 1963,
+        "micSkill": 60,
+        "impact": 95,
+        "heightCm": 224,
+        "weightKg": 240
+      }
+    },
+    {
+      "id": "mick-foley",
+      "name": "Mick Foley",
+      "teamId": "legends",
+      "role": "powerhouse",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 4,
+        "titleDays": 27,
+        "maniaWins": 2,
+        "debutYear": 1983,
+        "micSkill": 88,
+        "impact": 85,
+        "heightCm": 188,
+        "weightKg": 130
+      }
+    },
+    {
+      "id": "eddie-guerrero",
+      "name": "Eddie Guerrero",
+      "teamId": "legends",
+      "role": "high-flyer",
+      "nationality": "Mexico",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 133,
+        "maniaWins": 3,
+        "debutYear": 1987,
+        "micSkill": 88,
+        "impact": 93,
+        "heightCm": 173,
+        "weightKg": 100
+      }
+    },
+    {
+      "id": "rey-mysterio",
+      "name": "Rey Mysterio",
+      "teamId": "smackdown",
+      "role": "high-flyer",
+      "nationality": "Mexico",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 3,
+        "titleDays": 112,
+        "maniaWins": 5,
+        "debutYear": 1989,
+        "micSkill": 78,
+        "impact": 94,
+        "heightCm": 168,
+        "weightKg": 79
+      }
+    },
+    {
+      "id": "kurt-angle",
+      "name": "Kurt Angle",
+      "teamId": "legends",
+      "role": "technician",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 6,
+        "titleDays": 126,
+        "maniaWins": 4,
+        "debutYear": 1998,
+        "micSkill": 84,
+        "impact": 95,
+        "heightCm": 183,
+        "weightKg": 100
+      }
+    },
+    {
+      "id": "big-show",
+      "name": "Big Show",
+      "teamId": "legends",
+      "role": "powerhouse",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 7,
+        "titleDays": 71,
+        "maniaWins": 3,
+        "debutYear": 1995,
+        "micSkill": 74,
+        "impact": 88,
+        "heightCm": 213,
+        "weightKg": 175
+      }
+    },
+    {
+      "id": "kane",
+      "name": "Kane",
+      "teamId": "legends",
+      "role": "powerhouse",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 3,
+        "titleDays": 1,
+        "maniaWins": 7,
+        "debutYear": 1992,
+        "micSkill": 70,
+        "impact": 87,
+        "heightCm": 208,
+        "weightKg": 147
+      }
+    },
+    {
+      "id": "batista",
+      "name": "Batista",
+      "teamId": "legends",
+      "role": "powerhouse",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 6,
+        "titleDays": 282,
+        "maniaWins": 4,
+        "debutYear": 2000,
+        "micSkill": 80,
+        "impact": 90,
+        "heightCm": 198,
+        "weightKg": 130
+      }
+    },
+    {
+      "id": "edge",
+      "name": "Edge",
+      "teamId": "legends",
+      "role": "technician",
+      "nationality": "Canada",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 11,
+        "titleDays": 154,
+        "maniaWins": 5,
+        "debutYear": 1992,
+        "micSkill": 88,
+        "impact": 87,
+        "heightCm": 191,
+        "weightKg": 109
+      }
+    },
+    {
+      "id": "jeff-hardy",
+      "name": "Jeff Hardy",
+      "teamId": "legends",
+      "role": "high-flyer",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 3,
+        "titleDays": 84,
+        "maniaWins": 4,
+        "debutYear": 1993,
+        "micSkill": 68,
+        "impact": 90,
+        "heightCm": 185,
+        "weightKg": 96
+      }
+    },
+    {
+      "id": "trish-stratus",
+      "name": "Trish Stratus",
+      "teamId": "legends",
+      "role": "technician",
+      "nationality": "Canada",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 7,
+        "titleDays": 448,
+        "maniaWins": 2,
+        "debutYear": 1999,
+        "micSkill": 84,
+        "impact": 82,
+        "heightCm": 163,
+        "weightKg": 57
+      }
+    },
+    {
+      "id": "lita",
+      "name": "Lita",
+      "teamId": "legends",
+      "role": "high-flyer",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 4,
+        "titleDays": 133,
+        "maniaWins": 2,
+        "debutYear": 1999,
+        "micSkill": 76,
+        "impact": 85,
+        "heightCm": 168,
+        "weightKg": 61
+      }
+    },
+    {
+      "id": "ultimate-warrior",
+      "name": "Ultimate Warrior",
+      "teamId": "legends",
+      "role": "powerhouse",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 293,
+        "maniaWins": 3,
+        "debutYear": 1985,
+        "micSkill": 78,
+        "impact": 88,
+        "heightCm": 196,
+        "weightKg": 127
+      }
+    },
+    {
+      "id": "bruno-sammartino",
+      "name": "Bruno Sammartino",
+      "teamId": "legends",
+      "role": "powerhouse",
+      "nationality": "Italy",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 2803,
+        "maniaWins": 0,
+        "debutYear": 1959,
+        "micSkill": 74,
+        "impact": 88,
+        "heightCm": 178,
+        "weightKg": 120
+      }
+    },
+    {
+      "id": "bob-backlund",
+      "name": "Bob Backlund",
+      "teamId": "legends",
+      "role": "technician",
+      "nationality": "United States",
+      "rarity": "legend",
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 2135,
+        "maniaWins": 1,
+        "debutYear": 1973,
+        "micSkill": 70,
+        "impact": 80,
+        "heightCm": 185,
+        "weightKg": 107
+      }
+    }
+  ]
+}

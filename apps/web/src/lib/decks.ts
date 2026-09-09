@@ -7,35 +7,44 @@
  * game: the server is the one that decides which deck is dealt.
  */
 import { useEffect, useState } from "react";
-import { BUILT_IN_DECKS, deckPool, type DeckSummary } from "@deckxi/shared";
-import { getEdition, DEFAULT_EDITION_ID } from "@deckxi/ui";
+import { deckPool, editionDecks, type DeckSummary } from "@deckxi/shared";
+import { DEFAULT_EDITION_ID } from "@deckxi/ui";
+import type { Edition } from "@deckxi/shared";
 import { API_URL } from "./socket.js";
+import { useEdition } from "./editions.js";
 
-function builtInCatalogue(editionId: string): DeckSummary[] {
-  const edition = getEdition(editionId) ?? getEdition(DEFAULT_EDITION_ID);
-  return BUILT_IN_DECKS.map((deck) => ({
+/** The edition's own decks, which is what the client renders until the fetch lands. */
+function builtInCatalogue(edition: Edition | null): DeckSummary[] {
+  if (edition === null) return [];
+  return editionDecks(edition).map((deck) => ({
     id: deck.id,
     name: deck.name,
     blurb: deck.blurb,
-    cardCount: edition === null ? 0 : deckPool(edition, deck).length,
+    cardCount: deckPool(edition, deck).length,
     enabled: true,
   }));
 }
 
-/** One fetch per page load, shared by every caller. */
-let inFlight: Promise<DeckSummary[]> | null = null;
+/** One fetch per edition per page load, shared by every caller. */
+const inFlight = new Map<string, Promise<DeckSummary[]>>();
 
-export async function fetchDecks(): Promise<DeckSummary[]> {
-  inFlight ??= (async () => {
-    const response = await fetch(`${API_URL}/api/decks`);
-    if (!response.ok) throw new Error(`decks failed (${response.status})`);
-    const body = (await response.json()) as { decks: DeckSummary[] };
-    return body.decks;
-  })().catch((error: unknown) => {
-    inFlight = null;
-    throw error;
-  });
-  return inFlight;
+export async function fetchDecks(editionId: string = DEFAULT_EDITION_ID): Promise<DeckSummary[]> {
+  // Decks belong to an edition (#143): a WWE room must not be offered the
+  // cricket catalogue, so the id travels with the request.
+  const pending =
+    inFlight.get(editionId) ??
+    (async () => {
+      const query = `?edition=${encodeURIComponent(editionId)}`;
+      const response = await fetch(`${API_URL}/api/decks${query}`);
+      if (!response.ok) throw new Error(`decks failed (${response.status})`);
+      const body = (await response.json()) as { decks: DeckSummary[] };
+      return body.decks;
+    })().catch((error: unknown) => {
+      inFlight.delete(editionId);
+      throw error;
+    });
+  inFlight.set(editionId, pending);
+  return await pending;
 }
 
 /**
@@ -43,11 +52,13 @@ export async function fetchDecks(): Promise<DeckSummary[]> {
  * has names in it.
  */
 export function useDecks(editionId: string = DEFAULT_EDITION_ID): DeckSummary[] {
-  const [decks, setDecks] = useState<DeckSummary[]>(() => builtInCatalogue(editionId));
+  const edition = useEdition(editionId);
+  const [decks, setDecks] = useState<DeckSummary[]>(() => builtInCatalogue(edition));
 
   useEffect(() => {
+    setDecks(builtInCatalogue(edition));
     let live = true;
-    fetchDecks()
+    fetchDecks(editionId)
       .then((list) => {
         if (live && list.length > 0) setDecks(list);
       })
@@ -55,7 +66,7 @@ export function useDecks(editionId: string = DEFAULT_EDITION_ID): DeckSummary[] 
     return () => {
       live = false;
     };
-  }, []);
+  }, [editionId, edition]);
 
   return decks;
 }

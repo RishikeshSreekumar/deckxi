@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  POWER_INFO,
+  powerInfo,
   chatSendSchema,
   clientMessageSchemas,
   createRoomSchema,
@@ -96,5 +98,32 @@ describe("protocol schemas", () => {
         "room:start",
       ].sort(),
     );
+  });
+});
+
+describe("power copy", () => {
+  it("prints the defaults when the edition renames nothing", () => {
+    expect(powerInfo(null, "powerplay").name).toBe(POWER_INFO.powerplay.name);
+    expect(powerInfo({ powers: undefined }, "drs")).toEqual(POWER_INFO.drs);
+  });
+
+  it("takes the edition's words when it has its own (#143)", () => {
+    const edition = {
+      powers: {
+        powerplay: {
+          name: "Run-In",
+          short: "RUN",
+          tag: "the numbers game",
+          blurb: "Help arrives.",
+          when: "With your card.",
+          win: "One extra from everyone you beat.",
+          fail: "Give one extra away.",
+        },
+      },
+    };
+    expect(powerInfo(edition, "powerplay").name).toBe("Run-In");
+    expect(powerInfo(edition, "powerplay").short).toBe("RUN");
+    // A power it says nothing about keeps the original.
+    expect(powerInfo(edition, "super-over").name).toBe(POWER_INFO["super-over"].name);
   });
 });

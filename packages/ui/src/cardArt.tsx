@@ -55,6 +55,31 @@ export function RoleIcon({ role }: { role: PlayerRoleId }) {
           <path d="M13 2 5 14h5l-1 8 8-12h-5z" />
         </svg>
       );
+    case "belt":
+      // Championship belt: strap with a centre plate.
+      return (
+        <svg {...common}>
+          <rect x="1" y="9" width="22" height="6" rx="2" />
+          <circle cx="12" cy="12" r="5.5" />
+          <circle cx="12" cy="12" r="2.6" fill="var(--team-color, #1d4137)" />
+        </svg>
+      );
+    case "mic":
+      // Microphone: capsule, stem and base.
+      return (
+        <svg {...common}>
+          <rect x="9" y="2" width="6" height="11" rx="3" />
+          <path
+            d="M6 11a6 6 0 0 0 12 0"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
+          <rect x="11.1" y="16" width="1.8" height="4" rx="0.9" />
+          <rect x="8" y="20" width="8" height="1.8" rx="0.9" />
+        </svg>
+      );
     default:
       // A role this build has no art for: a plain figure.
       return (

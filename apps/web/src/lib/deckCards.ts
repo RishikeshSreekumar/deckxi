@@ -5,14 +5,15 @@
  * never heard of (#142), and the server's answer is what the game deals.
  */
 import { useEffect, useState } from "react";
-import { BUILT_IN_DECKS, deckPool, type Player } from "@deckxi/shared";
+import { deckPool, editionDecks, type Player } from "@deckxi/shared";
 import { getEdition } from "@deckxi/ui";
 import { API_URL } from "./socket.js";
 
 function builtInCards(editionId: string, deckId: string): Player[] | null {
   const edition = getEdition(editionId);
-  const deck = BUILT_IN_DECKS.find((d) => d.id === deckId);
-  if (edition === null || deck === undefined) return null;
+  if (edition === null) return null;
+  const deck = editionDecks(edition).find((d) => d.id === deckId);
+  if (deck === undefined) return null;
   return deckPool(edition, deck);
 }
 
@@ -24,7 +25,9 @@ export function useDeckCards(editionId: string, deckId: string): Player[] {
     let live = true;
     void (async () => {
       try {
-        const response = await fetch(`${API_URL}/api/decks/${encodeURIComponent(deckId)}/cards`);
+        const response = await fetch(
+          `${API_URL}/api/decks/${encodeURIComponent(deckId)}/cards?edition=${encodeURIComponent(editionId)}`,
+        );
         if (!response.ok) return;
         const body = (await response.json()) as { cardIds: string[] };
         const edition = getEdition(editionId);

@@ -11,6 +11,53 @@ const bundled: Record<string, unknown> = {
 };
 
 /**
+ * Editions this build can fetch on demand (#143). Only the default one is in
+ * the initial payload: a second edition is another 12 kB of gzipped JSON for
+ * a deck most sessions never open, and the perf budget is the reason the
+ * lobby loads as fast as it does. `ensureEdition` pulls one in when a room,
+ * a deck page or a credits page actually names it.
+ */
+const fetchable: Record<string, () => Promise<{ default: unknown }>> = {
+  "edition-wwe-2026-q4": () => import("@deckxi/data/editions/edition-wwe-2026-q4.json"),
+};
+
+const listeners = new Set<() => void>();
+
+/** Told when an edition finishes loading, so a screen can render its cards. */
+export function subscribeEditions(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/** Every edition id this build can show, loaded or not. */
+export function knownEditionIds(): string[] {
+  return [...new Set([...Object.keys(bundled), ...Object.keys(fetchable)])].sort();
+}
+
+const loading = new Map<string, Promise<Edition | null>>();
+
+/**
+ * The edition, fetching it first if this build has it but has not loaded it.
+ * Resolves to null for an id nobody bundled — the card fallback's job.
+ */
+export async function ensureEdition(editionId: string): Promise<Edition | null> {
+  const already = getEdition(editionId);
+  if (already !== null) return already;
+  const load = fetchable[editionId];
+  if (load === undefined) return null;
+  const pending =
+    loading.get(editionId) ??
+    load().then((module) => {
+      registerEdition(editionId, module.default);
+      const edition = getEdition(editionId);
+      for (const listener of listeners) listener();
+      return edition;
+    });
+  loading.set(editionId, pending);
+  return await pending;
+}
+
+/**
  * Make another edition resolvable at runtime — how the visual-regression
  * build adds the fictional fixture without shipping it to players.
  */

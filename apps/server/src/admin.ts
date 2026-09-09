@@ -21,6 +21,7 @@
  * an action that ends someone's game should never be anonymous.
  */
 import type { FastifyInstance, FastifyRequest } from "fastify";
+import { CURRENT_EDITION_ID } from "@deckxi/data";
 import { userFromHeaders, type Auth } from "./auth.js";
 import type { GameInstance, Room, RoomManager } from "./rooms.js";
 import type { Logger } from "./logging.js";
@@ -346,6 +347,14 @@ export function registerAdminRoutes(fastify: FastifyInstance, options: AdminRout
 
   const decks = options.decks;
 
+  /**
+   * Which edition's decks an admin call is about (#143). Decks belong to one
+   * edition — "Bowlers' Union" means nothing to a wrestling deck — and the
+   * console names it in the query string; omitting it means the current one.
+   */
+  const deckEdition = (request: FastifyRequest): string =>
+    (request.query as { edition?: string }).edition ?? CURRENT_EDITION_ID;
+
   /** A rejected edit is the operator's mistake, not a server fault: 400, with why. */
   const deckWrite = async (
     request: FastifyRequest,
@@ -359,7 +368,7 @@ export function registerAdminRoutes(fastify: FastifyInstance, options: AdminRout
         { event: "admin.deck_write", what, by: access.email ?? access.via, reqId: request.id },
         "deck catalogue changed by an operator",
       );
-      return { ok: true, deck: result ?? null, decks: decks.list() };
+      return { ok: true, deck: result ?? null, decks: decks.list(deckEdition(request)) };
     } catch (error) {
       if (error instanceof DeckError) return { ok: false, error: error.message };
       throw error;
@@ -368,13 +377,21 @@ export function registerAdminRoutes(fastify: FastifyInstance, options: AdminRout
 
   fastify.get(
     "/api/admin/decks",
-    admin(() => ({ decks: decks.list().map((deck) => ({ ...deck, ...decks.summarise(deck) })) })),
+    admin((request) => {
+      const editionId = deckEdition(request);
+      return {
+        editionId,
+        decks: decks
+          .list(editionId)
+          .map((deck) => ({ ...deck, ...decks.summarise(deck, editionId) })),
+      };
+    }),
   );
 
   fastify.post(
     "/api/admin/decks",
     admin(async (request, access) =>
-      deckWrite(request, access, "create", () => decks.create(request.body)),
+      deckWrite(request, access, "create", () => decks.create(request.body, deckEdition(request))),
     ),
   );
 
@@ -382,7 +399,9 @@ export function registerAdminRoutes(fastify: FastifyInstance, options: AdminRout
     "/api/admin/decks/:id",
     admin(async (request, access) => {
       const { id } = request.params as { id: string };
-      return deckWrite(request, access, `patch ${id}`, () => decks.update(id, request.body));
+      return deckWrite(request, access, `patch ${id}`, () =>
+        decks.update(id, request.body, deckEdition(request)),
+      );
     }),
   );
 
@@ -391,7 +410,9 @@ export function registerAdminRoutes(fastify: FastifyInstance, options: AdminRout
     admin(async (request, access) => {
       const { id } = request.params as { id: string };
       const { cardIds } = (request.body ?? {}) as { cardIds?: unknown };
-      return deckWrite(request, access, `cards ${id}`, () => decks.setCards(id, cardIds ?? null));
+      return deckWrite(request, access, `cards ${id}`, () =>
+        decks.setCards(id, cardIds ?? null, deckEdition(request)),
+      );
     }),
   );
 
@@ -400,7 +421,7 @@ export function registerAdminRoutes(fastify: FastifyInstance, options: AdminRout
     admin(async (request, access) => {
       const { id } = request.params as { id: string };
       return deckWrite(request, access, `delete ${id}`, async () => {
-        await decks.remove(id);
+        await decks.remove(id, deckEdition(request));
         return null;
       });
     }),

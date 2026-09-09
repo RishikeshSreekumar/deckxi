@@ -5,6 +5,9 @@
 export * as tokens from "./tokens.js";
 export {
   getEdition,
+  ensureEdition,
+  knownEditionIds,
+  subscribeEditions,
   getCardInfo,
   registerEdition,
   statName,

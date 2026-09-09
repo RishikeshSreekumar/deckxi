@@ -12,11 +12,30 @@ const isoDateTime = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/, "UTC ISO 8601 datetime");
 
+/**
+ * A column on the card. A cricket card has two — batting and bowling — and
+ * so does every other sport's, because the card design has two; what they
+ * are called and which stats sit in them is the edition's business (#143).
+ */
+export const statGroupSchema = z.object({
+  id: slug,
+  /** Column heading, e.g. "Batting". */
+  name: z.string().min(1),
+  /** Glyph key for the column icon; unknown keys draw a neutral one. */
+  icon: slug.optional(),
+});
+
 export const statDefinitionSchema = z
   .object({
     key: z.string().regex(/^[a-z][a-zA-Z0-9]*$/, "camelCase stat key"),
     /** Display name, e.g. "Batting average". */
     name: z.string().min(1),
+    /** The card column this stat prints in; one of the edition's `statGroups`. */
+    group: slug.optional(),
+    /** The card's cramped label, e.g. "Avg."; falls back to `name`. */
+    short: z.string().min(1).max(8).optional(),
+    /** One line of "what this measures", for the rules sheet. */
+    blurb: z.string().min(1).max(160).optional(),
     /** Which end wins a comparison — bowling economy is "lower". */
     direction: z.enum(["higher", "lower"]),
     /**
@@ -60,6 +79,25 @@ export const roleDefinitionSchema = z.object({
 export const raritySchema = z.enum(["regular", "star", "legend"]);
 
 /**
+ * A deck the edition ships with (#143): the cuts of its own cards that are
+ * worth playing. "Batters' XI" is a cricket idea and "The Bloodline" is a
+ * wrestling one, so both live in their edition's data file rather than in
+ * this package. Operators add more at runtime through the deck catalogue.
+ */
+export const editionDeckSchema = z.object({
+  id: slug,
+  name: z.string().min(1).max(40),
+  blurb: z.string().min(1).max(160),
+  /** Cards must match every filter present; absent filters match everything. */
+  roles: z.array(slug).min(1).optional(),
+  rarities: z.array(raritySchema).min(1).optional(),
+  /** Explicit membership, in this order; wins over the filters when present. */
+  cardIds: z.array(slug).min(1).optional(),
+  /** Order in the picker; lower first, ties fall back to the name. */
+  sort: z.number().int().min(0).max(999).optional(),
+});
+
+/**
  * A licensed photograph of the player. `src` is a site-relative path served
  * by the web app; the rest is the attribution the licence asks us to print.
  */
@@ -87,6 +125,25 @@ export const playerSchema = z.object({
   /** Values for every stat key defined by the edition. */
   stats: z.record(z.string(), z.number().finite()),
   photo: photoSchema.optional(),
+});
+
+/**
+ * A power card in the edition's own words (#143). The *rules* are the mode's
+ * and never move — a re-skin is copy, not mechanics, which is what keeps a
+ * second sport from growing a second engine. Keyed by the power's id, so
+ * `powerplay` prints as "Run-In" on a wrestling card and still takes one
+ * extra card off everyone it beat.
+ */
+export const powerSkinSchema = z.object({
+  name: z.string().min(1),
+  /** Two or three letters for the chip. */
+  short: z.string().min(1).max(4),
+  /** The line under the name, e.g. "double down". */
+  tag: z.string().min(1),
+  blurb: z.string().min(1),
+  when: z.string().min(1),
+  win: z.string().min(1),
+  fail: z.string().min(1),
 });
 
 /** A dataset the edition was derived from, with its licence obligations. */
@@ -122,7 +179,13 @@ export const editionSchema = z
      */
     supportedModes: z.array(slug).min(1),
     stats: z.array(statDefinitionSchema).min(6).max(10),
+    /** The card's two columns. Absent splits the stats evenly and unlabelled. */
+    statGroups: z.array(statGroupSchema).max(2).optional(),
     roles: z.array(roleDefinitionSchema).min(1),
+    /** The decks this edition ships with. Absent means one deck: all of it. */
+    decks: z.array(editionDeckSchema).min(1).optional(),
+    /** Power cards renamed for this edition; absent leaves the defaults. */
+    powers: z.record(slug, powerSkinSchema).optional(),
     teams: z.array(teamSchema).min(2),
     players: z.array(playerSchema).min(8),
     /** Absent on synthetic editions. Real ones list every dataset they draw on. */
@@ -133,6 +196,8 @@ export const editionSchema = z
     for (const [label, values] of [
       ["stat key", edition.stats.map((s) => s.key)],
       ["role id", edition.roles.map((r) => r.id)],
+      ["stat group id", (edition.statGroups ?? []).map((g) => g.id)],
+      ["deck id", (edition.decks ?? []).map((d) => d.id)],
       ["team id", edition.teams.map((t) => t.id)],
       ["player id", edition.players.map((p) => p.id)],
     ] as const) {
@@ -141,8 +206,37 @@ export const editionSchema = z
       }
     }
 
+    const groupIds = new Set((edition.statGroups ?? []).map((g) => g.id));
+    edition.stats.forEach((stat, i) => {
+      if (stat.group !== undefined && !groupIds.has(stat.group)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["stats", i],
+          message: `${stat.key} is in unknown stat group ${stat.group}`,
+        });
+      }
+    });
+
     const teamIds = new Set(edition.teams.map((t) => t.id));
     const roleIds = new Set(edition.roles.map((r) => r.id));
+    const cardIds = new Set(edition.players.map((p) => p.id));
+    (edition.decks ?? []).forEach((deck, i) => {
+      const path = ["decks", i];
+      for (const role of deck.roles ?? []) {
+        if (!roleIds.has(role)) {
+          ctx.addIssue({
+            code: "custom",
+            path,
+            message: `${deck.id} filters unknown role ${role}`,
+          });
+        }
+      }
+      for (const id of deck.cardIds ?? []) {
+        if (!cardIds.has(id)) {
+          ctx.addIssue({ code: "custom", path, message: `${deck.id} lists unknown card ${id}` });
+        }
+      }
+    });
     const statByKey = new Map(edition.stats.map((s) => [s.key, s]));
     edition.players.forEach((player, i) => {
       const path = ["players", i];
@@ -173,8 +267,11 @@ export const editionSchema = z
   });
 
 export type StatDefinition = z.infer<typeof statDefinitionSchema>;
+export type StatGroup = z.infer<typeof statGroupSchema>;
 export type Team = z.infer<typeof teamSchema>;
 export type RoleDefinition = z.infer<typeof roleDefinitionSchema>;
+export type EditionDeck = z.infer<typeof editionDeckSchema>;
+export type PowerSkin = z.infer<typeof powerSkinSchema>;
 /** A role id: whatever the edition called it. */
 export type PlayerRoleId = string;
 export type Rarity = z.infer<typeof raritySchema>;

@@ -10,6 +10,7 @@
  */
 import { z } from "zod";
 import { DECK_ID_PATTERN, MAX_DECK_ID_LENGTH, type DeckSummary } from "./decks.js";
+import type { Edition } from "./edition.js";
 import { draftPickSchema, submitXiSchema, type SquadDraftWireEvent } from "./squadDraft.js";
 
 /** Bumped on any breaking change; the handshake rejects mismatched clients. */
@@ -140,6 +141,18 @@ export const POWER_INFO: Record<
     fail: "That card is gone too.",
   },
 };
+
+/**
+ * A power as this edition prints it. The mechanics are the mode's; an edition
+ * may rename the card and rewrite its three lines (#143), and one that says
+ * nothing gets the cricket original.
+ */
+export function powerInfo(
+  edition: Pick<Edition, "powers"> | null | undefined,
+  kind: PowerKindView,
+): (typeof POWER_INFO)[PowerKindView] {
+  return { ...POWER_INFO[kind], ...edition?.powers?.[kind] };
+}
 
 export const roomSettingsSchema = z.object({
   gameMode: z.enum(GAME_MODES),

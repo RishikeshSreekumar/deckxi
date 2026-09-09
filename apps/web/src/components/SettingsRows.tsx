@@ -3,24 +3,27 @@
  * limit. Lives behind "Match settings" in the lobby, so it loads on that tap.
  */
 import {
+  DEFAULT_DECK_ID,
   GAME_MODES,
   GAME_MODE_INFO,
   POWER_RECHARGE_INFO,
+  type GameModeId,
   type RoomSettings,
   type RoomView,
 } from "@deckxi/shared";
-import { PowerCard, getEdition } from "@deckxi/ui";
+import { PowerCard } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
 import { deckOf, useDecks } from "../lib/decks.js";
+import { useAllEditions, useEdition } from "../lib/editions.js";
 
 /** The powers in the order the table shows them, everywhere. */
 const POWER_ORDER = ["powerplay", "drs", "super-over"] as const;
 
-function PowerCardRow() {
+function PowerCardRow({ editionId }: { editionId: string }) {
   return (
     <div className="power-card-row-strip" aria-label="Power cards">
       {POWER_ORDER.map((kind) => (
-        <PowerCard key={kind} kind={kind} size="full" />
+        <PowerCard key={kind} kind={kind} editionId={editionId} size="full" />
       ))}
     </div>
   );
@@ -30,7 +33,7 @@ export function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean
   const updateSettings = useStore((s) => s.updateSettings);
   const s = room.settings;
   const patch = (p: Partial<RoomSettings>) => void updateSettings(p).catch(() => undefined);
-  const edition = getEdition(s.editionId);
+  const edition = useEdition(s.editionId);
   // The deck list is server-curated (#142); the built-ins render until it lands.
   const decks = useDecks(s.editionId);
   const chosen = room.deck ?? deckOf(decks, s.deckId);
@@ -43,6 +46,21 @@ export function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean
     edition === null
       ? GAME_MODES
       : GAME_MODES.filter((mode) => edition.supportedModes.includes(mode));
+  const editions = useAllEditions();
+
+  /**
+   * Switching edition switches sport (#143), so the mode and the deck go with
+   * it: a WWE room cannot be in Squad Draft, and "Bowlers' Union" is not one
+   * of its decks. Both fall back to the new edition's own defaults.
+   */
+  const selectEdition = (editionId: string) => {
+    const next = editions.find((e) => e.id === editionId);
+    const mode =
+      (next?.supportedModes.includes(s.gameMode) ?? true)
+        ? s.gameMode
+        : ((next?.supportedModes[0] ?? s.gameMode) as GameModeId);
+    patch({ editionId, gameMode: mode, deckId: DEFAULT_DECK_ID });
+  };
 
   const row = (
     label: string,
@@ -102,7 +120,27 @@ export function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean
           })}
         </div>
       </div>
-      {s.gameMode === "power-trumps" && <PowerCardRow />}
+      {editions.length > 1 && (
+        <label className="setting-row">
+          <span>Edition</span>
+          {isHost ? (
+            <select
+              value={s.editionId}
+              data-testid="edition-select"
+              onChange={(e) => selectEdition(e.target.value)}
+            >
+              {editions.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <strong className="chip">{edition?.name ?? s.editionId}</strong>
+          )}
+        </label>
+      )}
+      {s.gameMode === "power-trumps" && <PowerCardRow editionId={s.editionId} />}
       {GAME_MODE_INFO[s.gameMode].family === "trumps" &&
         row("Cards per player", s.cardsPerPlayer, [3, 4, 5, 7, 9, 11], "cardsPerPlayer")}
       {GAME_MODE_INFO[s.gameMode].family === "trumps" && s.cardsPerPlayer < room.players.length && (

@@ -9,14 +9,8 @@
  * card renderer and nothing else, and a button regression was invisible.
  */
 import { useSearchParams } from "react-router-dom";
-import {
-  DEFAULT_EDITION_ID,
-  PowerCard,
-  RoomCode,
-  TimerRing,
-  TrumpCard,
-  getEdition,
-} from "@deckxi/ui";
+import { DEFAULT_EDITION_ID, PowerCard, RoomCode, TimerRing, TrumpCard } from "@deckxi/ui";
+import { useEdition } from "../lib/editions.js";
 
 /** A fixed deadline so the timer ring's arc is the same in every screenshot. */
 const FROZEN_TIMER = { deadline: 0, seconds: 20 };
@@ -120,7 +114,7 @@ export function CardsGalleryScreen() {
   // `?edition=edition-fixture` pins the fictional edition, so the visual
   // baselines never move when the real deck is refreshed.
   const [params] = useSearchParams();
-  const edition = getEdition(params.get("edition") ?? DEFAULT_EDITION_ID);
+  const edition = useEdition(params.get("edition") ?? DEFAULT_EDITION_ID);
   if (edition === null) return <main className="screen">Unknown edition.</main>;
 
   const sample = edition.players[0];
@@ -201,12 +195,12 @@ export function CardsGalleryScreen() {
         <div className="gallery-row">
           {(["powerplay", "drs", "super-over"] as const).map((kind) => (
             <figure key={kind} className="gallery-item gallery-item--power">
-              <PowerCard kind={kind} size="full" />
+              <PowerCard kind={kind} editionId={edition.id} size="full" />
               <figcaption>{kind}</figcaption>
             </figure>
           ))}
           <figure className="gallery-item gallery-item--power">
-            <PowerCard kind="powerplay" size="full" spent />
+            <PowerCard kind="powerplay" editionId={edition.id} size="full" spent />
             <figcaption>used</figcaption>
           </figure>
         </div>

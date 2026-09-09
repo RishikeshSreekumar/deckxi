@@ -17,7 +17,8 @@
     "check": "tsx src/scripts/check.ts",
     "cli": "tsx src/scripts/cli.ts",
     "update-edition": "tsx src/scripts/update-edition.ts",
-    "import-cricsheet": "tsx src/scripts/import-cricsheet.ts"
+    "import-cricsheet": "tsx src/scripts/import-cricsheet.ts",
+    "build-wwe": "tsx src/scripts/build-wwe.ts"
   },
   "dependencies": {
     "@deckxi/shared": "workspace:*",

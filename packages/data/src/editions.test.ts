@@ -1,8 +1,13 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { deckPool } from "@deckxi/shared";
 import { CURRENT_EDITION_ID, editionsDir, listEditionIds, loadEdition } from "./editions.js";
 import { computeRating, regenerateRatings } from "./rating.js";
+import { WWE_EDITION_ID } from "./wwe/config.js";
+
+/** The smallest deck a table can be seated from; the server's own floor. */
+const MIN_DECK_CARDS = 6;
 
 describe("current edition (real T20I data)", () => {
   const edition = loadEdition();
@@ -111,6 +116,14 @@ describe("current edition (real T20I data)", () => {
     }
   });
 
+  it("declares its vocabulary, its columns and its decks", () => {
+    expect(edition.sport).toBe("cricket");
+    expect(edition.roles.map((r) => r.id)).toEqual(["batter", "bowler", "all-rounder", "keeper"]);
+    expect(edition.statGroups?.map((g) => g.id)).toEqual(["bat", "ball"]);
+    expect(edition.decks?.map((d) => d.id)).toContain("bowlers-union");
+    expect(edition.supportedModes).toContain("squad-draft");
+  });
+
   it("rejects unknown edition ids", () => {
     expect(() => loadEdition("edition-1999-q9")).toThrow(/ENOENT/);
     expect(() => loadEdition("nope" as string)).toThrow(/invalid edition id/);
@@ -140,5 +153,89 @@ describe("fixture edition (fictional)", () => {
 
   it("stores up-to-date derived ratings", () => {
     expect(regenerateRatings(edition.players, edition.stats)).toEqual(edition.players);
+  });
+});
+
+/**
+ * The second sport (#143). It exists to prove the platform is edition-driven,
+ * so what is asserted here is that it shares no vocabulary with cricket: its
+ * own roles, its own columns, its own decks, and no Squad Draft.
+ */
+describe("WWE edition", () => {
+  const edition = loadEdition(WWE_EDITION_ID);
+
+  it("is a wrestling edition that plays the trumps modes only", () => {
+    expect(edition.sport).toBe("wrestling");
+    expect(edition.series).toBe("WWE");
+    expect(edition.supportedModes).toEqual(["classic-trumps", "power-trumps"]);
+  });
+
+  it("brings its own roles, columns and decks", () => {
+    expect(edition.roles.map((r) => r.id)).toEqual([
+      "main-eventer",
+      "powerhouse",
+      "high-flyer",
+      "technician",
+    ]);
+    expect(edition.statGroups?.map((g) => g.name)).toEqual(["The gold", "Ring craft"]);
+    expect(edition.decks?.map((d) => d.id)).toEqual([
+      "all-stars",
+      "hall-of-fame",
+      "the-giants",
+      "workrate",
+    ]);
+    // Every card is one of the edition's roles, and every role is on a card.
+    expect(new Set(edition.players.map((p) => p.role))).toEqual(
+      new Set(edition.roles.map((r) => r.id)),
+    );
+  });
+
+  it("keeps one stat that lower wins, so the deck is not all big numbers", () => {
+    const lower = edition.stats.filter((s) => s.direction === "lower");
+    expect(lower.map((s) => s.key)).toEqual(["debutYear"]);
+    for (const stat of edition.stats) {
+      const values = edition.players.map((p) => p.stats[stat.key] as number);
+      expect(Math.min(...values)).toBeGreaterThanOrEqual(stat.min);
+      expect(Math.max(...values)).toBeLessThanOrEqual(stat.max);
+    }
+  });
+
+  it("seats a full table from any of its decks", () => {
+    for (const deck of edition.decks ?? []) {
+      expect(deckPool(edition, deck.id).length).toBeGreaterThanOrEqual(MIN_DECK_CARDS);
+    }
+  });
+
+  it("carries a licensed, on-disk photo for nearly every card", () => {
+    const webPublic = join(editionsDir(), "..", "..", "..", "apps", "web", "public");
+    const withPhoto = edition.players.filter((p) => p.photo !== undefined);
+    expect(withPhoto.length / edition.players.length).toBeGreaterThanOrEqual(0.9);
+    for (const player of withPhoto) {
+      const photo = player.photo as NonNullable<typeof player.photo>;
+      expect(existsSync(join(webPublic, photo.src))).toBe(true);
+      expect(photo.license).toMatch(/^(CC BY(-SA)?|CC0|Public domain|PDM|PD|GODL|OGL|FAL|GFDL)/i);
+      expect(photo.author).not.toBe("");
+      expect(photo.source).toMatch(/^https:\/\/commons\.wikimedia\.org\//);
+    }
+  });
+
+  it("stores up-to-date derived ratings", () => {
+    expect(regenerateRatings(edition.players, edition.stats)).toEqual(edition.players);
+  });
+
+  it("re-skins the powers without touching the rules", () => {
+    expect(edition.powers?.["powerplay"]?.name).toBe("Run-In");
+    expect(edition.powers?.["drs"]?.name).toBe("Cash-In");
+    expect(edition.powers?.["super-over"]?.name).toBe("Rematch Clause");
+    // The mechanics lines still describe the mode's own rules.
+    expect(edition.powers?.["powerplay"]?.win).toMatch(/one extra card/i);
+  });
+
+  it("re-skins the powers without touching the rules", () => {
+    expect(edition.powers?.["powerplay"]?.name).toBe("Run-In");
+    expect(edition.powers?.["drs"]?.name).toBe("Cash-In");
+    expect(edition.powers?.["super-over"]?.name).toBe("Rematch Clause");
+    // The mechanics lines still describe the mode's own rules.
+    expect(edition.powers?.["powerplay"]?.win).toMatch(/one extra card/i);
   });
 });

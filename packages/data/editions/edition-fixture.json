@@ -9,6 +9,9 @@
     {
       "key": "battingAvg",
       "name": "Batting average",
+      "group": "bat",
+      "short": "Avg.",
+      "blurb": "Runs scored per time out, with the bat.",
       "direction": "higher",
       "format": "decimal",
       "min": 0,
@@ -17,6 +20,9 @@
     {
       "key": "strikeRate",
       "name": "Strike rate",
+      "group": "bat",
+      "short": "S/R",
+      "blurb": "Runs scored per 100 balls faced — how fast they score.",
       "direction": "higher",
       "format": "decimal",
       "min": 40,
@@ -25,6 +31,9 @@
     {
       "key": "runs",
       "name": "Career runs",
+      "group": "bat",
+      "short": "Runs",
+      "blurb": "Career runs in T20 internationals.",
       "direction": "higher",
       "format": "integer",
       "min": 0,
@@ -33,6 +42,9 @@
     {
       "key": "wickets",
       "name": "Wickets",
+      "group": "ball",
+      "short": "Wkt.",
+      "blurb": "Career wickets in T20 internationals.",
       "direction": "higher",
       "format": "integer",
       "min": 0,
@@ -41,6 +53,9 @@
     {
       "key": "economy",
       "name": "Economy",
+      "group": "ball",
+      "short": "Econ.",
+      "blurb": "Runs given away per over bowled. Fewer is better.",
       "direction": "lower",
       "format": "decimal",
       "min": 3,
@@ -49,10 +64,25 @@
     {
       "key": "catches",
       "name": "Catches",
+      "group": "ball",
+      "short": "Ct.",
+      "blurb": "Career catches in the field.",
       "direction": "higher",
       "format": "integer",
       "min": 0,
       "max": 350
+    }
+  ],
+  "statGroups": [
+    {
+      "id": "bat",
+      "name": "Batting",
+      "icon": "batter"
+    },
+    {
+      "id": "ball",
+      "name": "Bowling",
+      "icon": "bowler"
     }
   ],
   "roles": [
@@ -75,6 +105,35 @@
       "id": "keeper",
       "name": "Wicketkeeper",
       "shortName": "WK"
+    }
+  ],
+  "decks": [
+    {
+      "id": "all-stars",
+      "name": "All Stars",
+      "blurb": "The whole edition. Every role, every rarity.",
+      "sort": 0
+    },
+    {
+      "id": "legends",
+      "name": "Legends",
+      "blurb": "Star and legend cards only. Big numbers everywhere — a close game.",
+      "rarities": ["star", "legend"],
+      "sort": 1
+    },
+    {
+      "id": "batters-xi",
+      "name": "Batters' XI",
+      "blurb": "Batters and keepers. Averages, strike rates and runs decide.",
+      "roles": ["batter", "keeper"],
+      "sort": 2
+    },
+    {
+      "id": "bowlers-union",
+      "name": "Bowlers' Union",
+      "blurb": "Bowlers and all-rounders. Wickets, economy and best figures rule.",
+      "roles": ["bowler", "all-rounder"],
+      "sort": 3
     }
   ],
   "teams": [

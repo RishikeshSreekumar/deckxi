@@ -2,7 +2,7 @@
  * The operator-curated deck catalogue (#142).
  */
 import { describe, expect, it } from "vitest";
-import { loadEdition } from "@deckxi/data";
+import { WWE_EDITION_ID, loadEdition } from "@deckxi/data";
 import { DEFAULT_DECK_ID, deckPool } from "@deckxi/shared";
 import { DeckCatalogue, DeckError, MIN_DECK_CARDS } from "./decks.js";
 import { InMemoryConfigStore } from "./ops.js";
@@ -42,6 +42,33 @@ describe("deck catalogue", () => {
     expect(decks.get("keepers-only")).toBeUndefined();
   });
 
+  it("offers each edition its own decks, and nobody else's", () => {
+    const decks = catalogue();
+    expect(decks.catalogue().map((d) => d.id)).toEqual([
+      "all-stars",
+      "legends",
+      "batters-xi",
+      "bowlers-union",
+    ]);
+    expect(decks.catalogue(WWE_EDITION_ID).map((d) => d.id)).toEqual([
+      "all-stars",
+      "hall-of-fame",
+      "the-giants",
+      "workrate",
+    ]);
+    // Same id, different edition, different cards: "all-stars" is whichever
+    // edition asked for it.
+    expect(decks.summarise(decks.resolve("all-stars"), undefined).cardCount).toBe(
+      loadEdition().players.length,
+    );
+    expect(
+      decks.summarise(decks.resolve("all-stars", WWE_EDITION_ID), WWE_EDITION_ID).cardCount,
+    ).toBe(loadEdition(WWE_EDITION_ID).players.length);
+    // A cricket room asking for a wrestling deck gets the fallback, not a
+    // deck that resolves to nothing.
+    expect(decks.resolve("workrate").id).toBe("all-stars");
+  });
+
   it("refuses a role the edition never declared", async () => {
     const decks = catalogue();
     await expect(
@@ -52,6 +79,19 @@ describe("deck catalogue", () => {
         roles: ["technician"],
       }),
     ).rejects.toThrow(/has no role technician/);
+    // The same deck is fine on the edition that has the role.
+    const deck = await decks.create(
+      {
+        id: "technicians",
+        name: "Technicians",
+        blurb: "Mat wrestlers only.",
+        roles: ["technician"],
+      },
+      WWE_EDITION_ID,
+    );
+    expect(decks.get("technicians", WWE_EDITION_ID)?.name).toBe("Technicians");
+    expect(decks.get("technicians")).toBeUndefined();
+    expect(deck.id).toBe("technicians");
   });
 
   it("clears a filter when it is explicitly nulled, and leaves it alone otherwise", async () => {

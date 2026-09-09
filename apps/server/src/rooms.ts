@@ -19,8 +19,7 @@ import {
 } from "@deckxi/engine";
 import { CURRENT_EDITION_ID, loadEdition } from "@deckxi/data";
 import {
-  BUILT_IN_DECKS,
-  DECKS,
+  editionDecks,
   DEFAULT_DECK_ID,
   REVEAL_HOLD_MS,
   deckPool,
@@ -159,7 +158,7 @@ export interface RoomManagerOptions {
    * manager is handed a resolver rather than reading a compiled-in table;
    * `undefined` means the id is not a deck anyone can play.
    */
-  lookupDeck?: (deckId: string) => DeckDefinition | undefined;
+  lookupDeck?: (deckId: string, editionId: string) => DeckDefinition | undefined;
 }
 
 export const DEFAULT_SETTINGS: RoomSettings = {
@@ -219,7 +218,7 @@ export class RoomManager {
   protected readonly log: Logger;
   protected readonly metrics: Metrics;
   private readonly isModeEnabled: (mode: string) => boolean;
-  private readonly lookupDeck: (deckId: string) => DeckDefinition | undefined;
+  private readonly lookupDeck: (deckId: string, editionId: string) => DeckDefinition | undefined;
 
   constructor(
     private readonly observer: RoomsObserver,
@@ -235,7 +234,9 @@ export class RoomManager {
     this.metrics = options.metrics ?? createMetrics();
     this.isModeEnabled = options.isModeEnabled ?? (() => true);
     // No catalogue supplied (tests, library use): the built-in decks are it.
-    this.lookupDeck = options.lookupDeck ?? ((id) => BUILT_IN_DECKS.find((d) => d.id === id));
+    this.lookupDeck =
+      options.lookupDeck ??
+      ((id, editionId) => editionDecks(loadEdition(editionId)).find((d) => d.id === id));
   }
 
   get roomCount(): number {
@@ -374,7 +375,7 @@ export class RoomManager {
    * up in a table the client was built with.
    */
   deckFor(room: Room): DeckSummary | undefined {
-    const deck = this.lookupDeck(room.settings.deckId);
+    const deck = this.lookupDeck(room.settings.deckId, room.settings.editionId);
     if (deck === undefined) return undefined;
     try {
       return {
@@ -551,7 +552,8 @@ export class RoomManager {
     const changed = (Object.keys(patch) as (keyof RoomSettings)[]).some(
       (key) => patch[key] !== undefined && patch[key] !== room.settings[key],
     );
-    if (patch.deckId !== undefined && this.lookupDeck(patch.deckId) === undefined) {
+    const editionId = patch.editionId ?? room.settings.editionId;
+    if (patch.deckId !== undefined && this.lookupDeck(patch.deckId, editionId) === undefined) {
       throw new RoomError("bad-request", `no deck called ${patch.deckId}`);
     }
     const next = { ...room.settings, ...patch };
@@ -599,7 +601,8 @@ export class RoomManager {
 
     const { cards, stats } = buildDeck(
       room.settings,
-      this.lookupDeck(room.settings.deckId) ?? DECKS[DEFAULT_DECK_ID],
+      this.lookupDeck(room.settings.deckId, room.settings.editionId) ??
+        defaultDeckFor(room.settings.editionId),
       mode,
       room.players.length,
     );
@@ -1110,6 +1113,12 @@ export class RoomManager {
     this.sessions.set(session.id, session);
     return session;
   }
+}
+
+/** The deck a room falls back to when its own is gone: the edition's first. */
+function defaultDeckFor(editionId: string): DeckDefinition {
+  const decks = editionDecks(loadEdition(editionId));
+  return decks.find((d) => d.id === DEFAULT_DECK_ID) ?? (decks[0] as DeckDefinition);
 }
 
 /**

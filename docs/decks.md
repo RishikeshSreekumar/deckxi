@@ -6,6 +6,12 @@ deck changes what turns up on the table without touching ratings, seasons, the c
 client bundle. Rooms carry `deckId` next to `editionId`; the host picks it in the lobby and the
 server draws the game's cards from that deck's pool (`deckPool` in `packages/shared/src/decks.ts`).
 
+The defaults are the **edition's own** (#143), declared in its data file rather than compiled into
+`@deckxi/shared`: "Batters' XI" is a cricket idea, and the WWE edition ships The Giants and
+Workrate instead (`docs/wwe-edition.md`). Every deck the catalogue holds names the edition it
+belongs to, so a WWE room is never offered a bowlers' deck, and the two editions' "All Stars" are
+two different sets of cards.
+
 | Deck           | Filter                 | Cards (2026 Q3) |
 | -------------- | ---------------------- | --------------- |
 | All Stars      | everything             | 210             |
@@ -37,7 +43,8 @@ Because deck ids are now open, `deckId` is a **slug on the wire** (`[a-z0-9]+(-[
 an enum: the catalogue decides which slugs exist, and a room set to an unknown one is refused with
 `bad-request`. The catalogue reaches the client at `GET /api/decks` (public: id, name, blurb, card
 count), one deck's cards at `GET /api/decks/:id/cards`, and the room snapshot carries the resolved
-deck so a lobby still prints what it is playing with after a rename.
+deck so a lobby still prints what it is playing with after a rename. Both take `?edition=<id>` and
+default to the current edition; so do the admin write routes.
 
 Writes are validated whole — every card id must exist in the edition, no duplicates, and the deck
 must resolve to at least six cards (the smallest table) — and the operator behind each one is

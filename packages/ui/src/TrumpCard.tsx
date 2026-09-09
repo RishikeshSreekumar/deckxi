@@ -19,7 +19,7 @@
  * bleed; without one the photo area is the striped stock with the role
  * silhouette in the team's colour. Photo credits are listed on /credits.
  */
-import { roleName } from "@deckxi/shared";
+import { roleName, type StatGroup } from "@deckxi/shared";
 import { getCardInfo, getEdition, formatStatValue, statName } from "./editions.js";
 import { CardBackArt, RoleIcon, RolePortrait } from "./cardArt.js";
 
@@ -46,24 +46,11 @@ export interface TrumpCardProps {
   stats?: Record<string, number> | undefined;
 }
 
-/**
- * Which column a stat prints in, and the short label the table uses. The
- * left column is the bat, the right the ball (and the gloves). Stats the
- * table has never heard of fall to whichever column is shorter, labelled by
- * their edition name.
- */
-const STAT_LAYOUT: Record<string, { column: "bat" | "ball"; label: string }> = {
-  battingAvg: { column: "bat", label: "Avg." },
-  strikeRate: { column: "bat", label: "S/R" },
-  runs: { column: "bat", label: "Runs" },
-  highest: { column: "bat", label: "H/S" },
-  matches: { column: "bat", label: "Match" },
-  wickets: { column: "ball", label: "Wkt." },
-  economy: { column: "ball", label: "Econ." },
-  overs: { column: "ball", label: "Overs" },
-  catches: { column: "ball", label: "Ct." },
-  bestBowling: { column: "ball", label: "Best" },
-};
+/** The card has two columns; an edition that names neither gets these. */
+const UNNAMED_GROUPS: StatGroup[] = [
+  { id: "left", name: "" },
+  { id: "right", name: "" },
+];
 
 /** Flag emoji by nationality; anything unlisted gets its initials instead. */
 const FLAGS: Record<string, string> = {
@@ -81,6 +68,16 @@ const FLAGS: Record<string, string> = {
   Netherlands: "🇳🇱",
   Scotland: "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
   Nepal: "🇳🇵",
+  // The WWE edition's nationalities (#143); anything else still gets initials.
+  "United States": "🇺🇸",
+  Canada: "🇨🇦",
+  Mexico: "🇲🇽",
+  Japan: "🇯🇵",
+  France: "🇫🇷",
+  Italy: "🇮🇹",
+  Germany: "🇩🇪",
+  Austria: "🇦🇹",
+  Nigeria: "🇳🇬",
 };
 
 function initials(nation: string): string {
@@ -121,11 +118,19 @@ export function TrumpCard({
   const color = team?.color ?? "#1d4137";
   const stats = edition?.stats ?? [];
 
-  const columns: { bat: typeof stats; ball: typeof stats } = { bat: [], ball: [] };
+  // The columns are the edition's (#143): a cricket card prints batting and
+  // bowling, another sport prints its own two. A stat that names no group
+  // falls to whichever column is shorter, which is what an edition that
+  // declares no groups at all gets for every stat.
+  const groups = edition?.statGroups ?? UNNAMED_GROUPS;
+  const [left, right] = [groups[0] ?? UNNAMED_GROUPS[0], groups[1] ?? UNNAMED_GROUPS[1]] as [
+    StatGroup,
+    StatGroup,
+  ];
+  const columns: { left: typeof stats; right: typeof stats } = { left: [], right: [] };
   for (const def of stats) {
-    const layout = STAT_LAYOUT[def.key];
-    const column = layout?.column ?? (columns.bat.length <= columns.ball.length ? "bat" : "ball");
-    columns[column].push(def);
+    const named = def.group === left.id ? "left" : def.group === right.id ? "right" : undefined;
+    columns[named ?? (columns.left.length <= columns.right.length ? "left" : "right")].push(def);
   }
 
   const classes = [
@@ -143,7 +148,7 @@ export function TrumpCard({
     const display = value === undefined ? "—" : formatStatValue(editionId, def.key, value);
     const highlighted = highlightStat === def.key || pendingStat === def.key;
     const disabled = disabledStats?.includes(def.key) ?? false;
-    const label = STAT_LAYOUT[def.key]?.label ?? statName(editionId, def.key);
+    const label = def.short ?? statName(editionId, def.key);
     // Lower-wins is the exception on a cricket card (economy), and the one
     // rule nobody guessed at the playtest: the row says so with an arrow.
     const lower = def.direction === "lower";
@@ -247,20 +252,20 @@ export function TrumpCard({
           <div className="card-column">
             <span className="card-column-head">
               <span className="card-column-icon card-column-icon--bat" aria-hidden="true">
-                <RoleIcon role="batter" />
+                <RoleIcon role={left.icon ?? left.id} />
               </span>
-              Batting
+              {left.name}
             </span>
-            <ul className="card-stats">{columns.bat.map(renderRow)}</ul>
+            <ul className="card-stats">{columns.left.map(renderRow)}</ul>
           </div>
           <div className="card-column">
             <span className="card-column-head">
               <span className="card-column-icon card-column-icon--ball" aria-hidden="true">
-                <RoleIcon role="bowler" />
+                <RoleIcon role={right.icon ?? right.id} />
               </span>
-              Bowling
+              {right.name}
             </span>
-            <ul className="card-stats">{columns.ball.map(renderRow)}</ul>
+            <ul className="card-stats">{columns.right.map(renderRow)}</ul>
           </div>
         </div>
       </div>

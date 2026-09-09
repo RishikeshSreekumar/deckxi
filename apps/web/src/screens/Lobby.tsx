@@ -39,11 +39,11 @@ const POWER_ORDER = ["powerplay", "drs", "super-over"] as const;
  * two letters on a chip is a rule nobody at the table has read; printed as a
  * piece of the deck, with what it does on it, it is a rule they can point at.
  */
-function PowerCardRow() {
+function PowerCardRow({ editionId }: { editionId: string }) {
   return (
     <div className="power-card-row-strip" aria-label="Power cards">
       {POWER_ORDER.map((kind) => (
-        <PowerCard key={kind} kind={kind} size="full" />
+        <PowerCard key={kind} kind={kind} editionId={editionId} size="full" />
       ))}
     </div>
   );
@@ -129,7 +129,7 @@ function MatchSetup({
           be out before their first call.{isHost ? " Deal more — tap Change." : ""}
         </p>
       )}
-      {s.gameMode === "power-trumps" && <PowerCardRow />}
+      {s.gameMode === "power-trumps" && <PowerCardRow editionId={s.editionId} />}
     </section>
   );
 }

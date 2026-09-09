@@ -1,0 +1,1836 @@
+{
+  "id": "edition-wwe-2026-q4",
+  "name": "WWE — 2026 Q4",
+  "version": 2,
+  "generatedAt": "2026-09-09T13:48:31Z",
+  "sport": "wrestling",
+  "series": "WWE",
+  "supportedModes": ["classic-trumps", "power-trumps"],
+  "stats": [
+    {
+      "key": "worldTitles",
+      "name": "World title reigns",
+      "group": "gold",
+      "short": "Titles",
+      "blurb": "How many times they have held a world championship.",
+      "direction": "higher",
+      "format": "integer",
+      "min": 0,
+      "max": 17
+    },
+    {
+      "key": "titleDays",
+      "name": "Longest reign (days)",
+      "group": "gold",
+      "short": "Days",
+      "blurb": "Their longest single reign as world champion, in days.",
+      "direction": "higher",
+      "format": "integer",
+      "min": 0,
+      "max": 3000
+    },
+    {
+      "key": "maniaWins",
+      "name": "WrestleMania wins",
+      "group": "gold",
+      "short": "Mania",
+      "blurb": "Matches won at WrestleMania.",
+      "direction": "higher",
+      "format": "integer",
+      "min": 0,
+      "max": 26
+    },
+    {
+      "key": "debutYear",
+      "name": "Debut year",
+      "group": "gold",
+      "short": "Debut",
+      "blurb": "The year they debuted. Earlier wins — the one stat here that lower takes.",
+      "direction": "lower",
+      "format": "integer",
+      "min": 1955,
+      "max": 2025
+    },
+    {
+      "key": "micSkill",
+      "name": "Mic skill",
+      "group": "craft",
+      "short": "Mic",
+      "blurb": "Our own 0-100 rating of how they work a crowd on the microphone.",
+      "direction": "higher",
+      "format": "integer",
+      "min": 0,
+      "max": 100
+    },
+    {
+      "key": "impact",
+      "name": "Finisher impact",
+      "group": "craft",
+      "short": "Impact",
+      "blurb": "Our own 0-100 rating of how much a finisher ends a match.",
+      "direction": "higher",
+      "format": "integer",
+      "min": 0,
+      "max": 100
+    },
+    {
+      "key": "heightCm",
+      "name": "Height (cm)",
+      "group": "craft",
+      "short": "Height",
+      "blurb": "Billed height in centimetres.",
+      "direction": "higher",
+      "format": "integer",
+      "min": 150,
+      "max": 230
+    },
+    {
+      "key": "weightKg",
+      "name": "Weight (kg)",
+      "group": "craft",
+      "short": "Weight",
+      "blurb": "Billed weight in kilograms.",
+      "direction": "higher",
+      "format": "integer",
+      "min": 45,
+      "max": 250
+    }
+  ],
+  "statGroups": [
+    {
+      "id": "gold",
+      "name": "The gold",
+      "icon": "belt"
+    },
+    {
+      "id": "craft",
+      "name": "Ring craft",
+      "icon": "mic"
+    }
+  ],
+  "roles": [
+    {
+      "id": "main-eventer",
+      "name": "Main eventer",
+      "shortName": "ME"
+    },
+    {
+      "id": "powerhouse",
+      "name": "Powerhouse",
+      "shortName": "PWR"
+    },
+    {
+      "id": "high-flyer",
+      "name": "High flyer",
+      "shortName": "HF"
+    },
+    {
+      "id": "technician",
+      "name": "Technician",
+      "shortName": "TEC"
+    }
+  ],
+  "decks": [
+    {
+      "id": "all-stars",
+      "name": "The Full Roster",
+      "blurb": "Every card in the edition. Raw, SmackDown, NXT and the Hall of Fame.",
+      "sort": 0
+    },
+    {
+      "id": "hall-of-fame",
+      "name": "Hall of Fame",
+      "blurb": "Legends only. Long reigns and early debuts — the low-debut call wins here.",
+      "rarities": ["legend"],
+      "sort": 1
+    },
+    {
+      "id": "the-giants",
+      "name": "The Giants",
+      "blurb": "Powerhouses and main eventers. Height, weight and the finisher settle it.",
+      "roles": ["powerhouse", "main-eventer"],
+      "sort": 2
+    },
+    {
+      "id": "workrate",
+      "name": "Workrate",
+      "blurb": "Technicians and high flyers. Smaller cards, so the mic and the impact decide.",
+      "roles": ["technician", "high-flyer"],
+      "sort": 3
+    }
+  ],
+  "powers": {
+    "powerplay": {
+      "name": "Run-In",
+      "short": "RUN",
+      "tag": "the numbers game",
+      "blurb": "Win and take one extra card from every loser. Lose and give one extra.",
+      "when": "Play it with your card, on your call or your answer.",
+      "win": "Take one extra card from every wrestler you beat.",
+      "fail": "Give one extra card away."
+    },
+    "drs": {
+      "name": "Cash-In",
+      "short": "MITB",
+      "tag": "your moment, their match",
+      "blurb": "Overrule the call with a stat of your own. Win and you call next. Lose one extra if not.",
+      "when": "Only when answering someone else's call — tap the stat you cash in on.",
+      "win": "Your stat decides the round, and you call next.",
+      "fail": "Give one extra card away."
+    },
+    "super-over": {
+      "name": "Rematch Clause",
+      "short": "RC",
+      "tag": "one more match",
+      "blurb": "Only if you lose: your next card faces the winner's for everything they won. Miss, and that card is gone too.",
+      "when": "Only fires if you lose the round. Play it with your card; a win or a tie hands it back.",
+      "win": "Beat the winner head-to-head and take every card on the table.",
+      "fail": "That card is gone too."
+    }
+  },
+  "teams": [
+    {
+      "id": "raw",
+      "name": "Raw",
+      "shortName": "RAW",
+      "color": "#c62828"
+    },
+    {
+      "id": "smackdown",
+      "name": "SmackDown",
+      "shortName": "SD",
+      "color": "#1565c0"
+    },
+    {
+      "id": "nxt",
+      "name": "NXT",
+      "shortName": "NXT",
+      "color": "#f9a825"
+    },
+    {
+      "id": "legends",
+      "name": "Hall of Fame",
+      "shortName": "HOF",
+      "color": "#6a1b9a"
+    }
+  ],
+  "players": [
+    {
+      "id": "roman-reigns",
+      "name": "Roman Reigns",
+      "role": "main-eventer",
+      "teamId": "smackdown",
+      "nationality": "United States",
+      "rarity": "star",
+      "rating": 48.9,
+      "stats": {
+        "worldTitles": 6,
+        "titleDays": 1316,
+        "maniaWins": 6,
+        "debutYear": 2010,
+        "micSkill": 88,
+        "impact": 92,
+        "heightCm": 191,
+        "weightKg": 120
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/roman-reigns.webp",
+        "author": "Diego Serrano",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Roman_Reigns_RR25_(1)_(headshot).jpg"
+      }
+    },
+    {
+      "id": "cody-rhodes",
+      "name": "Cody Rhodes",
+      "role": "main-eventer",
+      "teamId": "raw",
+      "nationality": "United States",
+      "rarity": "star",
+      "rating": 38.9,
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 217,
+        "maniaWins": 5,
+        "debutYear": 2006,
+        "micSkill": 90,
+        "impact": 85,
+        "heightCm": 185,
+        "weightKg": 100
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/cody-rhodes.webp",
+        "author": "Sgt. Gianna Elle Sulger",
+        "license": "Public domain",
+        "source": "https://commons.wikimedia.org/wiki/File:Cody_Rhodes_Fort_Bragg_Army_250_Birthday_Celebration_(headshot).jpg"
+      }
+    },
+    {
+      "id": "seth-rollins",
+      "name": "Seth Rollins",
+      "role": "high-flyer",
+      "teamId": "raw",
+      "nationality": "United States",
+      "rarity": "star",
+      "rating": 43,
+      "stats": {
+        "worldTitles": 6,
+        "titleDays": 220,
+        "maniaWins": 6,
+        "debutYear": 2005,
+        "micSkill": 92,
+        "impact": 88,
+        "heightCm": 185,
+        "weightKg": 98
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/seth-rollins.webp",
+        "author": "Super Festivals",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Seth_Rollins_July_2019.jpg"
+      }
+    },
+    {
+      "id": "cm-punk",
+      "name": "CM Punk",
+      "role": "technician",
+      "teamId": "raw",
+      "nationality": "United States",
+      "rarity": "star",
+      "rating": 43.4,
+      "stats": {
+        "worldTitles": 5,
+        "titleDays": 434,
+        "maniaWins": 3,
+        "debutYear": 1999,
+        "micSkill": 97,
+        "impact": 84,
+        "heightCm": 188,
+        "weightKg": 98
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/cm-punk.webp",
+        "author": "Kevin Paul",
+        "license": "CC BY 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+        "source": "https://commons.wikimedia.org/wiki/File:CM_Punk_at_San_Diego_Comic_Con_2026.jpg"
+      }
+    },
+    {
+      "id": "randy-orton",
+      "name": "Randy Orton",
+      "role": "technician",
+      "teamId": "smackdown",
+      "nationality": "United States",
+      "rarity": "star",
+      "rating": 52.7,
+      "stats": {
+        "worldTitles": 14,
+        "titleDays": 210,
+        "maniaWins": 8,
+        "debutYear": 2000,
+        "micSkill": 85,
+        "impact": 90,
+        "heightCm": 196,
+        "weightKg": 113
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/randy-orton.webp",
+        "author": "Diego Serrano",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Randy_Orton_RR24_(cropped_2).jpg"
+      }
+    },
+    {
+      "id": "john-cena",
+      "name": "John Cena",
+      "role": "main-eventer",
+      "teamId": "raw",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 54.6,
+      "stats": {
+        "worldTitles": 16,
+        "titleDays": 380,
+        "maniaWins": 9,
+        "debutYear": 1999,
+        "micSkill": 93,
+        "impact": 88,
+        "heightCm": 185,
+        "weightKg": 114
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/john-cena.webp",
+        "author": "Gage Skidmore",
+        "license": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+        "source": "https://commons.wikimedia.org/wiki/File:John_Cena_by_Gage_Skidmore.jpg"
+      }
+    },
+    {
+      "id": "brock-lesnar",
+      "name": "Brock Lesnar",
+      "role": "powerhouse",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 46.7,
+      "stats": {
+        "worldTitles": 10,
+        "titleDays": 224,
+        "maniaWins": 6,
+        "debutYear": 2002,
+        "micSkill": 60,
+        "impact": 99,
+        "heightCm": 191,
+        "weightKg": 130
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/brock-lesnar.webp",
+        "author": "Megan Elice Meadows",
+        "license": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:WrestleMania_XXX_IMG_4993_(13771425814).jpg"
+      }
+    },
+    {
+      "id": "drew-mcintyre",
+      "name": "Drew McIntyre",
+      "role": "powerhouse",
+      "teamId": "raw",
+      "nationality": "Scotland",
+      "rarity": "star",
+      "rating": 41.3,
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 202,
+        "maniaWins": 2,
+        "debutYear": 2001,
+        "micSkill": 86,
+        "impact": 90,
+        "heightCm": 196,
+        "weightKg": 120
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/drew-mcintyre.webp",
+        "author": "Diego Serrano",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Drew_McIntyre,_WrestleMania_XL_(cropped).jpg"
+      }
+    },
+    {
+      "id": "gunther",
+      "name": "Gunther",
+      "role": "powerhouse",
+      "teamId": "raw",
+      "nationality": "Austria",
+      "rarity": "star",
+      "rating": 40.2,
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 112,
+        "maniaWins": 1,
+        "debutYear": 2005,
+        "micSkill": 78,
+        "impact": 93,
+        "heightCm": 198,
+        "weightKg": 133
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/gunther.webp",
+        "author": "Diego Serrano",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Gunther_August_2024_(headshot).jpg"
+      }
+    },
+    {
+      "id": "damian-priest",
+      "name": "Damian Priest",
+      "role": "powerhouse",
+      "teamId": "smackdown",
+      "nationality": "United States",
+      "rarity": "star",
+      "rating": 38.5,
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 110,
+        "maniaWins": 2,
+        "debutYear": 2004,
+        "micSkill": 80,
+        "impact": 85,
+        "heightCm": 201,
+        "weightKg": 111
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/damian-priest.webp",
+        "author": "diegofernandophotography",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Damien_Priest,_April_2024_(cropped).jpg"
+      }
+    },
+    {
+      "id": "la-knight",
+      "name": "LA Knight",
+      "role": "main-eventer",
+      "teamId": "smackdown",
+      "nationality": "United States",
+      "rarity": "regular",
+      "rating": 35,
+      "stats": {
+        "worldTitles": 0,
+        "titleDays": 0,
+        "maniaWins": 1,
+        "debutYear": 2003,
+        "micSkill": 94,
+        "impact": 78,
+        "heightCm": 185,
+        "weightKg": 105
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/la-knight.webp",
+        "author": "Diego Serrano",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:LA_Knight_RR24_(2)_(headshot).jpg"
+      }
+    },
+    {
+      "id": "jey-uso",
+      "name": "Jey Uso",
+      "role": "high-flyer",
+      "teamId": "raw",
+      "nationality": "United States",
+      "rarity": "star",
+      "rating": 35.7,
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 91,
+        "maniaWins": 3,
+        "debutYear": 2007,
+        "micSkill": 82,
+        "impact": 80,
+        "heightCm": 185,
+        "weightKg": 114
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/jey-uso.webp",
+        "author": "Carter Sterling",
+        "license": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Jey_Uso_2024_(cropped).jpg"
+      }
+    },
+    {
+      "id": "jimmy-uso",
+      "name": "Jimmy Uso",
+      "role": "high-flyer",
+      "teamId": "smackdown",
+      "nationality": "United States",
+      "rarity": "regular",
+      "rating": 33.1,
+      "stats": {
+        "worldTitles": 0,
+        "titleDays": 0,
+        "maniaWins": 2,
+        "debutYear": 2007,
+        "micSkill": 76,
+        "impact": 78,
+        "heightCm": 185,
+        "weightKg": 114
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/jimmy-uso.webp",
+        "author": "Diego Serrano",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Jimmy_Uso_RR25.jpg"
+      }
+    },
+    {
+      "id": "solo-sikoa",
+      "name": "Solo Sikoa",
+      "role": "powerhouse",
+      "teamId": "smackdown",
+      "nationality": "United States",
+      "rarity": "regular",
+      "rating": 30.5,
+      "stats": {
+        "worldTitles": 0,
+        "titleDays": 0,
+        "maniaWins": 1,
+        "debutYear": 2021,
+        "micSkill": 68,
+        "impact": 84,
+        "heightCm": 188,
+        "weightKg": 116
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/solo-sikoa.webp",
+        "author": "Mechanical Elephant",
+        "license": "CC0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "source": "https://commons.wikimedia.org/wiki/File:Solo_Sikoa_-_WWE_Live_(Nottingham_UK,_October_2023)_(cropped).jpg"
+      }
+    },
+    {
+      "id": "kevin-owens",
+      "name": "Kevin Owens",
+      "role": "powerhouse",
+      "teamId": "smackdown",
+      "nationality": "Canada",
+      "rarity": "star",
+      "rating": 39.2,
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 188,
+        "maniaWins": 2,
+        "debutYear": 2000,
+        "micSkill": 93,
+        "impact": 87,
+        "heightCm": 183,
+        "weightKg": 120
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/kevin-owens.webp",
+        "author": "Kevin Paul",
+        "license": "CC BY 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Kevin_Owens_at_IGN_Live_2026.jpg"
+      }
+    },
+    {
+      "id": "sami-zayn",
+      "name": "Sami Zayn",
+      "role": "technician",
+      "teamId": "raw",
+      "nationality": "Canada",
+      "rarity": "star",
+      "rating": 35.4,
+      "stats": {
+        "worldTitles": 0,
+        "titleDays": 0,
+        "maniaWins": 3,
+        "debutYear": 2002,
+        "micSkill": 90,
+        "impact": 80,
+        "heightCm": 185,
+        "weightKg": 96
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/sami-zayn.webp",
+        "author": "Diego Serrano",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Sami_Zayn_March_2023.jpg"
+      }
+    },
+    {
+      "id": "aj-styles",
+      "name": "AJ Styles",
+      "role": "technician",
+      "teamId": "smackdown",
+      "nationality": "United States",
+      "rarity": "star",
+      "rating": 38.8,
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 371,
+        "maniaWins": 3,
+        "debutYear": 1998,
+        "micSkill": 80,
+        "impact": 92,
+        "heightCm": 180,
+        "weightKg": 99
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/aj-styles.webp",
+        "author": "Miguel Discart",
+        "license": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:AJ_Styles_WrestleMania_32_Axxess.jpg"
+      }
+    },
+    {
+      "id": "finn-balor",
+      "name": "Finn Bálor",
+      "role": "high-flyer",
+      "teamId": "raw",
+      "nationality": "Ireland",
+      "rarity": "star",
+      "rating": 34,
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 1,
+        "maniaWins": 2,
+        "debutYear": 2000,
+        "micSkill": 79,
+        "impact": 86,
+        "heightCm": 180,
+        "weightKg": 86
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/finn-balor.webp",
+        "author": "Dvtsource (original)Cropped by User:NiciVampireHeart",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Finn_B%C3%A1lor_Backstage_cropped.jpg"
+      }
+    },
+    {
+      "id": "bron-breakker",
+      "name": "Bron Breakker",
+      "role": "powerhouse",
+      "teamId": "raw",
+      "nationality": "United States",
+      "rarity": "regular",
+      "rating": 33.1,
+      "stats": {
+        "worldTitles": 0,
+        "titleDays": 259,
+        "maniaWins": 1,
+        "debutYear": 2021,
+        "micSkill": 72,
+        "impact": 90,
+        "heightCm": 190,
+        "weightKg": 116
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/bron-breakker.webp",
+        "author": "Zippo9310",
+        "license": "CC BY 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Bron_Breakker_-_WWE_Live_RTWM_Nottingham_March_2025_(cropped).jpg"
+      }
+    },
+    {
+      "id": "chad-gable",
+      "name": "Chad Gable",
+      "role": "technician",
+      "teamId": "raw",
+      "nationality": "United States",
+      "rarity": "regular",
+      "rating": 29.8,
+      "stats": {
+        "worldTitles": 0,
+        "titleDays": 0,
+        "maniaWins": 1,
+        "debutYear": 2013,
+        "micSkill": 84,
+        "impact": 82,
+        "heightCm": 173,
+        "weightKg": 91
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/chad-gable.webp",
+        "author": "Miguel Discart",
+        "license": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Chad_Gable_NXT_Takeover_Dallas_2016.jpg"
+      }
+    },
+    {
+      "id": "rhea-ripley",
+      "name": "Rhea Ripley",
+      "role": "powerhouse",
+      "teamId": "raw",
+      "nationality": "Australia",
+      "rarity": "star",
+      "rating": 33.1,
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 380,
+        "maniaWins": 3,
+        "debutYear": 2013,
+        "micSkill": 84,
+        "impact": 91,
+        "heightCm": 173,
+        "weightKg": 62
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/rhea-ripley.webp",
+        "author": "Diego Serrano",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Rhea_Ripley,_April_2024_(cropped).jpg"
+      }
+    },
+    {
+      "id": "bianca-belair",
+      "name": "Bianca Belair",
+      "role": "powerhouse",
+      "teamId": "smackdown",
+      "nationality": "United States",
+      "rarity": "star",
+      "rating": 33.3,
+      "stats": {
+        "worldTitles": 3,
+        "titleDays": 420,
+        "maniaWins": 4,
+        "debutYear": 2016,
+        "micSkill": 86,
+        "impact": 88,
+        "heightCm": 170,
+        "weightKg": 60
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/bianca-belair.webp",
+        "author": "US Air Force / Jason Wilkinson",
+        "license": "Public domain",
+        "source": "https://commons.wikimedia.org/wiki/File:Bianca_Belair_Texas_2023.jpg"
+      }
+    },
+    {
+      "id": "becky-lynch",
+      "name": "Becky Lynch",
+      "role": "technician",
+      "teamId": "raw",
+      "nationality": "Ireland",
+      "rarity": "star",
+      "rating": 38.9,
+      "stats": {
+        "worldTitles": 7,
+        "titleDays": 398,
+        "maniaWins": 4,
+        "debutYear": 2002,
+        "micSkill": 93,
+        "impact": 85,
+        "heightCm": 168,
+        "weightKg": 61
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/becky-lynch.webp",
+        "author": "PaulLim11",
+        "license": "CC BY 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Becky_Lynch_at_Vulture_Festival_2024_03_(cropped).jpg"
+      }
+    },
+    {
+      "id": "charlotte-flair",
+      "name": "Charlotte Flair",
+      "role": "technician",
+      "teamId": "smackdown",
+      "nationality": "United States",
+      "rarity": "star",
+      "rating": 43.5,
+      "stats": {
+        "worldTitles": 14,
+        "titleDays": 148,
+        "maniaWins": 5,
+        "debutYear": 2012,
+        "micSkill": 87,
+        "impact": 89,
+        "heightCm": 180,
+        "weightKg": 65
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/charlotte-flair.webp",
+        "author": "Super Festivals",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Charlotte_Flair_Photo_Op_GalaxyCon_Raleigh_2019.jpg"
+      }
+    },
+    {
+      "id": "bayley",
+      "name": "Bayley",
+      "role": "technician",
+      "teamId": "smackdown",
+      "nationality": "United States",
+      "rarity": "star",
+      "rating": 32.8,
+      "stats": {
+        "worldTitles": 4,
+        "titleDays": 380,
+        "maniaWins": 3,
+        "debutYear": 2008,
+        "micSkill": 85,
+        "impact": 82,
+        "heightCm": 165,
+        "weightKg": 54
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/bayley.webp",
+        "author": "Petty Officer 1st Class Joseph Rolfe",
+        "license": "Public domain",
+        "source": "https://commons.wikimedia.org/wiki/File:Bayley_2018.jpg"
+      }
+    },
+    {
+      "id": "asuka",
+      "name": "Asuka",
+      "role": "technician",
+      "teamId": "smackdown",
+      "nationality": "Japan",
+      "rarity": "star",
+      "rating": 31.5,
+      "stats": {
+        "worldTitles": 3,
+        "titleDays": 510,
+        "maniaWins": 2,
+        "debutYear": 2004,
+        "micSkill": 70,
+        "impact": 89,
+        "heightCm": 160,
+        "weightKg": 61
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/asuka.webp",
+        "author": "Yuzunet",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "source": "https://commons.wikimedia.org/wiki/File:20201209asuka.jpg"
+      }
+    },
+    {
+      "id": "iyo-sky",
+      "name": "Iyo Sky",
+      "role": "high-flyer",
+      "teamId": "raw",
+      "nationality": "Japan",
+      "rarity": "star",
+      "rating": 27.2,
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 168,
+        "maniaWins": 2,
+        "debutYear": 2007,
+        "micSkill": 66,
+        "impact": 90,
+        "heightCm": 155,
+        "weightKg": 54
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/iyo-sky.webp",
+        "author": "Diego Serrano",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Iyo_Sky,_WrestleMania_XL.jpg"
+      }
+    },
+    {
+      "id": "liv-morgan",
+      "name": "Liv Morgan",
+      "role": "high-flyer",
+      "teamId": "raw",
+      "nationality": "United States",
+      "rarity": "regular",
+      "rating": 26.6,
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 154,
+        "maniaWins": 2,
+        "debutYear": 2014,
+        "micSkill": 80,
+        "impact": 76,
+        "heightCm": 160,
+        "weightKg": 54
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/liv-morgan.webp",
+        "author": "US Air Force / Jason Wilkinson",
+        "license": "Public domain",
+        "source": "https://commons.wikimedia.org/wiki/File:Liv_Morgan_Jan_2023_(cropped).jpg"
+      }
+    },
+    {
+      "id": "jade-cargill",
+      "name": "Jade Cargill",
+      "role": "powerhouse",
+      "teamId": "smackdown",
+      "nationality": "United States",
+      "rarity": "regular",
+      "rating": 27.2,
+      "stats": {
+        "worldTitles": 0,
+        "titleDays": 0,
+        "maniaWins": 1,
+        "debutYear": 2021,
+        "micSkill": 74,
+        "impact": 86,
+        "heightCm": 178,
+        "weightKg": 72
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/jade-cargill.webp",
+        "author": "All Elite Wrestling",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "source": "https://commons.wikimedia.org/wiki/File:All_Elite_Wrestling_TBS_Champion_-_Jade_Cargill_(cropped_2).jpg"
+      }
+    },
+    {
+      "id": "tiffany-stratton",
+      "name": "Tiffany Stratton",
+      "role": "high-flyer",
+      "teamId": "smackdown",
+      "nationality": "United States",
+      "rarity": "regular",
+      "rating": 25.7,
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 112,
+        "maniaWins": 1,
+        "debutYear": 2021,
+        "micSkill": 78,
+        "impact": 80,
+        "heightCm": 168,
+        "weightKg": 57
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/tiffany-stratton.webp",
+        "author": "Diego Serrano",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Tiffany_Stratton_August_2024_(cropped).jpg"
+      }
+    },
+    {
+      "id": "nia-jax",
+      "name": "Nia Jax",
+      "role": "powerhouse",
+      "teamId": "smackdown",
+      "nationality": "United States",
+      "rarity": "regular",
+      "rating": 34.8,
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 133,
+        "maniaWins": 2,
+        "debutYear": 2014,
+        "micSkill": 72,
+        "impact": 88,
+        "heightCm": 183,
+        "weightKg": 122
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/nia-jax.webp",
+        "author": "Shared Account",
+        "license": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Nia_Jax_Axxess2018_crop.jpg"
+      }
+    },
+    {
+      "id": "ilja-dragunov",
+      "name": "Ilja Dragunov",
+      "role": "technician",
+      "teamId": "nxt",
+      "nationality": "Germany",
+      "rarity": "regular",
+      "rating": 32,
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 168,
+        "maniaWins": 0,
+        "debutYear": 2011,
+        "micSkill": 74,
+        "impact": 88,
+        "heightCm": 178,
+        "weightKg": 89
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/ilja-dragunov.webp",
+        "author": "Photos N Effect from Germany",
+        "license": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Ilja_Dragunov_16_Carat_Gold_2020_N3_(2).jpg"
+      }
+    },
+    {
+      "id": "oba-femi",
+      "name": "Oba Femi",
+      "role": "powerhouse",
+      "teamId": "nxt",
+      "nationality": "Nigeria",
+      "rarity": "regular",
+      "rating": 34.7,
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 210,
+        "maniaWins": 0,
+        "debutYear": 2022,
+        "micSkill": 66,
+        "impact": 92,
+        "heightCm": 196,
+        "weightKg": 125
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/oba-femi.webp",
+        "author": "Jonathan Rivera",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Oba_Femi_2024_(cropped).jpg"
+      }
+    },
+    {
+      "id": "trick-williams",
+      "name": "Trick Williams",
+      "role": "high-flyer",
+      "teamId": "nxt",
+      "nationality": "United States",
+      "rarity": "regular",
+      "rating": 32.2,
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 152,
+        "maniaWins": 0,
+        "debutYear": 2021,
+        "micSkill": 84,
+        "impact": 80,
+        "heightCm": 188,
+        "weightKg": 105
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/trick-williams.webp",
+        "author": "Front Office Sports",
+        "license": "CC BY 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Trick_Williams_FOS_2026_(cropped).png"
+      }
+    },
+    {
+      "id": "ethan-page",
+      "name": "Ethan Page",
+      "role": "technician",
+      "teamId": "nxt",
+      "nationality": "Canada",
+      "rarity": "regular",
+      "rating": 32.9,
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 105,
+        "maniaWins": 0,
+        "debutYear": 2007,
+        "micSkill": 78,
+        "impact": 76,
+        "heightCm": 188,
+        "weightKg": 100
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/ethan-page.webp",
+        "author": "Tabercil",
+        "license": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Ethan_Page_2012.jpg"
+      }
+    },
+    {
+      "id": "jevon-evans",
+      "name": "Je'Von Evans",
+      "role": "high-flyer",
+      "teamId": "nxt",
+      "nationality": "United States",
+      "rarity": "regular",
+      "rating": 26.3,
+      "stats": {
+        "worldTitles": 0,
+        "titleDays": 0,
+        "maniaWins": 0,
+        "debutYear": 2022,
+        "micSkill": 70,
+        "impact": 82,
+        "heightCm": 180,
+        "weightKg": 79
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/jevon-evans.webp",
+        "author": "HHH Pedrigree",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Je%27Von_Evans.jpg"
+      }
+    },
+    {
+      "id": "roxanne-perez",
+      "name": "Roxanne Perez",
+      "role": "technician",
+      "teamId": "nxt",
+      "nationality": "United States",
+      "rarity": "regular",
+      "rating": 24.2,
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 217,
+        "maniaWins": 0,
+        "debutYear": 2019,
+        "micSkill": 76,
+        "impact": 78,
+        "heightCm": 157,
+        "weightKg": 52
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/roxanne-perez.webp",
+        "author": "Diego Serrano",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Roxanne_Perez_RR25_(cropped).jpg"
+      }
+    },
+    {
+      "id": "giulia",
+      "name": "Giulia",
+      "role": "technician",
+      "teamId": "nxt",
+      "nationality": "Japan",
+      "rarity": "regular",
+      "rating": 25.8,
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 126,
+        "maniaWins": 0,
+        "debutYear": 2018,
+        "micSkill": 72,
+        "impact": 86,
+        "heightCm": 168,
+        "weightKg": 57
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/giulia.webp",
+        "author": "Diego Serrano",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Giulia_RR25_(cropped).jpg"
+      }
+    },
+    {
+      "id": "the-undertaker",
+      "name": "The Undertaker",
+      "role": "powerhouse",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 62.5,
+      "stats": {
+        "worldTitles": 7,
+        "titleDays": 280,
+        "maniaWins": 25,
+        "debutYear": 1987,
+        "micSkill": 85,
+        "impact": 97,
+        "heightCm": 208,
+        "weightKg": 136
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/the-undertaker.webp",
+        "author": "Pfc. Hilario Martinez",
+        "license": "Public domain",
+        "source": "https://commons.wikimedia.org/wiki/File:The_Undertaker_US_Marine_Visit_2019_(cropped)2.jpg"
+      }
+    },
+    {
+      "id": "steve-austin",
+      "name": "Stone Cold Steve Austin",
+      "role": "main-eventer",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 48,
+      "stats": {
+        "worldTitles": 6,
+        "titleDays": 175,
+        "maniaWins": 5,
+        "debutYear": 1989,
+        "micSkill": 99,
+        "impact": 92,
+        "heightCm": 188,
+        "weightKg": 114
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/steve-austin.webp",
+        "author": "Gage Skidmore",
+        "license": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Steve_Austin_by_Gage_Skidmore.jpg"
+      }
+    },
+    {
+      "id": "the-rock",
+      "name": "The Rock",
+      "role": "main-eventer",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 50.8,
+      "stats": {
+        "worldTitles": 10,
+        "titleDays": 119,
+        "maniaWins": 5,
+        "debutYear": 1996,
+        "micSkill": 100,
+        "impact": 90,
+        "heightCm": 196,
+        "weightKg": 118
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/the-rock.webp",
+        "author": "Harald Krichel",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Dwayne_Johnson-1809_(cropped).jpg"
+      }
+    },
+    {
+      "id": "hulk-hogan",
+      "name": "Hulk Hogan",
+      "role": "powerhouse",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 63.4,
+      "stats": {
+        "worldTitles": 12,
+        "titleDays": 1474,
+        "maniaWins": 7,
+        "debutYear": 1977,
+        "micSkill": 95,
+        "impact": 88,
+        "heightCm": 201,
+        "weightKg": 137
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/hulk-hogan.webp",
+        "author": "Unknown photographer",
+        "license": "Public domain",
+        "source": "https://commons.wikimedia.org/wiki/File:Hulk_Hogan,_circa_1985.jpg"
+      }
+    },
+    {
+      "id": "ric-flair",
+      "name": "Ric Flair",
+      "role": "technician",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 58,
+      "stats": {
+        "worldTitles": 16,
+        "titleDays": 795,
+        "maniaWins": 3,
+        "debutYear": 1972,
+        "micSkill": 96,
+        "impact": 85,
+        "heightCm": 185,
+        "weightKg": 110
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/ric-flair.webp",
+        "author": "Super Festivals",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Ric_Flair_Photo_Op_GalaxyCon_Austin_2023.jpg"
+      }
+    },
+    {
+      "id": "shawn-michaels",
+      "name": "Shawn Michaels",
+      "role": "high-flyer",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 46.6,
+      "stats": {
+        "worldTitles": 4,
+        "titleDays": 231,
+        "maniaWins": 6,
+        "debutYear": 1984,
+        "micSkill": 92,
+        "impact": 96,
+        "heightCm": 185,
+        "weightKg": 102
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/shawn-michaels.webp",
+        "author": "David Seto from Brooksville, USA",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Shawn_Michaels_WM24_shot_(cropped).jpg"
+      }
+    },
+    {
+      "id": "triple-h",
+      "name": "Triple H",
+      "role": "main-eventer",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 54.7,
+      "stats": {
+        "worldTitles": 14,
+        "titleDays": 280,
+        "maniaWins": 8,
+        "debutYear": 1992,
+        "micSkill": 91,
+        "impact": 89,
+        "heightCm": 193,
+        "weightKg": 116
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/triple-h.webp",
+        "author": "Web Summit",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Triple_H_November_2017.jpg"
+      }
+    },
+    {
+      "id": "bret-hart",
+      "name": "Bret Hart",
+      "role": "technician",
+      "teamId": "legends",
+      "nationality": "Canada",
+      "rarity": "legend",
+      "rating": 47.7,
+      "stats": {
+        "worldTitles": 7,
+        "titleDays": 245,
+        "maniaWins": 4,
+        "debutYear": 1976,
+        "micSkill": 82,
+        "impact": 94,
+        "heightCm": 183,
+        "weightKg": 106
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/bret-hart.webp",
+        "author": "Iaksge",
+        "license": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Picture_of_Bret_Hart_in_Montreal.jpg"
+      }
+    },
+    {
+      "id": "randy-savage",
+      "name": "Randy Savage",
+      "role": "high-flyer",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 49.7,
+      "stats": {
+        "worldTitles": 6,
+        "titleDays": 371,
+        "maniaWins": 5,
+        "debutYear": 1973,
+        "micSkill": 94,
+        "impact": 92,
+        "heightCm": 180,
+        "weightKg": 112
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/randy-savage.webp",
+        "author": "David Fitzgerald",
+        "license": "Public domain",
+        "source": "https://commons.wikimedia.org/wiki/File:Randy_Savage_1988.jpeg"
+      }
+    },
+    {
+      "id": "andre-the-giant",
+      "name": "André the Giant",
+      "role": "powerhouse",
+      "teamId": "legends",
+      "nationality": "France",
+      "rarity": "legend",
+      "rating": 56.1,
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 1,
+        "maniaWins": 3,
+        "debutYear": 1963,
+        "micSkill": 60,
+        "impact": 95,
+        "heightCm": 224,
+        "weightKg": 240
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/andre-the-giant.webp",
+        "author": "David Fitzgerald",
+        "license": "Public domain",
+        "source": "https://commons.wikimedia.org/wiki/File:Andr%C3%A9_the_Giant_and_Bam_Bam_Bigelow,_circa_1988.jpg"
+      }
+    },
+    {
+      "id": "mick-foley",
+      "name": "Mick Foley",
+      "role": "powerhouse",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 44.3,
+      "stats": {
+        "worldTitles": 4,
+        "titleDays": 27,
+        "maniaWins": 2,
+        "debutYear": 1983,
+        "micSkill": 88,
+        "impact": 85,
+        "heightCm": 188,
+        "weightKg": 130
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/mick-foley.webp",
+        "author": "Ciell",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Mick_Foley_2024.jpg"
+      }
+    },
+    {
+      "id": "eddie-guerrero",
+      "name": "Eddie Guerrero",
+      "role": "high-flyer",
+      "teamId": "legends",
+      "nationality": "Mexico",
+      "rarity": "legend",
+      "rating": 39.8,
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 133,
+        "maniaWins": 3,
+        "debutYear": 1987,
+        "micSkill": 88,
+        "impact": 93,
+        "heightCm": 173,
+        "weightKg": 100
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/eddie-guerrero.webp",
+        "author": "EDDIE_GUERRERO.jpg: paddynapper derivative work: RanZag (talk)",
+        "license": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Eddie_Guerrero_2004.jpg"
+      }
+    },
+    {
+      "id": "rey-mysterio",
+      "name": "Rey Mysterio",
+      "role": "high-flyer",
+      "teamId": "smackdown",
+      "nationality": "Mexico",
+      "rarity": "legend",
+      "rating": 37.9,
+      "stats": {
+        "worldTitles": 3,
+        "titleDays": 112,
+        "maniaWins": 5,
+        "debutYear": 1989,
+        "micSkill": 78,
+        "impact": 94,
+        "heightCm": 168,
+        "weightKg": 79
+      }
+    },
+    {
+      "id": "kurt-angle",
+      "name": "Kurt Angle",
+      "role": "technician",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 42.6,
+      "stats": {
+        "worldTitles": 6,
+        "titleDays": 126,
+        "maniaWins": 4,
+        "debutYear": 1998,
+        "micSkill": 84,
+        "impact": 95,
+        "heightCm": 183,
+        "weightKg": 100
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/kurt-angle.webp",
+        "author": "Super Festivals from Ft. Lauderdale, USA",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Kurt_Angle_(53983148398).jpg"
+      }
+    },
+    {
+      "id": "big-show",
+      "name": "Big Show",
+      "role": "powerhouse",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 50.3,
+      "stats": {
+        "worldTitles": 7,
+        "titleDays": 71,
+        "maniaWins": 3,
+        "debutYear": 1995,
+        "micSkill": 74,
+        "impact": 88,
+        "heightCm": 213,
+        "weightKg": 175
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/big-show.webp",
+        "author": "Sgt. Jessica M. Kuhn",
+        "license": "Public domain",
+        "source": "https://commons.wikimedia.org/wiki/File:Big-Show-T4.jpg"
+      }
+    },
+    {
+      "id": "kane",
+      "name": "Kane",
+      "role": "powerhouse",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 46.4,
+      "stats": {
+        "worldTitles": 3,
+        "titleDays": 1,
+        "maniaWins": 7,
+        "debutYear": 1992,
+        "micSkill": 70,
+        "impact": 87,
+        "heightCm": 208,
+        "weightKg": 147
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/kane.webp",
+        "author": "Gage Skidmore from Surprise, AZ, United States of America",
+        "license": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Glenn_Jacobs_(2023).jpg"
+      }
+    },
+    {
+      "id": "batista",
+      "name": "Batista",
+      "role": "powerhouse",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 45.9,
+      "stats": {
+        "worldTitles": 6,
+        "titleDays": 282,
+        "maniaWins": 4,
+        "debutYear": 2000,
+        "micSkill": 80,
+        "impact": 90,
+        "heightCm": 198,
+        "weightKg": 130
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/batista.webp",
+        "author": "Daniel Benavides from Austin, TX",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Batista_in_March_2019.jpg"
+      }
+    },
+    {
+      "id": "edge",
+      "name": "Edge",
+      "role": "technician",
+      "teamId": "legends",
+      "nationality": "Canada",
+      "rarity": "legend",
+      "rating": 49.2,
+      "stats": {
+        "worldTitles": 11,
+        "titleDays": 154,
+        "maniaWins": 5,
+        "debutYear": 1992,
+        "micSkill": 88,
+        "impact": 87,
+        "heightCm": 191,
+        "weightKg": 109
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/edge.webp",
+        "author": "zuko1312",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Adam_Copeland_July_2023.jpg"
+      }
+    },
+    {
+      "id": "jeff-hardy",
+      "name": "Jeff Hardy",
+      "role": "high-flyer",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 38.5,
+      "stats": {
+        "worldTitles": 3,
+        "titleDays": 84,
+        "maniaWins": 4,
+        "debutYear": 1993,
+        "micSkill": 68,
+        "impact": 90,
+        "heightCm": 185,
+        "weightKg": 96
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/jeff-hardy.webp",
+        "author": "Super Festivals",
+        "license": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Jeff_Hardy_July_2019.jpg"
+      }
+    },
+    {
+      "id": "trish-stratus",
+      "name": "Trish Stratus",
+      "role": "technician",
+      "teamId": "legends",
+      "nationality": "Canada",
+      "rarity": "legend",
+      "rating": 36.1,
+      "stats": {
+        "worldTitles": 7,
+        "titleDays": 448,
+        "maniaWins": 2,
+        "debutYear": 1999,
+        "micSkill": 84,
+        "impact": 82,
+        "heightCm": 163,
+        "weightKg": 57
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/trish-stratus.webp",
+        "author": "Kevin Paul",
+        "license": "CC BY 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Trish_Stratus_at_CCR_Ontario_2024.jpg"
+      }
+    },
+    {
+      "id": "lita",
+      "name": "Lita",
+      "role": "high-flyer",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 33,
+      "stats": {
+        "worldTitles": 4,
+        "titleDays": 133,
+        "maniaWins": 2,
+        "debutYear": 1999,
+        "micSkill": 76,
+        "impact": 85,
+        "heightCm": 168,
+        "weightKg": 61
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/lita.webp",
+        "author": "Kevin Paul",
+        "license": "CC BY 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Amy_Dumas_at_CCR_Ontario_2024.jpg"
+      }
+    },
+    {
+      "id": "ultimate-warrior",
+      "name": "Ultimate Warrior",
+      "role": "powerhouse",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 43.5,
+      "stats": {
+        "worldTitles": 1,
+        "titleDays": 293,
+        "maniaWins": 3,
+        "debutYear": 1985,
+        "micSkill": 78,
+        "impact": 88,
+        "heightCm": 196,
+        "weightKg": 127
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/ultimate-warrior.webp",
+        "author": "Megan Elice Meadows",
+        "license": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:The_Ultimate_Warrior_April_2014.jpg"
+      }
+    },
+    {
+      "id": "bruno-sammartino",
+      "name": "Bruno Sammartino",
+      "role": "powerhouse",
+      "teamId": "legends",
+      "nationality": "Italy",
+      "rarity": "legend",
+      "rating": 54.1,
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 2803,
+        "maniaWins": 0,
+        "debutYear": 1959,
+        "micSkill": 74,
+        "impact": 88,
+        "heightCm": 178,
+        "weightKg": 120
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/bruno-sammartino.webp",
+        "author": "swiftwj",
+        "license": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:BrunoSeasonParade.jpg"
+      }
+    },
+    {
+      "id": "bob-backlund",
+      "name": "Bob Backlund",
+      "role": "technician",
+      "teamId": "legends",
+      "nationality": "United States",
+      "rarity": "legend",
+      "rating": 48.1,
+      "stats": {
+        "worldTitles": 2,
+        "titleDays": 2135,
+        "maniaWins": 1,
+        "debutYear": 1973,
+        "micSkill": 70,
+        "impact": 80,
+        "heightCm": 185,
+        "weightKg": 107
+      },
+      "photo": {
+        "src": "/cards/edition-wwe-2026-q4/bob-backlund.webp",
+        "author": "Miguel Discart from Bruxelles, Belgique",
+        "license": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "source": "https://commons.wikimedia.org/wiki/File:2015-03-26_17-28-48_ILCE-6000_DSC01727_(17121089828)_(cropped).jpg"
+      }
+    }
+  ],
+  "sources": [
+    {
+      "name": "Wikipedia / Wikidata",
+      "url": "https://en.wikipedia.org/wiki/List_of_WWE_champions",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "note": "Title reigns, longest reign, WrestleMania wins, debut year, billed height and weight"
+    },
+    {
+      "name": "Wikimedia Commons",
+      "url": "https://commons.wikimedia.org/",
+      "license": "Per file: CC BY, CC BY-SA, CC0 or public domain",
+      "note": "Card photographs, credited per card"
+    },
+    {
+      "name": "DeckXI editorial",
+      "url": "https://github.com/RishikeshSreekumar/deckxi",
+      "license": "CC BY-SA 4.0",
+      "note": "Mic skill and finisher impact are our own 0–100 ratings, not a record of anything"
+    }
+  ]
+}

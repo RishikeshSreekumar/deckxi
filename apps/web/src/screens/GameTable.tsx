@@ -20,7 +20,7 @@
  */
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import {
-  POWER_INFO,
+  powerInfo,
   type PowerKindView,
   type PowerPlayView,
   type RoomView,
@@ -57,6 +57,8 @@ import { powerLines } from "../game/powerLines.js";
 import { ordinal, revealTiming } from "./tableShared.js";
 import "./gameTable.css";
 import { loadPowersSeen, savePowersSeen } from "../lib/session.js";
+import { getEdition } from "@deckxi/ui";
+import { useEdition } from "../lib/editions.js";
 
 type Stage = "flip" | "verdict";
 
@@ -236,8 +238,8 @@ function ScoreChip({
   );
 }
 
-function powerLabel(power: DeclaredPower | null): string | null {
-  return power === null ? null : POWER_INFO[power.kind].short;
+function powerLabel(editionId: string, power: DeclaredPower | null): string | null {
+  return power === null ? null : powerInfo(getEdition(editionId), power.kind).short;
 }
 
 /** Short first name for a card, for the picker chips. */
@@ -363,6 +365,8 @@ export function GameTable({ room }: { room: RoomView }) {
   // single card turned. They catch up with the verdict.
   const counts = current !== null && stage === "flip" ? current.countsBefore : game.handCounts;
   const editionId = game.config.editionId;
+  // A room on another edition (#143) loads it before the first card renders.
+  const edition = useEdition(editionId);
   const opponents = game.config.players.filter((id) => id !== selfId);
   const hand = game.yourHand;
   // Old logs carry no choice depth; they were played with the top three.
@@ -546,7 +550,7 @@ export function GameTable({ room }: { room: RoomView }) {
         ? "Calling…"
         : armedStat === null
           ? "Tap a stat to call"
-          : `Call ${statName(editionId, armedStat)}${armed !== null ? ` · ${POWER_INFO[armed].name}` : ""}`}
+          : `Call ${statName(editionId, armedStat)}${armed !== null ? ` · ${powerInfo(edition, armed).name}` : ""}`}
     </button>
   );
 
@@ -613,7 +617,7 @@ export function GameTable({ room }: { room: RoomView }) {
             const out = !game.active[id];
             const reveal = revealedBy[id];
             const play = game.plays[id];
-            const declared = play === undefined ? null : powerLabel(play.power);
+            const declared = play === undefined ? null : powerLabel(editionId, play.power);
             const status = out
               ? "out"
               : away
@@ -676,7 +680,7 @@ export function GameTable({ room }: { room: RoomView }) {
                     {declared !== null && current === null && (
                       <b
                         className="seat-power"
-                        title={play?.power ? POWER_INFO[play.power.kind].name : ""}
+                        title={play?.power ? powerInfo(edition, play.power.kind).name : ""}
                       >
                         {declared}
                       </b>
@@ -934,7 +938,7 @@ export function GameTable({ room }: { room: RoomView }) {
           <div className="power-row" data-testid="power-row">
             <div className="power-chips" role="group" aria-label="Power cards">
               {POWER_ORDER.map((kind) => {
-                const info = POWER_INFO[kind];
+                const info = powerInfo(edition, kind);
                 const spent = !myPowers.includes(kind);
                 const declared = game.yourPlay?.power?.kind === kind;
                 // DRS answers a call; the leader has nothing to overrule.
@@ -981,7 +985,7 @@ export function GameTable({ room }: { room: RoomView }) {
             </div>
             {betSlip !== null && (
               <p className="power-slip" role="status" data-testid="power-slip">
-                <b>{POWER_INFO[armed as PowerKindView].name}</b> {betSlip}
+                <b>{powerInfo(edition, armed as PowerKindView).name}</b> {betSlip}
               </p>
             )}
             {move === "call" && callButton}
@@ -1000,7 +1004,7 @@ export function GameTable({ room }: { room: RoomView }) {
                       ? "Tap the stat to review on"
                       : `Play · DRS on ${statName(editionId, armedStat)}`
                     : armed !== null
-                      ? `Play · ${POWER_INFO[armed].name}`
+                      ? `Play · ${powerInfo(edition, armed).name}`
                       : hotStat !== null
                         ? `Play this card on ${statName(editionId, hotStat)}`
                         : "Play this card"}
@@ -1018,8 +1022,10 @@ export function GameTable({ room }: { room: RoomView }) {
             {move === null && game.yourPlay !== null && current === null && (
               <p className="power-note" role="status">
                 Card in
-                {game.yourPlay.power ? ` with ${POWER_INFO[game.yourPlay.power.kind].name}` : ""}.
-                {waitingNames.length > 0 ? ` Waiting on ${waitingNames.join(", ")}…` : ""}
+                {game.yourPlay.power
+                  ? ` with ${powerInfo(edition, game.yourPlay.power.kind).name}`
+                  : ""}
+                .{waitingNames.length > 0 ? ` Waiting on ${waitingNames.join(", ")}…` : ""}
               </p>
             )}
           </div>

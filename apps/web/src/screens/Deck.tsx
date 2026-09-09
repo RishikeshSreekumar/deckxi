@@ -10,10 +10,11 @@
  */
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { DEFAULT_EDITION_ID, TrumpCard, getEdition } from "@deckxi/ui";
+import { DEFAULT_EDITION_ID, TrumpCard } from "@deckxi/ui";
 import { DEFAULT_DECK_ID, type DeckId, type Edition, type Player } from "@deckxi/shared";
 import { AppBar } from "../components/Chrome.js";
 import { deckOf, useDecks } from "../lib/decks.js";
+import { useEdition } from "../lib/editions.js";
 import { useDeckCards } from "../lib/deckCards.js";
 
 type Filter = "all" | Player["role"] | Player["rarity"];
@@ -34,7 +35,7 @@ function filtersFor(edition: Edition): { key: Filter; label: string }[] {
 
 export function DeckScreen() {
   const [params, setParams] = useSearchParams();
-  const edition = getEdition(params.get("edition") ?? DEFAULT_EDITION_ID);
+  const edition = useEdition(params.get("edition") ?? DEFAULT_EDITION_ID);
   const [filter, setFilter] = useState<Filter>("all");
   const editionId = edition?.id ?? DEFAULT_EDITION_ID;
   const decks = useDecks(editionId);

@@ -5,12 +5,13 @@
  * datasets. Linked from the privacy page and the deck view.
  */
 import { Link, useSearchParams } from "react-router-dom";
-import { DEFAULT_EDITION_ID, getEdition } from "@deckxi/ui";
+import { DEFAULT_EDITION_ID } from "@deckxi/ui";
 import { AppBar } from "../components/Chrome.js";
+import { useEdition } from "../lib/editions.js";
 
 export function CreditsScreen() {
   const [params] = useSearchParams();
-  const edition = getEdition(params.get("edition") ?? DEFAULT_EDITION_ID);
+  const edition = useEdition(params.get("edition") ?? DEFAULT_EDITION_ID);
   const photos = (edition?.players ?? []).filter((p) => p.photo !== undefined);
 
   return (

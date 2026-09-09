@@ -20,13 +20,13 @@
  * change the pool under anyone — the same pinning the edition already has.
  */
 import { z } from "zod";
-import { loadEdition } from "@deckxi/data";
+import { CURRENT_EDITION_ID, listEditionIds, loadEdition } from "@deckxi/data";
 import {
-  BUILT_IN_DECKS,
   DECK_ID_PATTERN,
   DEFAULT_DECK_ID,
   MAX_DECK_ID_LENGTH,
   deckPool,
+  editionDecks,
   raritySchema,
   sortDecks,
   type DeckDefinition,
@@ -47,6 +47,15 @@ export const MIN_DECK_CARDS = 6;
 
 export const deckRecordSchema = z.object({
   id: z.string().max(MAX_DECK_ID_LENGTH).regex(DECK_ID_PATTERN),
+  /**
+   * The edition this deck is for (#143). A deck is a cut of one edition's
+   * cards, and "Bowlers' Union" means nothing to a wrestling deck; absent
+   * means every edition, which is what a pre-#143 stored row is.
+   */
+  editionId: z
+    .string()
+    .regex(/^edition-[a-z0-9]+(-[a-z0-9]+)*$/)
+    .optional(),
   name: z.string().trim().min(1).max(40),
   blurb: z.string().trim().min(1).max(160),
   // Role ids are the edition's vocabulary (#143), so the wire validates the
@@ -74,9 +83,10 @@ export const deckPatchSchema = deckRecordSchema
 
 export class DeckError extends Error {}
 
-function toRecord(deck: DeckDefinition): DeckRecord {
+function toRecord(deck: DeckDefinition, editionId: string): DeckRecord {
   return deckRecordSchema.parse({
     id: deck.id,
+    editionId,
     name: deck.name,
     blurb: deck.blurb,
     ...(deck.roles !== undefined ? { roles: [...deck.roles] } : {}),
@@ -87,8 +97,29 @@ function toRecord(deck: DeckDefinition): DeckRecord {
   });
 }
 
+/**
+ * The decks every bundled edition ships with, which is what a deployment
+ * boots on before an operator has curated anything.
+ */
+function shippedDecks(): DeckRecord[] {
+  const out: DeckRecord[] = [];
+  for (const editionId of listEditionIds()) {
+    try {
+      for (const deck of editionDecks(loadEdition(editionId))) out.push(toRecord(deck, editionId));
+    } catch {
+      // An edition that will not load is not this class's problem to report.
+    }
+  }
+  return out;
+}
+
+/** A deck is on offer for an edition when it names it, or names none at all. */
+function isFor(deck: DeckRecord, editionId: string): boolean {
+  return deck.editionId === undefined || deck.editionId === editionId;
+}
+
 export class DeckCatalogue {
-  private decks: DeckRecord[] = BUILT_IN_DECKS.map(toRecord);
+  private decks: DeckRecord[] = shippedDecks();
 
   constructor(
     private readonly store: ConfigStore,
@@ -111,52 +142,57 @@ export class DeckCatalogue {
     }
   }
 
-  /** Every deck, retired ones included; the admin console wants the lot. */
-  list(): DeckDefinition[] {
-    return sortDecks(this.decks);
+  /** Every deck of one edition, retired ones included; the admin console wants the lot. */
+  list(editionId: string = CURRENT_EDITION_ID): DeckRecord[] {
+    return sortDecks(this.decks.filter((deck) => isFor(deck, editionId))) as DeckRecord[];
   }
 
   /** The decks a host may pick, as the public catalogue publishes them. */
-  catalogue(): DeckSummary[] {
-    return this.list()
+  catalogue(editionId: string = CURRENT_EDITION_ID): DeckSummary[] {
+    return this.list(editionId)
       .filter((deck) => deck.enabled !== false)
-      .map((deck) => this.summarise(deck));
+      .map((deck) => this.summarise(deck, editionId));
   }
 
-  get(id: string): DeckDefinition | undefined {
-    return this.decks.find((deck) => deck.id === id);
+  get(id: string, editionId: string = CURRENT_EDITION_ID): DeckRecord | undefined {
+    // An edition's own deck wins over one left untagged by an older write.
+    return (
+      this.decks.find((deck) => deck.id === id && deck.editionId === editionId) ??
+      this.decks.find((deck) => deck.id === id && deck.editionId === undefined)
+    );
   }
 
   /**
    * The deck a room is set to, or the default when its id no longer exists —
    * a deck deleted under a waiting lobby must not make the room unstartable.
    */
-  resolve(id: string): DeckDefinition {
-    return this.get(id) ?? this.get(DEFAULT_DECK_ID) ?? (this.decks[0] as DeckRecord);
+  resolve(id: string, editionId: string = CURRENT_EDITION_ID): DeckDefinition {
+    const fallback = this.list(editionId)[0] ?? (this.decks[0] as DeckRecord);
+    return this.get(id, editionId) ?? this.get(DEFAULT_DECK_ID, editionId) ?? fallback;
   }
 
-  summarise(deck: DeckDefinition): DeckSummary {
+  summarise(deck: DeckDefinition, editionId?: string): DeckSummary {
     return {
       id: deck.id,
       name: deck.name,
       blurb: deck.blurb,
-      cardCount: this.cardCount(deck),
+      cardCount: this.cardCount(deck, editionId),
       enabled: deck.enabled !== false,
     };
   }
 
-  private cardCount(deck: DeckDefinition): number {
+  private cardCount(deck: DeckDefinition, editionId?: string): number {
     try {
-      return deckPool(loadEdition(), deck).length;
+      return deckPool(loadEdition(editionId ?? CURRENT_EDITION_ID), deck).length;
     } catch {
       return 0;
     }
   }
 
-  async create(input: unknown): Promise<DeckDefinition> {
-    const parsed = deckRecordSchema.safeParse(input);
+  async create(input: unknown, editionId: string = CURRENT_EDITION_ID): Promise<DeckDefinition> {
+    const parsed = deckRecordSchema.safeParse({ editionId, ...(input as object) });
     if (!parsed.success) throw new DeckError(parsed.error.issues[0]?.message ?? "invalid deck");
-    if (this.get(parsed.data.id) !== undefined) {
+    if (this.get(parsed.data.id, editionId) !== undefined) {
       throw new DeckError(`a deck called ${parsed.data.id} already exists`);
     }
     const deck = this.validate(parsed.data);
@@ -164,8 +200,12 @@ export class DeckCatalogue {
     return deck;
   }
 
-  async update(id: string, patch: unknown): Promise<DeckDefinition> {
-    const current = this.require(id);
+  async update(
+    id: string,
+    patch: unknown,
+    editionId: string = CURRENT_EDITION_ID,
+  ): Promise<DeckDefinition> {
+    const current = this.require(id, editionId);
     const parsed = deckPatchSchema.safeParse(patch);
     if (!parsed.success) throw new DeckError(parsed.error.issues[0]?.message ?? "invalid patch");
     const { roles, rarities, ...rest } = parsed.data;
@@ -187,8 +227,12 @@ export class DeckCatalogue {
   }
 
   /** Explicit membership: the deck becomes exactly these cards, in this order. */
-  async setCards(id: string, cardIds: unknown): Promise<DeckDefinition> {
-    const current = this.require(id);
+  async setCards(
+    id: string,
+    cardIds: unknown,
+    editionId: string = CURRENT_EDITION_ID,
+  ): Promise<DeckDefinition> {
+    const current = this.require(id, editionId);
     const parsed = z.array(z.string()).nullable().safeParse(cardIds);
     if (!parsed.success) throw new DeckError("cardIds must be a list of card ids, or null");
     const next: DeckRecord = { ...current };
@@ -198,16 +242,16 @@ export class DeckCatalogue {
     return await this.replace(this.validate(next));
   }
 
-  async remove(id: string): Promise<void> {
-    this.require(id);
+  async remove(id: string, editionId: string = CURRENT_EDITION_ID): Promise<void> {
+    const deck = this.require(id, editionId);
     if (id === DEFAULT_DECK_ID) {
       throw new DeckError(`${DEFAULT_DECK_ID} is the deck every room falls back to`);
     }
-    await this.commit(this.decks.filter((deck) => deck.id !== id));
+    await this.commit(this.decks.filter((d) => d !== deck));
   }
 
-  private require(id: string): DeckRecord {
-    const deck = this.decks.find((d) => d.id === id);
+  private require(id: string, editionId: string): DeckRecord {
+    const deck = this.get(id, editionId);
     if (deck === undefined) throw new DeckError(`no deck called ${id}`);
     return deck;
   }
@@ -218,7 +262,7 @@ export class DeckCatalogue {
    * game fails at room start, which is the worst possible place to find out.
    */
   private validate(deck: DeckRecord): DeckRecord {
-    const edition = loadEdition();
+    const edition = loadEdition(deck.editionId ?? CURRENT_EDITION_ID);
     if (deck.cardIds !== undefined) {
       const known = new Set(edition.players.map((p) => p.id));
       const missing = deck.cardIds.filter((id) => !known.has(id));
@@ -244,7 +288,9 @@ export class DeckCatalogue {
   }
 
   private async replace(deck: DeckRecord): Promise<DeckDefinition> {
-    await this.commit(this.decks.map((d) => (d.id === deck.id ? deck : d)));
+    await this.commit(
+      this.decks.map((d) => (d.id === deck.id && d.editionId === deck.editionId ? deck : d)),
+    );
     return deck;
   }
 

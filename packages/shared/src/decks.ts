@@ -8,10 +8,12 @@
  *
  * Decks are **runtime data** (#142): an operator curates them from the admin
  * console, so a deck id is a validated slug on the wire rather than a
- * compile-time union, and the catalogue reaches the client over the API. The
- * four decks below stay in code as the defaults every deployment boots with
- * and the client falls back to — a deck list that needs a server round-trip
- * before the lobby can print a name is a lobby that flickers.
+ * compile-time union, and the catalogue reaches the client over the API.
+ *
+ * The defaults are the **edition's own** (#143). "Batters' XI" is a cricket
+ * idea; a wrestling edition ships "The Bloodline" instead, and neither word
+ * belongs in this package. What is left here is the shape of a deck, the one
+ * deck every edition has (all of it), and how a deck resolves to cards.
  */
 import type { Edition, Player, PlayerRoleId, Rarity } from "./edition.js";
 
@@ -23,11 +25,11 @@ export const DECK_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const MAX_DECK_ID_LENGTH = 40;
 export type DeckId = string;
 
-export const BUILT_IN_DECK_IDS = ["all-stars", "legends", "batters-xi", "bowlers-union"] as const;
-export type BuiltInDeckId = (typeof BUILT_IN_DECK_IDS)[number];
-/** The decks that ship in the bundle. Runtime decks are added to these. */
-export const DECK_IDS = BUILT_IN_DECK_IDS;
-export const DEFAULT_DECK_ID: BuiltInDeckId = "all-stars";
+/**
+ * The deck every edition has and every room falls back to. An edition may
+ * redefine it (a name, a blurb of its own); it may not do without it.
+ */
+export const DEFAULT_DECK_ID = "all-stars";
 
 export interface DeckDefinition {
   id: DeckId;
@@ -36,7 +38,7 @@ export interface DeckDefinition {
   /**
    * Cards must match every filter present. Absent filters match everything.
    * Role ids are the edition's (#143), so a role filter only means anything
-   * on an edition that declares that role — the built-ins below are cricket.
+   * on the edition it was written for.
    */
   roles?: readonly PlayerRoleId[] | undefined;
   rarities?: readonly Rarity[] | undefined;
@@ -52,45 +54,27 @@ export interface DeckDefinition {
   sort?: number | undefined;
 }
 
-export const DECKS: Record<BuiltInDeckId, DeckDefinition> = {
-  "all-stars": {
-    id: "all-stars",
-    name: "All Stars",
-    blurb: "The whole edition. Every role, every rarity.",
-    sort: 0,
-  },
-  legends: {
-    id: "legends",
-    name: "Legends",
-    blurb: "Star and legend cards only. Big numbers everywhere — a close game.",
-    rarities: ["star", "legend"],
-    sort: 1,
-  },
-  "batters-xi": {
-    id: "batters-xi",
-    name: "Batters' XI",
-    blurb: "Batters and keepers. Averages, strike rates and runs decide.",
-    roles: ["batter", "keeper"],
-    sort: 2,
-  },
-  "bowlers-union": {
-    id: "bowlers-union",
-    name: "Bowlers' Union",
-    blurb: "Bowlers and all-rounders. Wickets, economy and best figures rule.",
-    roles: ["bowler", "all-rounder"],
-    sort: 3,
-  },
+/** The whole edition, for an edition that declares no decks of its own. */
+export const ALL_CARDS_DECK: DeckDefinition = {
+  id: DEFAULT_DECK_ID,
+  name: "All Stars",
+  blurb: "The whole edition. Every card in it.",
+  sort: 0,
 };
 
-/** The built-ins as a list, in picker order. */
-export const BUILT_IN_DECKS: readonly DeckDefinition[] = BUILT_IN_DECK_IDS.map((id) => DECKS[id]);
+/** The decks an edition ships with, in picker order. */
+export function editionDecks(edition: Pick<Edition, "decks">): DeckDefinition[] {
+  const declared: readonly DeckDefinition[] = edition.decks ?? [ALL_CARDS_DECK];
+  return sortDecks(declared);
+}
 
 /** The cards a deck draws from: curated order for a list, edition order otherwise. */
 export function deckPool(
-  edition: Pick<Edition, "players">,
+  edition: Pick<Edition, "players" | "decks">,
   deck: DeckId | DeckDefinition,
 ): Player[] {
-  const definition = typeof deck === "string" ? DECKS[deck as BuiltInDeckId] : deck;
+  const definition =
+    typeof deck === "string" ? editionDecks(edition).find((d) => d.id === deck) : deck;
   if (definition === undefined) throw new Error(`unknown deck ${String(deck)}`);
   if (definition.cardIds !== undefined) {
     const byId = new Map(edition.players.map((p) => [p.id, p]));

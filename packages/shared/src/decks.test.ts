@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { DECKS, DECK_IDS, DEFAULT_DECK_ID, deckPool } from "./decks.js";
-import type { Player } from "./edition.js";
+import { ALL_CARDS_DECK, DEFAULT_DECK_ID, deckPool, editionDecks } from "./decks.js";
+import type { Edition, Player } from "./edition.js";
 
 const player = (id: string, role: Player["role"], rarity: Player["rarity"]): Player => ({
   id,
@@ -20,25 +20,41 @@ describe("decks", () => {
     player("bowl", "bowler", "legend"),
     player("ar", "all-rounder", "regular"),
   ];
+  // The decks are the edition's own (#143); these are a cricket edition's.
+  const decks: Edition["decks"] = [
+    { id: DEFAULT_DECK_ID, name: "All Stars", blurb: "Everything.", sort: 0 },
+    { id: "legends", name: "Legends", blurb: "The big names.", rarities: ["star", "legend"] },
+    { id: "batters-xi", name: "Batters' XI", blurb: "Bat first.", roles: ["batter", "keeper"] },
+    { id: "one-card", name: "One card", blurb: "A hand-picked list.", cardIds: ["bowl"] },
+  ];
+  const edition = { players, decks };
 
   it("the default deck is the whole edition", () => {
-    expect(DECKS[DEFAULT_DECK_ID].roles).toBeUndefined();
-    expect(deckPool({ players }, DEFAULT_DECK_ID).map((p) => p.id)).toEqual(
-      players.map((p) => p.id),
-    );
+    expect(deckPool(edition, DEFAULT_DECK_ID).map((p) => p.id)).toEqual(players.map((p) => p.id));
   });
 
-  it("filters by role and rarity", () => {
-    expect(deckPool({ players }, "batters-xi").map((p) => p.id)).toEqual(["bat", "keep"]);
-    expect(deckPool({ players }, "bowlers-union").map((p) => p.id)).toEqual(["bowl", "ar"]);
-    expect(deckPool({ players }, "legends").map((p) => p.id)).toEqual(["keep", "bowl"]);
+  it("filters by role and rarity, and takes an explicit list", () => {
+    expect(deckPool(edition, "batters-xi").map((p) => p.id)).toEqual(["bat", "keep"]);
+    expect(deckPool(edition, "legends").map((p) => p.id)).toEqual(["keep", "bowl"]);
+    expect(deckPool(edition, "one-card").map((p) => p.id)).toEqual(["bowl"]);
   });
 
-  it("every deck id has a definition with a name and blurb", () => {
-    for (const id of DECK_IDS) {
-      expect(DECKS[id].id).toBe(id);
-      expect(DECKS[id].name.length).toBeGreaterThan(0);
-      expect(DECKS[id].blurb.length).toBeGreaterThan(0);
-    }
+  it("refuses a deck the edition never declared", () => {
+    expect(() => deckPool(edition, "bowlers-union")).toThrow(/unknown deck/);
+  });
+
+  it("an edition that declares no decks still has one: all of it", () => {
+    const bare = { players };
+    expect(editionDecks(bare)).toEqual([ALL_CARDS_DECK]);
+    expect(deckPool(bare, DEFAULT_DECK_ID).map((p) => p.id)).toEqual(players.map((p) => p.id));
+  });
+
+  it("lists decks in picker order", () => {
+    expect(editionDecks(edition).map((d) => d.id)).toEqual([
+      "all-stars",
+      "batters-xi",
+      "legends",
+      "one-card",
+    ]);
   });
 });

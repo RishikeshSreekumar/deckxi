@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { RedactedGameEvent, RoomJoined, RoomView } from "@deckxi/shared";
-import { DECK_IDS, deckPool } from "@deckxi/shared";
+import { deckPool, editionDecks } from "@deckxi/shared";
 import { loadEdition } from "@deckxi/data";
 import { startTestServer, trumpsState, type TestClient, type TestServer } from "./testkit.js";
 
@@ -57,9 +57,11 @@ function gameStarted(seat: Seat): Extract<RedactedGameEvent, { type: "GAME_START
 }
 
 describe("decks (#134)", () => {
-  it("every deck can deal the biggest table in full", () => {
+  it("every deck of the shipped edition can deal the biggest table in full", () => {
     const edition = loadEdition();
-    for (const id of DECK_IDS) expect(deckPool(edition, id).length).toBeGreaterThanOrEqual(6 * 11);
+    for (const deck of editionDecks(edition)) {
+      expect(deckPool(edition, deck.id).length).toBeGreaterThanOrEqual(6 * 11);
+    }
   });
 
   it("deals only from the chosen deck", async () => {

@@ -42,12 +42,18 @@ export const T20I_SELECTION: Omit<SelectionConfig, "roleOverrides"> = {
  * bat, four with the ball. Bounds are refitted to the deck on every import.
  */
 export const T20I_STATS = [
-  { key: "battingAvg", name: "Batting average", direction: "higher", format: "decimal" },
-  { key: "strikeRate", name: "Strike rate", direction: "higher", format: "decimal" },
-  { key: "runs", name: "T20I runs", direction: "higher", format: "integer" },
-  { key: "highest", name: "Highest score", direction: "higher", format: "integer" },
-  { key: "wickets", name: "T20I wickets", direction: "higher", format: "integer" },
-  { key: "economy", name: "Economy", direction: "lower", format: "decimal" },
-  { key: "catches", name: "Catches", direction: "higher", format: "integer" },
-  { key: "bestBowling", name: "Best bowling", direction: "higher", format: "figures" },
+  { key: "battingAvg", blurb: "Runs scored per time out, with the bat.", name: "Batting average", group: "bat", short: "Avg.", direction: "higher", format: "decimal" }, // prettier-ignore
+  { key: "strikeRate", blurb: "Runs scored per 100 balls faced — how fast they score.", name: "Strike rate", group: "bat", short: "S/R", direction: "higher", format: "decimal" }, // prettier-ignore
+  { key: "runs", blurb: "Career runs in T20 internationals.", name: "T20I runs", group: "bat", short: "Runs", direction: "higher", format: "integer" }, // prettier-ignore
+  { key: "highest", blurb: "Their best single-innings score.", name: "Highest score", group: "bat", short: "H/S", direction: "higher", format: "integer" }, // prettier-ignore
+  { key: "wickets", blurb: "Career wickets in T20 internationals.", name: "T20I wickets", group: "ball", short: "Wkt.", direction: "higher", format: "integer" }, // prettier-ignore
+  { key: "economy", blurb: "Runs given away per over bowled. Fewer is better.", name: "Economy", group: "ball", short: "Econ.", direction: "lower", format: "decimal" }, // prettier-ignore
+  { key: "catches", blurb: "Career catches in the field.", name: "Catches", group: "ball", short: "Ct.", direction: "higher", format: "integer" }, // prettier-ignore
+  { key: "bestBowling", blurb: "Best figures in one match, as wickets/runs (4/16 = four wickets for 16 runs).", name: "Best bowling", group: "ball", short: "Best", direction: "higher", format: "figures" }, // prettier-ignore
 ] as const;
+
+/** The card's two columns: the bat on the left, the ball on the right. */
+export const T20I_STAT_GROUPS = [
+  { id: "bat", name: "Batting", icon: "batter" },
+  { id: "ball", name: "Bowling", icon: "bowler" },
+];

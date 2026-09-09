@@ -14,18 +14,6 @@ import { GAME_MODE_INFO, type GameModeId } from "@deckxi/shared";
 import { DEFAULT_EDITION_ID, Dialog, getEdition } from "@deckxi/ui";
 import "./howToPlay.css";
 
-/** What each stat measures, keyed the way the edition keys them. */
-const STAT_MEANING: Record<string, string> = {
-  battingAvg: "Runs scored per time out, with the bat.",
-  strikeRate: "Runs scored per 100 balls faced — how fast they score.",
-  runs: "Career runs in T20 internationals.",
-  highest: "Their best single-innings score.",
-  wickets: "Career wickets in T20 internationals.",
-  economy: "Runs given away per over bowled. Fewer is better.",
-  catches: "Career catches in the field.",
-  bestBowling: "Best figures in one match, as wickets/runs (4/16 = four wickets for 16 runs).",
-};
-
 export function HowToPlay({
   editionId = DEFAULT_EDITION_ID,
   gameMode = "classic-trumps",
@@ -35,15 +23,20 @@ export function HowToPlay({
   gameMode?: GameModeId;
   onClose: () => void;
 }) {
-  const stats = getEdition(editionId)?.stats ?? [];
+  const edition = getEdition(editionId);
+  const stats = edition?.stats ?? [];
+  // What the game is made of is the edition's: cricket top trumps, wrestling
+  // top trumps, whatever the next one is (#143).
+  const sport = edition?.sport ?? "cricket";
+  const hasFigures = stats.some((def) => def.format === "figures");
   return (
     <Dialog title="How to play" onClose={onClose}>
       <div className="rules-sheet" data-testid="how-to-play">
         <p className="rules-text">
-          DeckXI is cricket top trumps. Every card is a real player with eight numbers on it. Each
-          round one of you <strong>calls a stat</strong>; everyone's top card is compared on that
-          stat, and the best value <strong>takes every card played</strong>. Run out of cards and
-          you're out. Last one holding cards wins.
+          DeckXI is {sport} top trumps. Every card is a real competitor with eight numbers on it.
+          Each round one of you <strong>calls a stat</strong>; everyone's top card is compared on
+          that stat, and the best value <strong>takes every card played</strong>. Run out of cards
+          and you're out. Last one holding cards wins.
         </p>
 
         <ol className="rules-steps">
@@ -87,16 +80,18 @@ export function HowToPlay({
                 <span className="rules-stat-body">
                   <strong>{def.name}</strong>
                   <em>{lower ? "lower wins" : "higher wins"}</em>
-                  <span className="sub">{STAT_MEANING[def.key] ?? ""}</span>
+                  <span className="sub">{def.blurb ?? ""}</span>
                 </span>
               </li>
             );
           })}
         </ul>
-        <p className="sub">
-          Best bowling ranks by wickets first, then by fewer runs: 4/22 beats 3/17. A dash means no
-          record — it counts as the worst possible value for that stat, so never call it.
-        </p>
+        {hasFigures && (
+          <p className="sub">
+            Best bowling ranks by wickets first, then by fewer runs: 4/22 beats 3/17. A dash means
+            no record — it counts as the worst possible value for that stat, so never call it.
+          </p>
+        )}
         <p className="sub">
           <strong>{GAME_MODE_INFO[gameMode].name}:</strong> {GAME_MODE_INFO[gameMode].blurb}
         </p>

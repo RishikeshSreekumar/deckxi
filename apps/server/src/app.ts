@@ -313,7 +313,10 @@ export function buildApp(options: AppOptions = {}): App {
    * the built-ins as a fallback, so a slow or failed fetch costs a name, not
    * a lobby.
    */
-  fastify.get("/api/decks", (_request, reply) => reply.send({ decks: decks.catalogue() }));
+  fastify.get("/api/decks", (request, reply) => {
+    const { edition } = request.query as { edition?: string };
+    return reply.send({ decks: decks.catalogue(edition ?? CURRENT_EDITION_ID) });
+  });
 
   /**
    * The cards one deck resolves to, for /deck. The catalogue carries counts
@@ -322,11 +325,12 @@ export function buildApp(options: AppOptions = {}): App {
    */
   fastify.get("/api/decks/:id/cards", (request, reply) => {
     const { id } = request.params as { id: string };
-    const deck = decks.get(id);
+    const editionId = (request.query as { edition?: string }).edition ?? CURRENT_EDITION_ID;
+    const deck = decks.get(id, editionId);
     if (deck === undefined) return reply.status(404).send({ error: "no such deck" });
     return reply.send({
-      deck: decks.summarise(deck),
-      cardIds: deckPool(loadEdition(), deck).map((card) => card.id),
+      deck: decks.summarise(deck, editionId),
+      cardIds: deckPool(loadEdition(editionId), deck).map((card) => card.id),
     });
   });
 
@@ -576,7 +580,7 @@ export function buildApp(options: AppOptions = {}): App {
       logger: log,
       metrics,
       isModeEnabled: (mode) => ops.isModeEnabled(mode),
-      lookupDeck: (deckId) => decks.get(deckId),
+      lookupDeck: (deckId, editionId) => decks.get(deckId, editionId),
       ...options.rooms,
     },
     limits: options.limits,

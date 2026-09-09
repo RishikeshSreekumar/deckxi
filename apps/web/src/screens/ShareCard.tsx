@@ -4,13 +4,14 @@
  * export pipeline screenshots this route; it is not linked from the app.
  */
 import { useParams, useSearchParams } from "react-router-dom";
-import { DEFAULT_EDITION_ID, TrumpCard, getCardInfo, getEdition } from "@deckxi/ui";
+import { DEFAULT_EDITION_ID, TrumpCard, getCardInfo } from "@deckxi/ui";
+import { useEdition } from "../lib/editions.js";
 
 export function ShareCardScreen() {
   const { cardId } = useParams();
   const [params] = useSearchParams();
   const editionId = params.get("edition") ?? DEFAULT_EDITION_ID;
-  const edition = getEdition(editionId);
+  const edition = useEdition(editionId);
   const { player, team } = getCardInfo(editionId, cardId ?? "");
 
   return (
