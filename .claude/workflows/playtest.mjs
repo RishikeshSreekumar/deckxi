@@ -1,90 +1,93 @@
 export const meta = {
-  name: 'playtest',
-  description: 'Five agent playtesters play a real DeckXI game in real browsers and report on it',
+  name: "playtest",
+  description: "Five agent playtesters play a real DeckXI game in real browsers and report on it",
   whenToUse:
-    'Run after a gameplay or UI change to get human-shaped feedback: five personas play one match end to end through the built app, then a reporter turns their notes plus console/network errors into a findings report.',
+    "Run after a gameplay or UI change to get human-shaped feedback: five personas play one match end to end through the built app, then a reporter turns their notes plus console/network errors into a findings report.",
   phases: [
-    { title: 'Play', detail: 'five personas drive one browser each through a full match' },
-    { title: 'Report', detail: 'one agent synthesises notes, findings and runtime errors' },
+    { title: "Play", detail: "five personas drive one browser each through a full match" },
+    { title: "Report", detail: "one agent synthesises notes, findings and runtime errors" },
   ],
-}
+};
 
-const DAEMON = 'http://localhost:3910'
+const DAEMON = "http://localhost:3910";
 
 // Personas are the point: identical testers find identical things. Each one has
 // a different device, a different reason to be here, and a different tolerance
 // for confusion.
 const PERSONAS = [
   {
-    id: 'priya',
-    name: 'Priya',
-    device: 'desktop',
-    role: 'host',
+    id: "priya",
+    name: "Priya",
+    device: "desktop",
+    role: "host",
     brief:
-      'Confident host who has played card games online before but never this one. Sets up the table, cares about whether the rules are discoverable and whether the room feels ready to start. Impatient with anything that takes more than two clicks.',
+      "Confident host who has played card games online before but never this one. Sets up the table, cares about whether the rules are discoverable and whether the room feels ready to start. Impatient with anything that takes more than two clicks.",
   },
   {
-    id: 'sam',
-    name: 'Sam',
-    device: 'mobile',
-    role: 'guest',
+    id: "sam",
+    name: "Sam",
+    device: "mobile",
+    role: "guest",
     brief:
-      'On a phone, one-handed, half-watching TV. Knows nothing about cricket stats. Judges everything by whether it is obvious what to tap next and whether text is readable at a glance. Complains loudly about small tap targets and cramped layouts.',
+      "On a phone, one-handed, half-watching TV. Knows nothing about cricket stats. Judges everything by whether it is obvious what to tap next and whether text is readable at a glance. Complains loudly about small tap targets and cramped layouts.",
   },
   {
-    id: 'arjun',
-    name: 'Arjun',
-    device: 'desktop',
-    role: 'guest',
+    id: "arjun",
+    name: "Arjun",
+    device: "desktop",
+    role: "guest",
     brief:
-      'Cricket nerd and competitive player. Wants to know exactly why a round was won or lost, whether the stat he picked was actually the right call, and whether the game rewards skill or is pure luck. Will call out anything that feels unfair or opaque.',
+      "Cricket nerd and competitive player. Wants to know exactly why a round was won or lost, whether the stat he picked was actually the right call, and whether the game rewards skill or is pure luck. Will call out anything that feels unfair or opaque.",
   },
   {
-    id: 'mei',
-    name: 'Mei',
-    device: 'tablet',
-    role: 'guest',
+    id: "mei",
+    name: "Mei",
+    device: "tablet",
+    role: "guest",
     brief:
-      'Total newcomer, cautious, reads everything before clicking. Represents the player who bounces if the first thirty seconds are confusing. Reports every moment she was unsure what the game wanted from her.',
+      "Total newcomer, cautious, reads everything before clicking. Represents the player who bounces if the first thirty seconds are confusing. Reports every moment she was unsure what the game wanted from her.",
   },
   {
-    id: 'dev',
-    name: 'Dev',
-    device: 'desktop',
-    role: 'guest',
+    id: "dev",
+    name: "Dev",
+    device: "desktop",
+    role: "guest",
     brief:
-      'Restless prodder. Clicks the chat, the emotes, the menu, the rules sheet mid-round, and generally pokes at anything not on the happy path — while still taking his turns. Looks for things that break, stall, or look wrong when used out of order.',
+      "Restless prodder. Clicks the chat, the emotes, the menu, the rules sheet mid-round, and generally pokes at anything not on the happy path — while still taking his turns. Looks for things that break, stall, or look wrong when used out of order.",
   },
-]
+];
 
 const FINDINGS_SCHEMA = {
-  type: 'object',
+  type: "object",
   properties: {
-    persona: { type: 'string' },
-    reachedResults: { type: 'boolean', description: 'true if this player saw the results screen' },
-    funRating: { type: 'integer', description: '1-10, how much this persona enjoyed the match' },
-    funReason: { type: 'string' },
+    persona: { type: "string" },
+    reachedResults: { type: "boolean", description: "true if this player saw the results screen" },
+    funRating: { type: "integer", description: "1-10, how much this persona enjoyed the match" },
+    funReason: { type: "string" },
     findings: {
-      type: 'array',
+      type: "array",
       items: {
-        type: 'object',
+        type: "object",
         properties: {
-          severity: { type: 'string', description: 'blocker | major | minor | polish' },
-          area: { type: 'string', description: 'e.g. lobby, table, reveal, results, chat, rules' },
-          summary: { type: 'string' },
-          detail: { type: 'string', description: 'what happened, what was expected, screenshot path if any' },
+          severity: { type: "string", description: "blocker | major | minor | polish" },
+          area: { type: "string", description: "e.g. lobby, table, reveal, results, chat, rules" },
+          summary: { type: "string" },
+          detail: {
+            type: "string",
+            description: "what happened, what was expected, screenshot path if any",
+          },
         },
-        required: ['severity', 'area', 'summary', 'detail'],
+        required: ["severity", "area", "summary", "detail"],
       },
     },
     quotes: {
-      type: 'array',
-      description: 'in-character reactions worth quoting in the report',
-      items: { type: 'string' },
+      type: "array",
+      description: "in-character reactions worth quoting in the report",
+      items: { type: "string" },
     },
   },
-  required: ['persona', 'reachedResults', 'funRating', 'funReason', 'findings', 'quotes'],
-}
+  required: ["persona", "reachedResults", "funRating", "funReason", "findings", "quotes"],
+};
 
 function protocol(persona) {
   return `You are a HUMAN PLAYTESTER of DeckXI, a cricket trump-card game. You are ${persona.name}, on ${persona.device}.
@@ -120,7 +123,7 @@ Rules of engagement:
 - If nothing is asked of you, wait 2-3s and observe again rather than clicking at random.
 - Never click anything that could delete an account or leave the table before the game ends.
 - If you are stuck for more than 8 straight observations with no progress, note it as a blocker and stop.
-- Budget roughly 60 actions. Stop and report if you exceed that.`
+- Budget roughly 60 actions. Stop and report if you exceed that.`;
 }
 
 const HOST_STEPS = `Your job as host, in order:
@@ -128,30 +131,31 @@ const HOST_STEPS = `Your job as host, in order:
 2. Open "Match settings" and set a SHORT match: 5 cards per player (never fewer cards than players — the last seats would be out before their first call), 10 rounds max, 30s turn timer. Close the sheet.
 3. Read the room code off the lobby and post it to the blackboard key roomCode immediately — the other four players are blocked waiting on it.
 4. Wait until all five names appear in the player list and everyone is ready, then start the match. Poll with wait+observe; do not start short-handed unless someone never arrives after ~2 minutes (note that as a finding).
-5. Play your turns to the results screen.`
+5. Play your turns to the results screen.`;
 
 const GUEST_STEPS = `Your job as guest, in order:
 1. Poll ${DAEMON}/board/roomCode (wait 3000ms between polls) until it returns a code. Do not touch the UI before that except to look at the landing screen once and react to it.
 2. Go to /join/<code>, enter your name, join the table, and mark yourself ready.
-3. Play your turns to the results screen. The host starts the match.`
+3. Play your turns to the results screen. The host starts the match.`;
 
-phase('Play')
+phase("Play");
 
 const reports = await parallel(
-  PERSONAS.map((persona) => () =>
-    agent(
-      `${protocol(persona)}\n\n${persona.role === 'host' ? HOST_STEPS : GUEST_STEPS}\n\n` +
-        `When the match is over (or you are blocked), look at the results screen, log a final reaction, and return your findings. Severity: blocker = could not proceed or the game broke; major = would make a real player quit or misplay; minor = friction; polish = cosmetic. Only report what you actually saw on screen.` +
-        (args && args.focus ? `\n\nExtra focus for this run: ${args.focus}` : ''),
-      { label: `play:${persona.id}`, phase: 'Play', schema: FINDINGS_SCHEMA },
-    ),
+  PERSONAS.map(
+    (persona) => () =>
+      agent(
+        `${protocol(persona)}\n\n${persona.role === "host" ? HOST_STEPS : GUEST_STEPS}\n\n` +
+          `When the match is over (or you are blocked), look at the results screen, log a final reaction, and return your findings. Severity: blocker = could not proceed or the game broke; major = would make a real player quit or misplay; minor = friction; polish = cosmetic. Only report what you actually saw on screen.` +
+          (args && args.focus ? `\n\nExtra focus for this run: ${args.focus}` : ""),
+        { label: `play:${persona.id}`, phase: "Play", schema: FINDINGS_SCHEMA },
+      ),
   ),
-)
+);
 
-const played = reports.filter(Boolean)
-log(`${played.length}/${PERSONAS.length} playtesters reported back`)
+const played = reports.filter(Boolean);
+log(`${played.length}/${PERSONAS.length} playtesters reported back`);
 
-phase('Report')
+phase("Report");
 
 const summary = await agent(
   `Five agent playtesters just played one match of DeckXI end to end in real browsers. Write the findings report.
@@ -172,7 +176,7 @@ Write the report to <outDir>/report.md and return its path plus a 10-line execut
 6. Top 5 changes ranked by (player pain × how cheap it looks to fix), each phrased as a concrete change to make.
 
 Be concrete and quote players. Do not invent findings that are not in the data, and do not soften a blocker.`,
-  { label: 'report', phase: 'Report' },
-)
+  { label: "report", phase: "Report" },
+);
 
-return { players: played.length, summary }
+return { players: played.length, summary };
