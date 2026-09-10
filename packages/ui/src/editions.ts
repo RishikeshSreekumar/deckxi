@@ -29,9 +29,15 @@ export function subscribeEditions(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-/** Every edition id this build can show, loaded or not. */
+/**
+ * The editions this build *offers* — what a picker lists. Snapshotted before
+ * anything calls `registerEdition`, so a test or visual fixture registered at
+ * runtime is resolvable without turning up in the UI as a deck to play.
+ */
+const OFFERED = [...new Set([...Object.keys(bundled), ...Object.keys(fetchable)])].sort();
+
 export function knownEditionIds(): string[] {
-  return [...new Set([...Object.keys(bundled), ...Object.keys(fetchable)])].sort();
+  return [...OFFERED];
 }
 
 const loading = new Map<string, Promise<Edition | null>>();

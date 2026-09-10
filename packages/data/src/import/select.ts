@@ -30,6 +30,18 @@ export interface SelectionConfig {
   /** Minimum appearances before a player is eligible for a card. */
   minMatches: number;
   squad: SquadShape;
+  /**
+   * Nations that play a fraction of the T20I calendar the full members do.
+   * Left alone they fill fifteen seats with players of ten caps, which is how
+   * a deck ends up with more Scotland than India in it. They get a higher bar
+   * and a smaller squad, so the deck leans on the sides people know.
+   */
+  associates?: {
+    /** Team ids on the harder terms. */
+    teams: readonly string[];
+    minMatches: number;
+    squad: SquadShape;
+  };
   /** Cricsheet id → forced role (for the cases the heuristic gets wrong). */
   roleOverrides: Record<string, CricketRole>;
   /** Share of the deck in each tier; the remainder is regular. */
@@ -115,12 +127,19 @@ export function selectSquads(
   aggregates: Iterable<PlayerAggregate>,
   config: SelectionConfig,
 ): Selected[] {
+  const associateIds = new Set(config.associates?.teams ?? []);
+  const termsFor = (team: Team): { minMatches: number; squad: SquadShape } =>
+    config.associates !== undefined && associateIds.has(team.id)
+      ? { minMatches: config.associates.minMatches, squad: config.associates.squad }
+      : { minMatches: config.minMatches, squad: config.squad };
+
   const byTeam = new Map<string, PlayerAggregate[]>();
   for (const agg of aggregates) {
-    if (agg.matches < config.minMatches) continue;
-    const team = modalTeam(agg);
-    if (!config.teams.some((t) => t.name === team)) continue;
-    byTeam.set(team, [...(byTeam.get(team) ?? []), agg]);
+    const name = modalTeam(agg);
+    const team = config.teams.find((t) => t.name === name);
+    if (team === undefined) continue;
+    if (agg.matches < termsFor(team).minMatches) continue;
+    byTeam.set(name, [...(byTeam.get(name) ?? []), agg]);
   }
 
   const deprioritized = config.deprioritized ?? new Set<string>();
@@ -129,7 +148,8 @@ export function selectSquads(
     const everyone = byTeam.get(team.name) ?? [];
     const role = (agg: PlayerAggregate) => config.roleOverrides[agg.id] ?? inferRole(agg);
     const taken = new Set<string>();
-    const squadSize = Object.values(config.squad).reduce((a, b) => a + b, 0);
+    const squad = termsFor(team).squad;
+    const squadSize = Object.values(squad).reduce((a, b) => a + b, 0);
     const count = () => picked.filter((p) => p.team.id === team.id).length;
 
     // Preferred players first — role seats, then the leftover seats by
@@ -141,12 +161,12 @@ export function selectSquads(
       everyone.filter((a) => deprioritized.has(a.id)),
     ];
     for (const pool of pools) {
-      for (const r of Object.keys(config.squad) as CricketRole[]) {
+      for (const r of Object.keys(squad) as CricketRole[]) {
         const have = picked.filter((p) => p.team.id === team.id && p.role === r).length;
         const shortlist = pool
           .filter((a) => !taken.has(a.id) && role(a) === r)
           .sort((a, b) => roleRank(r, b) - roleRank(r, a) || a.id.localeCompare(b.id))
-          .slice(0, Math.max(0, Math.min(config.squad[r] - have, squadSize - count())));
+          .slice(0, Math.max(0, Math.min(squad[r] - have, squadSize - count())));
         for (const agg of shortlist) {
           taken.add(agg.id);
           picked.push({ agg, team, role: r });

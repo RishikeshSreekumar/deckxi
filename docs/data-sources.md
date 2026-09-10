@@ -43,8 +43,8 @@ licence. Wikimedia Commons hosts photos of most international cricketers under C
 attribution licences (or an open-government licence for the many Indian players photographed at the
 Prime Minister's Office). The importer accepts only reuse-with-attribution licences — no NC, no ND,
 no fair use — and records author, licence and source per card. Cards with no acceptable photo keep
-the role silhouette — but squad selection prefers players who _have_ one (below), so today 176 of
-210 cards carry a photo; the silhouettes are mostly Scotland, Zimbabwe, Netherlands, Ireland and
+the role silhouette — but squad selection prefers players who _have_ one (below), so today 160 of
+182 cards carry a photo; the silhouettes are mostly Scotland, Zimbabwe, Netherlands, Ireland and
 Nepal players whose nations have no further photographed candidates. A better photo for a player can be pinned in
 `sources/overrides.json`.
 
@@ -69,12 +69,20 @@ For each person (keyed by Cricsheet register id), over every men's T20I in the a
 runs per match separate bowlers, all-rounders and batters) and can be forced per player in
 `sources/overrides.json`.
 
-**Squad**: for each of 14 nations (India, Australia, England, New Zealand, Pakistan, South Africa,
-Sri Lanka, Bangladesh, West Indies, Ireland, Zimbabwe, Netherlands, Scotland, Nepal), 5 batters by
-runs, 2 keepers, 3 all-rounders and 5 bowlers by wickets among players with at least 15 T20Is,
-back-filled by overall involvement when a role is short. 210 cards. A game deals
-`cardsPerPlayer × players` from a fresh shuffle of the whole pool, so a bigger pool means a
-different deck every game.
+**Squad**: for each of the nine full members (India, Australia, England, New Zealand, Pakistan,
+South Africa, Sri Lanka, Bangladesh, West Indies), 5 batters by runs, 2 keepers, 3 all-rounders and
+5 bowlers by wickets among players with **at least 20 T20Is**, back-filled by overall involvement
+when a role is short — fifteen cards a nation.
+
+The five smaller sides (Ireland, Zimbabwe, the Netherlands, Scotland, Nepal) are picked on harder
+terms: **at least 40 T20Is**, and ten seats rather than fifteen (3 batters, 1 keeper, 2
+all-rounders, 4 bowlers). They play a fraction of the calendar the full members do, so an equal
+share handed fifteen cards to nations whose best player had fewer caps than a full member's twelfth
+man — a deck that looked like the T20I world only if you had never watched it. A nation short of
+qualified players simply fields fewer cards.
+
+182 cards today. A game deals `cardsPerPlayer × players` from a fresh shuffle of the whole pool, so
+a bigger pool means a different deck every game.
 
 **Stats**: batting average, strike rate, runs and highest score with the bat; wickets, economy,
 catches and best bowling with the ball. Best bowling is an innings analysis ("3/17") packed into one

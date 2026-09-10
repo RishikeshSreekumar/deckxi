@@ -14,7 +14,7 @@ import { DEFAULT_EDITION_ID, TrumpCard } from "@deckxi/ui";
 import { DEFAULT_DECK_ID, type DeckId, type Edition, type Player } from "@deckxi/shared";
 import { AppBar } from "../components/Chrome.js";
 import { deckOf, useDecks } from "../lib/decks.js";
-import { useEdition } from "../lib/editions.js";
+import { useAllEditions, useEdition } from "../lib/editions.js";
 import { useDeckCards } from "../lib/deckCards.js";
 
 type Filter = "all" | Player["role"] | Player["rarity"];
@@ -33,9 +33,17 @@ function filtersFor(edition: Edition): { key: Filter; label: string }[] {
   ];
 }
 
+/** A chip-sized name for an edition: its series when that is short, else its sport. */
+function editionLabel(edition: Edition): string {
+  const label =
+    edition.series !== undefined && edition.series.length <= 12 ? edition.series : edition.sport;
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 export function DeckScreen() {
   const [params, setParams] = useSearchParams();
   const edition = useEdition(params.get("edition") ?? DEFAULT_EDITION_ID);
+  const editions = useAllEditions();
   const [filter, setFilter] = useState<Filter>("all");
   const editionId = edition?.id ?? DEFAULT_EDITION_ID;
   const decks = useDecks(editionId);
@@ -49,6 +57,21 @@ export function DeckScreen() {
     const next = new URLSearchParams(params);
     if (id === DEFAULT_DECK_ID) next.delete("deck");
     else next.set("deck", id);
+    setParams(next, { replace: true });
+  };
+
+  /**
+   * The edition is the URL too (#143). Without this the page could only ever
+   * show the bundled cricket deck, and the WWE cards were reachable only by
+   * typing a query string.
+   */
+  const selectEdition = (id: string) => {
+    const next = new URLSearchParams(params);
+    if (id === DEFAULT_EDITION_ID) next.delete("edition");
+    else next.set("edition", id);
+    // Decks belong to an edition, so the deck goes back to the default.
+    next.delete("deck");
+    setFilter("all");
     setParams(next, { replace: true });
   };
 
@@ -83,18 +106,36 @@ export function DeckScreen() {
           </p>
           <p className="sub">{deck.blurb}</p>
         </div>
-        <div className="deck-filters" role="group" aria-label="Filter cards">
-          {filters.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              className={`chip ${filter === f.key ? "chip--on" : ""}`}
-              aria-pressed={filter === f.key}
-              onClick={() => setFilter(f.key)}
-            >
-              {f.label}
-            </button>
-          ))}
+        <div className="deck-chips">
+          {editions.length > 1 && (
+            <div className="deck-filters" role="group" aria-label="Edition">
+              {editions.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  className={`chip ${e.id === editionId ? "chip--on" : ""}`}
+                  aria-pressed={e.id === editionId}
+                  data-testid={`edition-${e.id}`}
+                  onClick={() => selectEdition(e.id)}
+                >
+                  {editionLabel(e)}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="deck-filters" role="group" aria-label="Filter cards">
+            {filters.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                className={`chip ${filter === f.key ? "chip--on" : ""}`}
+                aria-pressed={filter === f.key}
+                onClick={() => setFilter(f.key)}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

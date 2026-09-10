@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { deckPool } from "@deckxi/shared";
 import { CURRENT_EDITION_ID, editionsDir, listEditionIds, loadEdition } from "./editions.js";
 import { computeRating, regenerateRatings } from "./rating.js";
+import { T20I_ASSOCIATES } from "./import/config.js";
 import { WWE_EDITION_ID } from "./wwe/config.js";
 
 /** The smallest deck a table can be seated from; the server's own floor. */
@@ -26,12 +27,18 @@ describe("current edition (real T20I data)", () => {
     for (const source of edition.sources ?? []) expect(source.license).not.toBe("");
   });
 
-  it("has at least 200 cards, fifteen per nation", () => {
-    expect(edition.players.length).toBeGreaterThanOrEqual(200);
+  it("fields fifteen cards a full member and at most ten an associate", () => {
+    expect(edition.players.length).toBeGreaterThanOrEqual(180);
     expect(edition.teams).toHaveLength(14);
     for (const team of edition.teams) {
-      expect(edition.players.filter((p) => p.teamId === team.id)).toHaveLength(15);
+      const cards = edition.players.filter((p) => p.teamId === team.id).length;
+      // Associates play a fraction of the calendar, so they earn fewer cards
+      // and only with a real body of work behind them (docs/data-sources.md).
+      if (T20I_ASSOCIATES.includes(team.id)) expect(cards).toBeLessThanOrEqual(10);
+      else expect(cards).toBe(15);
     }
+    const associates = edition.players.filter((p) => T20I_ASSOCIATES.includes(p.teamId)).length;
+    expect(associates / edition.players.length).toBeLessThan(0.3);
   });
 
   it("prints eight stats, four with the bat and four with the ball", () => {

@@ -26,13 +26,33 @@ export const T20I_TEAMS: Team[] = [
   { id: "nepal", name: "Nepal", shortName: "NEP", color: "#c8102e" },
 ];
 
-/** Fifteen cards a nation: five batters, two keepers, three all-rounders, five bowlers. */
+/** Fifteen cards a full member: five batters, two keepers, three all-rounders, five bowlers. */
 export const T20I_SQUAD: SquadShape = { batter: 5, keeper: 2, "all-rounder": 3, bowler: 5 };
+
+/**
+ * Ten cards an associate, and only from players with a real body of T20I work.
+ * Zimbabwe, Ireland, the Netherlands, Scotland and Nepal play a fraction of
+ * the calendar the full members do, so an equal share hands fifteen cards to
+ * nations whose best player has fewer caps than a full member's twelfth man.
+ * The deck should lean on the sides people know.
+ */
+export const T20I_ASSOCIATES = ["ireland", "zimbabwe", "netherlands", "scotland", "nepal"];
+export const T20I_ASSOCIATE_SQUAD: SquadShape = {
+  batter: 3,
+  keeper: 1,
+  "all-rounder": 2,
+  bowler: 4,
+};
 
 export const T20I_SELECTION: Omit<SelectionConfig, "roleOverrides"> = {
   teams: T20I_TEAMS,
-  minMatches: 15,
+  minMatches: 20,
   squad: T20I_SQUAD,
+  associates: {
+    teams: T20I_ASSOCIATES,
+    minMatches: 40,
+    squad: T20I_ASSOCIATE_SQUAD,
+  },
   // Roughly the seed edition's proportions (1 in 8 legends, 1 in 4 stars).
   tiers: { legend: 0.125, star: 0.25 },
 };

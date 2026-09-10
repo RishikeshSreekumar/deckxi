@@ -280,6 +280,11 @@
   color: var(--text-on-field);
 }
 
+/* Hover must not repaint an on-chip cream: its type is white. */
+.chip--on:hover:not(:disabled) {
+  background: var(--surface-field);
+}
+
 /* -- toasts ----------------------------------------------------------------- */
 
 /* --toast-lift lets a screen push toasts clear of its own bottom furniture —

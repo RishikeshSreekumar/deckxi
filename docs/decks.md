@@ -14,10 +14,10 @@ two different sets of cards.
 
 | Deck           | Filter                 | Cards (2026 Q3) |
 | -------------- | ---------------------- | --------------- |
-| All Stars      | everything             | 210             |
-| Legends        | star + legend rarity   | 79              |
-| Batters' XI    | batters + keepers      | 92              |
-| Bowlers' Union | bowlers + all-rounders | 118             |
+| All Stars      | everything             | 182             |
+| Legends        | star + legend rarity   | 69              |
+| Batters' XI    | batters + keepers      | 82              |
+| Bowlers' Union | bowlers + all-rounders | 100             |
 
 Every built-in deck can deal the biggest table in full (6 players × 11 cards = 66); a server test
 checks that against the shipped edition. When a deck cannot cover the room's players × cards

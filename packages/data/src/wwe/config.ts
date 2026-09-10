@@ -110,9 +110,9 @@ export const WWE_POWERS = {
     short: "RC",
     tag: "one more match",
     blurb:
-      "Only if you lose: your next card faces the winner's for everything they won. Miss, and that card is gone too.",
-    when: "Only fires if you lose the round. Play it with your card; a win or a tie hands it back.",
-    win: "Beat the winner head-to-head and take every card on the table.",
-    fail: "That card is gone too.",
+      "Lose the round, and your next card faces the winner's next card on the same stat. Win that and you take everything they just won.",
+    when: "Play it with your card. It only fires if you lose the round — win or tie and you keep it, unspent.",
+    win: "Your next card beats theirs on the called stat: you take every card they just won, and theirs too.",
+    fail: "Your next card loses as well, and goes to them with the rest.",
   },
 };

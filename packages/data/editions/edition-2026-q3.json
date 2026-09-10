@@ -1,8 +1,8 @@
 {
   "id": "edition-2026-q3",
   "name": "T20 Internationals — 2026 Q3",
-  "version": 9,
-  "generatedAt": "2026-09-03T20:12:08Z",
+  "version": 10,
+  "generatedAt": "2026-09-10T04:22:08Z",
   "sport": "cricket",
   "series": "Men's T20 internationals",
   "supportedModes": ["classic-trumps", "power-trumps", "squad-draft"],
@@ -414,7 +414,7 @@
       "role": "keeper",
       "teamId": "india",
       "nationality": "India",
-      "rarity": "star",
+      "rarity": "regular",
       "jerseyNumber": 32,
       "rating": 48.2,
       "stats": {
@@ -630,7 +630,7 @@
       "role": "bowler",
       "teamId": "india",
       "nationality": "India",
-      "rarity": "star",
+      "rarity": "regular",
       "jerseyNumber": 23,
       "rating": 47.8,
       "stats": {
@@ -2083,7 +2083,7 @@
       "role": "all-rounder",
       "teamId": "pakistan",
       "nationality": "Pakistan",
-      "rarity": "star",
+      "rarity": "regular",
       "jerseyNumber": 10,
       "rating": 48.9,
       "stats": {
@@ -2676,7 +2676,7 @@
       "role": "batter",
       "teamId": "sri-lanka",
       "nationality": "Sri Lanka",
-      "rarity": "star",
+      "rarity": "regular",
       "jerseyNumber": 23,
       "rating": 48.3,
       "stats": {
@@ -2703,7 +2703,7 @@
       "role": "batter",
       "teamId": "sri-lanka",
       "nationality": "Sri Lanka",
-      "rarity": "star",
+      "rarity": "regular",
       "jerseyNumber": 27,
       "rating": 48.7,
       "stats": {
@@ -3047,28 +3047,22 @@
       }
     },
     {
-      "id": "kasun-rajitha",
-      "name": "Kasun Rajitha",
-      "role": "bowler",
+      "id": "pathum-nissanka",
+      "name": "Pathum Nissanka",
+      "role": "batter",
       "teamId": "sri-lanka",
       "nationality": "Sri Lanka",
-      "rarity": "regular",
-      "rating": 24.2,
+      "rarity": "star",
+      "rating": 52,
       "stats": {
-        "battingAvg": 10.3,
-        "strikeRate": 58.5,
-        "runs": 31,
-        "highest": 9,
-        "wickets": 16,
-        "economy": 9.4,
-        "catches": 1,
-        "bestBowling": 370
-      },
-      "photo": {
-        "src": "/cards/edition-2026-q3/kasun-rajitha.webp",
-        "author": "Dave Morton",
-        "license": "Public domain",
-        "source": "https://commons.wikimedia.org/wiki/File:1_11_Rajitha_mugshot.jpg"
+        "battingAvg": 30.8,
+        "strikeRate": 127.4,
+        "runs": 2557,
+        "highest": 107,
+        "wickets": 0,
+        "economy": 12,
+        "catches": 22,
+        "bestBowling": 0
       }
     },
     {
@@ -3529,7 +3523,7 @@
       "role": "batter",
       "teamId": "west-indies",
       "nationality": "West Indies",
-      "rarity": "star",
+      "rarity": "regular",
       "jerseyNumber": 25,
       "rating": 47.7,
       "stats": {
@@ -3877,7 +3871,7 @@
       "role": "batter",
       "teamId": "ireland",
       "nationality": "Ireland",
-      "rarity": "legend",
+      "rarity": "star",
       "jerseyNumber": 33,
       "rating": 56.1,
       "stats": {
@@ -3931,7 +3925,7 @@
       "role": "batter",
       "teamId": "ireland",
       "nationality": "Ireland",
-      "rarity": "star",
+      "rarity": "regular",
       "jerseyNumber": 58,
       "rating": 48.2,
       "stats": {
@@ -3950,59 +3944,6 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "source": "https://commons.wikimedia.org/wiki/File:Harry_Tector_2022.jpg"
-      }
-    },
-    {
-      "id": "william-porterfield",
-      "name": "William Porterfield",
-      "role": "batter",
-      "teamId": "ireland",
-      "nationality": "Ireland",
-      "rarity": "regular",
-      "jerseyNumber": 10,
-      "rating": 34.2,
-      "stats": {
-        "battingAvg": 20.6,
-        "strikeRate": 103.7,
-        "runs": 720,
-        "highest": 72,
-        "wickets": 0,
-        "economy": 12,
-        "catches": 18,
-        "bestBowling": 0
-      },
-      "photo": {
-        "src": "/cards/edition-2026-q3/william-porterfield.webp",
-        "author": "Morgan_and_Porterfield_(1).jpg: Dan Heap derivative work: Nev1",
-        "license": "CC BY 2.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
-        "source": "https://commons.wikimedia.org/wiki/File:Porterfield,_2013_(3).jpg"
-      }
-    },
-    {
-      "id": "ed-joyce",
-      "name": "Ed Joyce",
-      "role": "batter",
-      "teamId": "ireland",
-      "nationality": "Ireland",
-      "rarity": "regular",
-      "rating": 38.9,
-      "stats": {
-        "battingAvg": 35.3,
-        "strikeRate": 95.1,
-        "runs": 353,
-        "highest": 78,
-        "wickets": 0,
-        "economy": 12,
-        "catches": 5,
-        "bestBowling": 0
-      },
-      "photo": {
-        "src": "/cards/edition-2026-q3/ed-joyce.webp",
-        "author": "paddynapper",
-        "license": "CC BY-SA 2.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
-        "source": "https://commons.wikimedia.org/wiki/File:Ed_Joyce_2007_cropped.jpg"
       }
     },
     {
@@ -4029,32 +3970,6 @@
         "license": "CC BY 2.5",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.5",
         "source": "https://commons.wikimedia.org/wiki/File:Ireland_compete_against_Essex_at_Castle_Avenue,_Dublin,_13_May_2007,_Friends_Provident_Trophy_-_100_1795_(2).jpg"
-      }
-    },
-    {
-      "id": "niall-o-brien",
-      "name": "Niall O'Brien",
-      "role": "keeper",
-      "teamId": "ireland",
-      "nationality": "Ireland",
-      "rarity": "regular",
-      "rating": 25.6,
-      "stats": {
-        "battingAvg": 17.6,
-        "strikeRate": 96.9,
-        "runs": 316,
-        "highest": 40,
-        "wickets": 0,
-        "economy": 12,
-        "catches": 12,
-        "bestBowling": 0
-      },
-      "photo": {
-        "src": "/cards/edition-2026-q3/niall-o-brien.webp",
-        "author": "Original photo taken by Gus Stephens and uploaded to commons by Nev1",
-        "license": "CC BY-SA 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
-        "source": "https://commons.wikimedia.org/wiki/File:Niall_O%27Brien_(cricketer)_2009.JPG"
       }
     },
     {
@@ -4112,55 +4027,30 @@
       }
     },
     {
-      "id": "andrew-mcbrine",
-      "name": "Andrew McBrine",
-      "role": "bowler",
+      "id": "william-porterfield",
+      "name": "William Porterfield",
+      "role": "batter",
       "teamId": "ireland",
       "nationality": "Ireland",
       "rarity": "regular",
-      "rating": 30.5,
+      "jerseyNumber": 10,
+      "rating": 34.2,
       "stats": {
-        "battingAvg": 14.9,
-        "strikeRate": 124.1,
-        "runs": 134,
-        "highest": 36,
-        "wickets": 19,
-        "economy": 6.9,
-        "catches": 9,
-        "bestBowling": 292
+        "battingAvg": 20.6,
+        "strikeRate": 103.7,
+        "runs": 720,
+        "highest": 72,
+        "wickets": 0,
+        "economy": 12,
+        "catches": 18,
+        "bestBowling": 0
       },
       "photo": {
-        "src": "/cards/edition-2026-q3/andrew-mcbrine.webp",
-        "author": "AssociateAffiliate",
-        "license": "CC BY-SA 4.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-        "source": "https://commons.wikimedia.org/wiki/File:Andy_McBrine.jpg"
-      }
-    },
-    {
-      "id": "trent-johnston",
-      "name": "Trent Johnston",
-      "role": "bowler",
-      "teamId": "ireland",
-      "nationality": "Ireland",
-      "rarity": "regular",
-      "rating": 33.8,
-      "stats": {
-        "battingAvg": 16.6,
-        "strikeRate": 118.4,
-        "runs": 116,
-        "highest": 39,
-        "wickets": 18,
-        "economy": 6.1,
-        "catches": 6,
-        "bestBowling": 379
-      },
-      "photo": {
-        "src": "/cards/edition-2026-q3/trent-johnston.webp",
-        "author": "Ireland_vs_Pakistan2.jpg: p_a_h from United Kingdom derivative work: Nev1 (talk)",
+        "src": "/cards/edition-2026-q3/william-porterfield.webp",
+        "author": "Morgan_and_Porterfield_(1).jpg: Dan Heap derivative work: Nev1",
         "license": "CC BY 2.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
-        "source": "https://commons.wikimedia.org/wiki/File:Ireland_vs_Pakistan2_cropped.jpg"
+        "source": "https://commons.wikimedia.org/wiki/File:Porterfield,_2013_(3).jpg"
       }
     },
     {
@@ -4180,26 +4070,6 @@
         "economy": 7.6,
         "catches": 27,
         "bestBowling": 383
-      }
-    },
-    {
-      "id": "curtis-campher",
-      "name": "Curtis Campher",
-      "role": "all-rounder",
-      "teamId": "ireland",
-      "nationality": "Ireland",
-      "rarity": "regular",
-      "jerseyNumber": 27,
-      "rating": 40.8,
-      "stats": {
-        "battingAvg": 22.1,
-        "strikeRate": 126.6,
-        "runs": 1018,
-        "highest": 72,
-        "wickets": 29,
-        "economy": 8.4,
-        "catches": 34,
-        "bestBowling": 474
       }
     },
     {
@@ -4274,7 +4144,7 @@
       "role": "batter",
       "teamId": "zimbabwe",
       "nationality": "Zimbabwe",
-      "rarity": "star",
+      "rarity": "regular",
       "jerseyNumber": 1,
       "rating": 48.2,
       "stats": {
@@ -4320,32 +4190,6 @@
         "license": "CC BY 2.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
         "source": "https://commons.wikimedia.org/wiki/File:Elton_Chigumbura_fielding.jpg"
-      }
-    },
-    {
-      "id": "clive-madande",
-      "name": "Clive Madande",
-      "role": "batter",
-      "teamId": "zimbabwe",
-      "nationality": "Zimbabwe",
-      "rarity": "regular",
-      "rating": 35.2,
-      "stats": {
-        "battingAvg": 21.4,
-        "strikeRate": 117.4,
-        "runs": 600,
-        "highest": 53,
-        "wickets": 0,
-        "economy": 12,
-        "catches": 23,
-        "bestBowling": 0
-      },
-      "photo": {
-        "src": "/cards/edition-2026-q3/clive-madande.webp",
-        "author": "Amuzujoe",
-        "license": "CC BY-SA 4.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-        "source": "https://commons.wikimedia.org/wiki/File:2023_African_Games_01_cricket_162_(cropped).jpg"
       }
     },
     {
@@ -4403,48 +4247,29 @@
       }
     },
     {
-      "id": "kyle-jarvis",
-      "name": "Kyle Jarvis",
-      "role": "bowler",
-      "teamId": "zimbabwe",
-      "nationality": "Zimbabwe",
-      "rarity": "regular",
-      "rating": 27.3,
-      "stats": {
-        "battingAvg": 6.5,
-        "strikeRate": 83,
-        "runs": 39,
-        "highest": 27,
-        "wickets": 24,
-        "economy": 9,
-        "catches": 4,
-        "bestBowling": 384
-      },
-      "photo": {
-        "src": "/cards/edition-2026-q3/kyle-jarvis.webp",
-        "author": "The Madras",
-        "license": "CC BY-SA 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
-        "source": "https://commons.wikimedia.org/wiki/File:Kyle_Jarvis.jpg"
-      }
-    },
-    {
-      "id": "brian-bennett",
-      "name": "Brian Bennett",
+      "id": "clive-madande",
+      "name": "Clive Madande",
       "role": "batter",
       "teamId": "zimbabwe",
       "nationality": "Zimbabwe",
-      "rarity": "legend",
-      "rating": 56,
+      "rarity": "regular",
+      "rating": 35.2,
       "stats": {
-        "battingAvg": 34.5,
-        "strikeRate": 144.4,
-        "runs": 1999,
-        "highest": 111,
-        "wickets": 9,
-        "economy": 8.5,
-        "catches": 21,
-        "bestBowling": 291
+        "battingAvg": 21.4,
+        "strikeRate": 117.4,
+        "runs": 600,
+        "highest": 53,
+        "wickets": 0,
+        "economy": 12,
+        "catches": 23,
+        "bestBowling": 0
+      },
+      "photo": {
+        "src": "/cards/edition-2026-q3/clive-madande.webp",
+        "author": "Amuzujoe",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "source": "https://commons.wikimedia.org/wiki/File:2023_African_Games_01_cricket_162_(cropped).jpg"
       }
     },
     {
@@ -4467,25 +4292,6 @@
       }
     },
     {
-      "id": "regis-chakabva",
-      "name": "Regis Chakabva",
-      "role": "keeper",
-      "teamId": "zimbabwe",
-      "nationality": "Zimbabwe",
-      "rarity": "regular",
-      "rating": 30.1,
-      "stats": {
-        "battingAvg": 13.1,
-        "strikeRate": 120.6,
-        "runs": 563,
-        "highest": 48,
-        "wickets": 0,
-        "economy": 12,
-        "catches": 22,
-        "bestBowling": 0
-      }
-    },
-    {
       "id": "ryan-burl",
       "name": "Ryan Burl",
       "role": "all-rounder",
@@ -4503,26 +4309,6 @@
         "economy": 7.3,
         "catches": 51,
         "bestBowling": 386
-      }
-    },
-    {
-      "id": "sean-williams",
-      "name": "Sean Williams",
-      "role": "all-rounder",
-      "teamId": "zimbabwe",
-      "nationality": "Zimbabwe",
-      "rarity": "regular",
-      "jerseyNumber": 14,
-      "rating": 44.1,
-      "stats": {
-        "battingAvg": 23.8,
-        "strikeRate": 129.8,
-        "runs": 1618,
-        "highest": 77,
-        "wickets": 43,
-        "economy": 6.9,
-        "catches": 28,
-        "bestBowling": 384
       }
     },
     {
@@ -4565,51 +4351,6 @@
       }
     },
     {
-      "id": "tendai-chatara",
-      "name": "Tendai Chatara",
-      "role": "bowler",
-      "teamId": "zimbabwe",
-      "nationality": "Zimbabwe",
-      "rarity": "regular",
-      "rating": 36,
-      "stats": {
-        "battingAvg": 5.8,
-        "strikeRate": 46.9,
-        "runs": 23,
-        "highest": 6,
-        "wickets": 57,
-        "economy": 7.2,
-        "catches": 7,
-        "bestBowling": 392
-      }
-    },
-    {
-      "id": "tom-cooper",
-      "name": "Tom Cooper",
-      "role": "batter",
-      "teamId": "netherlands",
-      "nationality": "Netherlands",
-      "rarity": "regular",
-      "rating": 39.6,
-      "stats": {
-        "battingAvg": 22.8,
-        "strikeRate": 127,
-        "runs": 592,
-        "highest": 81,
-        "wickets": 3,
-        "economy": 7.8,
-        "catches": 11,
-        "bestBowling": 281
-      },
-      "photo": {
-        "src": "/cards/edition-2026-q3/tom-cooper.webp",
-        "author": "paddynapper",
-        "license": "CC BY-SA 2.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
-        "source": "https://commons.wikimedia.org/wiki/File:Tom_Cooper_February_2010.jpg"
-      }
-    },
-    {
       "id": "bas-de-leede",
       "name": "Bas de Leede",
       "role": "all-rounder",
@@ -4633,59 +4374,6 @@
         "author": "Dave Morton",
         "license": "Public domain",
         "source": "https://commons.wikimedia.org/wiki/File:1_02_Bas_de_Leede.jpg"
-      }
-    },
-    {
-      "id": "colin-ackermann",
-      "name": "Colin Ackermann",
-      "role": "all-rounder",
-      "teamId": "netherlands",
-      "nationality": "Netherlands",
-      "rarity": "regular",
-      "jerseyNumber": 78,
-      "rating": 36.5,
-      "stats": {
-        "battingAvg": 23.6,
-        "strikeRate": 116.4,
-        "runs": 590,
-        "highest": 62,
-        "wickets": 11,
-        "economy": 6.7,
-        "catches": 8,
-        "bestBowling": 384
-      },
-      "photo": {
-        "src": "/cards/edition-2026-q3/colin-ackermann.webp",
-        "author": "Dave Morton",
-        "license": "Public domain",
-        "source": "https://commons.wikimedia.org/wiki/File:Colin_Ackermann.jpg"
-      }
-    },
-    {
-      "id": "ryan-ten-doeschate",
-      "name": "Ryan ten Doeschate",
-      "role": "all-rounder",
-      "teamId": "netherlands",
-      "nationality": "Netherlands",
-      "rarity": "regular",
-      "jerseyNumber": 62,
-      "rating": 41,
-      "stats": {
-        "battingAvg": 38.9,
-        "strikeRate": 136.3,
-        "runs": 428,
-        "highest": 59,
-        "wickets": 9,
-        "economy": 7.6,
-        "catches": 1,
-        "bestBowling": 376
-      },
-      "photo": {
-        "src": "/cards/edition-2026-q3/ryan-ten-doeschate.webp",
-        "author": "Kroome111",
-        "license": "CC BY-SA 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
-        "source": "https://commons.wikimedia.org/wiki/File:Ryan_ten_doeschate.jpg"
       }
     },
     {
@@ -4741,57 +4429,6 @@
       }
     },
     {
-      "id": "tim-pringle",
-      "name": "Tim Pringle",
-      "role": "bowler",
-      "teamId": "netherlands",
-      "nationality": "Netherlands",
-      "rarity": "regular",
-      "rating": 32.2,
-      "stats": {
-        "battingAvg": 9.3,
-        "strikeRate": 97.6,
-        "runs": 121,
-        "highest": 35,
-        "wickets": 18,
-        "economy": 6.5,
-        "catches": 6,
-        "bestBowling": 379
-      },
-      "photo": {
-        "src": "/cards/edition-2026-q3/tim-pringle.webp",
-        "author": "JaumeBG",
-        "license": "CC BY-SA 4.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-        "source": "https://commons.wikimedia.org/wiki/File:Tim_Pringle.jpg"
-      }
-    },
-    {
-      "id": "zach-lion-cachet",
-      "name": "Zach Lion-Cachet",
-      "role": "bowler",
-      "teamId": "netherlands",
-      "nationality": "Netherlands",
-      "rarity": "regular",
-      "rating": 28.5,
-      "stats": {
-        "battingAvg": 12.2,
-        "strikeRate": 106.6,
-        "runs": 146,
-        "highest": 50,
-        "wickets": 10,
-        "economy": 6.9,
-        "catches": 3,
-        "bestBowling": 299
-      },
-      "photo": {
-        "src": "/cards/edition-2026-q3/zach-lion-cachet.webp",
-        "author": "Dave Morton",
-        "license": "Public domain",
-        "source": "https://commons.wikimedia.org/wiki/File:2_13_Zach_Lion-Cachet.jpg"
-      }
-    },
-    {
       "id": "max-o-dowd",
       "name": "Max O'Dowd",
       "role": "batter",
@@ -4828,44 +4465,6 @@
         "economy": 12,
         "catches": 31,
         "bestBowling": 0
-      }
-    },
-    {
-      "id": "michael-levitt",
-      "name": "Michael Levitt",
-      "role": "batter",
-      "teamId": "netherlands",
-      "nationality": "Netherlands",
-      "rarity": "star",
-      "rating": 52.5,
-      "stats": {
-        "battingAvg": 34.2,
-        "strikeRate": 142.2,
-        "runs": 957,
-        "highest": 135,
-        "wickets": 5,
-        "economy": 8.7,
-        "catches": 8,
-        "bestBowling": 388
-      }
-    },
-    {
-      "id": "wesley-barresi",
-      "name": "Wesley Barresi",
-      "role": "batter",
-      "teamId": "netherlands",
-      "nationality": "Netherlands",
-      "rarity": "regular",
-      "rating": 40.3,
-      "stats": {
-        "battingAvg": 25,
-        "strikeRate": 116.5,
-        "runs": 750,
-        "highest": 75,
-        "wickets": 2,
-        "economy": 8.6,
-        "catches": 24,
-        "bestBowling": 196
       }
     },
     {
@@ -4928,28 +4527,22 @@
       }
     },
     {
-      "id": "michael-jones",
-      "name": "Michael Jones",
-      "role": "batter",
-      "teamId": "scotland",
-      "nationality": "Scotland",
+      "id": "fred-klaassen",
+      "name": "Fred Klaassen",
+      "role": "bowler",
+      "teamId": "netherlands",
+      "nationality": "Netherlands",
       "rarity": "regular",
-      "rating": 40.8,
+      "rating": 38.8,
       "stats": {
-        "battingAvg": 26.1,
-        "strikeRate": 138.6,
-        "runs": 366,
-        "highest": 86,
-        "wickets": 0,
-        "economy": 12,
-        "catches": 10,
-        "bestBowling": 0
-      },
-      "photo": {
-        "src": "/cards/edition-2026-q3/michael-jones.webp",
-        "author": "Dave Morton",
-        "license": "Public domain",
-        "source": "https://commons.wikimedia.org/wiki/File:3_34_Michael_Jones.jpg"
+        "battingAvg": 4.4,
+        "strikeRate": 81.4,
+        "runs": 48,
+        "highest": 13,
+        "wickets": 45,
+        "economy": 7.7,
+        "catches": 17,
+        "bestBowling": 580
       }
     },
     {
@@ -4976,57 +4569,6 @@
         "author": "Dave Morton",
         "license": "Public domain",
         "source": "https://commons.wikimedia.org/wiki/File:1_68_Mark_Watt.jpg"
-      }
-    },
-    {
-      "id": "josh-davey",
-      "name": "Josh Davey",
-      "role": "bowler",
-      "teamId": "scotland",
-      "nationality": "Scotland",
-      "rarity": "regular",
-      "rating": 34.5,
-      "stats": {
-        "battingAvg": 17.3,
-        "strikeRate": 138.7,
-        "runs": 104,
-        "highest": 24,
-        "wickets": 31,
-        "economy": 8.2,
-        "catches": 13,
-        "bestBowling": 481
-      },
-      "photo": {
-        "src": "/cards/edition-2026-q3/josh-davey.webp",
-        "author": "Ytfc23",
-        "license": "CC BY-SA 4.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-        "source": "https://commons.wikimedia.org/wiki/File:Josh_Davey.jpg"
-      }
-    },
-    {
-      "id": "brad-wheal",
-      "name": "Brad Wheal",
-      "role": "bowler",
-      "teamId": "scotland",
-      "nationality": "Scotland",
-      "rarity": "regular",
-      "rating": 28.8,
-      "stats": {
-        "battingAvg": 10,
-        "strikeRate": 90.9,
-        "runs": 20,
-        "highest": 8,
-        "wickets": 24,
-        "economy": 8.5,
-        "catches": 9,
-        "bestBowling": 379
-      },
-      "photo": {
-        "src": "/cards/edition-2026-q3/brad-wheal.webp",
-        "author": "Dave Morton",
-        "license": "Public domain",
-        "source": "https://commons.wikimedia.org/wiki/File:1_19_Brad_Wheal.jpg"
       }
     },
     {
@@ -5090,26 +4632,6 @@
       }
     },
     {
-      "id": "calum-macleod",
-      "name": "Calum MacLeod",
-      "role": "batter",
-      "teamId": "scotland",
-      "nationality": "Scotland",
-      "rarity": "regular",
-      "jerseyNumber": 9,
-      "rating": 39.6,
-      "stats": {
-        "battingAvg": 23.3,
-        "strikeRate": 110.3,
-        "runs": 930,
-        "highest": 74,
-        "wickets": 3,
-        "economy": 7.9,
-        "catches": 29,
-        "bestBowling": 182
-      }
-    },
-    {
       "id": "matty-cross",
       "name": "Matty Cross",
       "role": "keeper",
@@ -5149,26 +4671,6 @@
       }
     },
     {
-      "id": "brandon-mcmullen",
-      "name": "Brandon McMullen",
-      "role": "all-rounder",
-      "teamId": "scotland",
-      "nationality": "Scotland",
-      "rarity": "regular",
-      "jerseyNumber": 20,
-      "rating": 39.5,
-      "stats": {
-        "battingAvg": 31.5,
-        "strikeRate": 143.9,
-        "runs": 787,
-        "highest": 96,
-        "wickets": 8,
-        "economy": 9.1,
-        "catches": 16,
-        "bestBowling": 266
-      }
-    },
-    {
       "id": "safyaan-sharif",
       "name": "Safyaan Sharif",
       "role": "bowler",
@@ -5189,60 +4691,23 @@
       }
     },
     {
-      "id": "alasdair-evans",
-      "name": "Alasdair Evans",
-      "role": "bowler",
+      "id": "calum-macleod",
+      "name": "Calum MacLeod",
+      "role": "batter",
       "teamId": "scotland",
       "nationality": "Scotland",
       "rarity": "regular",
-      "rating": 35.7,
+      "jerseyNumber": 9,
+      "rating": 39.6,
       "stats": {
-        "battingAvg": 1.4,
-        "strikeRate": 71.4,
-        "runs": 10,
-        "highest": 8,
-        "wickets": 39,
-        "economy": 8.1,
-        "catches": 9,
-        "bestBowling": 575
-      }
-    },
-    {
-      "id": "chris-greaves",
-      "name": "Chris Greaves",
-      "role": "bowler",
-      "teamId": "scotland",
-      "nationality": "Scotland",
-      "rarity": "regular",
-      "rating": 33,
-      "stats": {
-        "battingAvg": 19.9,
-        "strikeRate": 109.4,
-        "runs": 278,
-        "highest": 45,
-        "wickets": 27,
-        "economy": 7.5,
-        "catches": 12,
-        "bestBowling": 373
-      }
-    },
-    {
-      "id": "brad-currie",
-      "name": "Brad Currie",
-      "role": "bowler",
-      "teamId": "scotland",
-      "nationality": "Scotland",
-      "rarity": "regular",
-      "rating": 39.9,
-      "stats": {
-        "battingAvg": 9.5,
-        "strikeRate": 59.4,
-        "runs": 19,
-        "highest": 8,
-        "wickets": 32,
-        "economy": 5.9,
-        "catches": 10,
-        "bestBowling": 586
+        "battingAvg": 23.3,
+        "strikeRate": 110.3,
+        "runs": 930,
+        "highest": 74,
+        "wickets": 3,
+        "economy": 7.9,
+        "catches": 29,
+        "bestBowling": 182
       }
     },
     {
@@ -5278,7 +4743,7 @@
       "role": "batter",
       "teamId": "nepal",
       "nationality": "Nepal",
-      "rarity": "star",
+      "rarity": "regular",
       "jerseyNumber": 14,
       "rating": 48.4,
       "stats": {
@@ -5326,38 +4791,12 @@
       }
     },
     {
-      "id": "binod-bhandari",
-      "name": "Binod Bhandari",
-      "role": "keeper",
-      "teamId": "nepal",
-      "nationality": "Nepal",
-      "rarity": "regular",
-      "rating": 29.7,
-      "stats": {
-        "battingAvg": 18.2,
-        "strikeRate": 121.4,
-        "runs": 363,
-        "highest": 58,
-        "wickets": 0,
-        "economy": 12,
-        "catches": 12,
-        "bestBowling": 0
-      },
-      "photo": {
-        "src": "/cards/edition-2026-q3/binod-bhandari.webp",
-        "author": "Punya",
-        "license": "CC BY-SA 4.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-        "source": "https://commons.wikimedia.org/wiki/File:%E0%A4%B5%E0%A4%BF%E0%A4%A8%E0%A5%8B%E0%A4%A6_%E0%A4%AD%E0%A4%A3%E0%A5%8D%E0%A4%A1%E0%A4%BE%E0%A4%B0%E0%A5%80_1.jpg"
-      }
-    },
-    {
       "id": "dipendra-singh-airee",
       "name": "Dipendra Singh Airee",
       "role": "all-rounder",
       "teamId": "nepal",
       "nationality": "Nepal",
-      "rarity": "legend",
+      "rarity": "star",
       "jerseyNumber": 10,
       "rating": 56.1,
       "stats": {
@@ -5403,32 +4842,6 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "source": "https://commons.wikimedia.org/wiki/File:Kushal-malla-4.jpg"
-      }
-    },
-    {
-      "id": "gulsan-jha",
-      "name": "Gulsan Jha",
-      "role": "all-rounder",
-      "teamId": "nepal",
-      "nationality": "Nepal",
-      "rarity": "regular",
-      "rating": 38.2,
-      "stats": {
-        "battingAvg": 19.8,
-        "strikeRate": 138.6,
-        "runs": 635,
-        "highest": 54,
-        "wickets": 28,
-        "economy": 7.3,
-        "catches": 18,
-        "bestBowling": 368
-      },
-      "photo": {
-        "src": "/cards/edition-2026-q3/gulsan-jha.webp",
-        "author": "Elison Pokhrel",
-        "license": "CC BY-SA 4.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-        "source": "https://commons.wikimedia.org/wiki/File:Gulshan-Jha.png"
       }
     },
     {
@@ -5513,68 +4926,29 @@
       }
     },
     {
-      "id": "paras-khadka",
-      "name": "Paras Khadka",
+      "id": "gulsan-jha",
+      "name": "Gulsan Jha",
       "role": "all-rounder",
       "teamId": "nepal",
       "nationality": "Nepal",
       "rarity": "regular",
-      "jerseyNumber": 7,
-      "rating": 40.3,
+      "rating": 38.2,
       "stats": {
-        "battingAvg": 26.5,
-        "strikeRate": 131.2,
-        "runs": 690,
-        "highest": 106,
-        "wickets": 8,
-        "economy": 6.3,
-        "catches": 14,
-        "bestBowling": 288
+        "battingAvg": 19.8,
+        "strikeRate": 138.6,
+        "runs": 635,
+        "highest": 54,
+        "wickets": 28,
+        "economy": 7.3,
+        "catches": 18,
+        "bestBowling": 368
       },
       "photo": {
-        "src": "/cards/edition-2026-q3/paras-khadka.webp",
-        "author": "Krish Dulal",
-        "license": "CC BY-SA 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
-        "source": "https://commons.wikimedia.org/wiki/File:Paras_Khadka_NP.JPG"
-      }
-    },
-    {
-      "id": "aarif-sheikh",
-      "name": "Aarif Sheikh",
-      "role": "batter",
-      "teamId": "nepal",
-      "nationality": "Nepal",
-      "rarity": "regular",
-      "rating": 31.9,
-      "stats": {
-        "battingAvg": 18.7,
-        "strikeRate": 110.6,
-        "runs": 562,
-        "highest": 39,
-        "wickets": 4,
-        "economy": 8.3,
-        "catches": 10,
-        "bestBowling": 197
-      }
-    },
-    {
-      "id": "sundeep-jora",
-      "name": "Sundeep Jora",
-      "role": "batter",
-      "teamId": "nepal",
-      "nationality": "Nepal",
-      "rarity": "regular",
-      "rating": 34.2,
-      "stats": {
-        "battingAvg": 18.7,
-        "strikeRate": 120.8,
-        "runs": 505,
-        "highest": 63,
-        "wickets": 0,
-        "economy": 12,
-        "catches": 19,
-        "bestBowling": 0
+        "src": "/cards/edition-2026-q3/gulsan-jha.webp",
+        "author": "Elison Pokhrel",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "source": "https://commons.wikimedia.org/wiki/File:Gulshan-Jha.png"
       }
     },
     {
@@ -5595,25 +4969,6 @@
         "economy": 12,
         "catches": 38,
         "bestBowling": 0
-      }
-    },
-    {
-      "id": "abinash-bohara",
-      "name": "Abinash Bohara",
-      "role": "bowler",
-      "teamId": "nepal",
-      "nationality": "Nepal",
-      "rarity": "regular",
-      "rating": 39.6,
-      "stats": {
-        "battingAvg": 3.3,
-        "strikeRate": 69.7,
-        "runs": 23,
-        "highest": 12,
-        "wickets": 67,
-        "economy": 7.4,
-        "catches": 11,
-        "bestBowling": 472
       }
     }
   ],
