@@ -360,6 +360,38 @@ describe("scoring", () => {
     expect(finishIn - finishOut).toBeCloseTo(2 * KEEPER_BONUS, 1);
   });
 
+  it("every phase prints working that adds up to its score", () => {
+    const built = draftOut(state);
+    const ra = autoRoster(built, "a");
+    const rb = autoRoster(built, "b");
+    const match = playMatch(
+      config,
+      { playerId: "a", roster: ra },
+      { playerId: "b", roster: rb },
+      {},
+    );
+    for (const phase of match.phases) {
+      const home = phase.terms.reduce((sum, t) => sum + t.home, 0);
+      const away = phase.terms.reduce((sum, t) => sum + t.away, 0);
+      expect(home).toBeCloseTo(phase.home, 5);
+      expect(away).toBeCloseTo(phase.away, 5);
+    }
+    // A duel is batting then bowling; the last phase adds the field and the gloves.
+    expect(match.phases.map((p) => p.terms.map((t) => t.key))).toEqual([
+      ["bat", "bowl"],
+      ["bat", "bowl"],
+      ["bat", "field", "keeper"],
+    ]);
+    // Bowling is what the other side takes off you, so it arrives negative.
+    for (const phase of match.phases) {
+      const bowl = phase.terms.find((t) => t.key === "bowl");
+      if (bowl !== undefined) {
+        expect(bowl.home).toBeLessThanOrEqual(0);
+        expect(bowl.away).toBeLessThanOrEqual(0);
+      }
+    }
+  });
+
   it("form is rolled from the seed alone and stays within 0.9–1.1", () => {
     const built = draftOut(state);
     const rosters = { a: autoRoster(built, "a"), b: autoRoster(built, "b") };

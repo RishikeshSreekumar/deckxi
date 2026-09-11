@@ -60,8 +60,12 @@ export interface ClientGameState {
   yourPlay: { cardId: string; power: PowerPlayView | null } | null;
   /** Power trumps: the stat that decided the last round. */
   lastStat: string | null;
-  /** Power trumps (#137): stats burned for everyone until every stat has been used. */
-  burnedStats: string[];
+  /**
+   * Power trumps (#137): the stats each card has already been called on. The
+   * burn belongs to the card that named it, so it travels with the card
+   * rather than closing the stat down for the whole table.
+   */
+  burnedByCard: Record<string, string[]>;
   /** Power trumps: unused powers per player (public — a spent power is seen by all). */
   powers: Record<string, PowerKindView[]>;
   /** Power trumps (#133): the round after which powers last came back, if ever. */
@@ -123,7 +127,7 @@ export function applyRedactedEvent(
       plays: {},
       yourPlay: null,
       lastStat: null,
-      burnedStats: [],
+      burnedByCard: {},
       powers,
       rechargedIn: null,
       lastResolved: null,
@@ -230,10 +234,27 @@ export function applyRedactedEvent(
       next.yourPlay = null;
       next.lastStat = event.stat;
       if (state.config.mode === "power-trumps") {
-        const burned = state.burnedStats.includes(event.stat)
-          ? state.burnedStats
-          : [...state.burnedStats, event.stat];
-        next.burnedStats = state.config.stats.every((s) => burned.includes(s.key)) ? [] : burned;
+        // The same two burns the engine records: the leader's card keeps the
+        // stat it called, and a reviewer's card keeps the one it overruled
+        // with. Everyone else's card is untouched.
+        const cardOf = (playerId: string | null): string | undefined =>
+          playerId === null
+            ? undefined
+            : event.revealed.find((r) => r.playerId === playerId)?.cardId;
+        const burns: { cardId: string; stat: string }[] = [];
+        const leaderCard = cardOf(state.selected?.playerId ?? null);
+        if (leaderCard !== undefined) {
+          burns.push({ cardId: leaderCard, stat: event.power?.calledStat ?? event.stat });
+        }
+        const drsCard = cardOf(event.power?.drsBy ?? null);
+        if (drsCard !== undefined) burns.push({ cardId: drsCard, stat: event.stat });
+        let burned = state.burnedByCard;
+        for (const { cardId, stat } of burns) {
+          const already = burned[cardId] ?? [];
+          if (already.includes(stat)) continue;
+          burned = { ...burned, [cardId]: [...already, stat] };
+        }
+        next.burnedByCard = burned;
       }
       next.lastResolved = {
         seq: event.seq,

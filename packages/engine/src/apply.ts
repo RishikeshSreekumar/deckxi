@@ -54,15 +54,23 @@ function isPowerMode(state: GameState): boolean {
   return state.config.mode === "power-trumps";
 }
 
+/** The stats this card has already been called on (power trumps). */
+export function burnedOn(state: GameState, cardId: CardId): StatKey[] {
+  return isPowerMode(state) ? (state.burnedByCard[cardId] ?? []) : [];
+}
+
 /**
- * The stats a leader may call this round: everything on the card, minus the
- * burned ones (power trumps) — unless that would leave nothing to call, in
- * which case the whole card is open (spec edge case 1).
+ * The stats this card may be called on: everything on it, minus the ones it
+ * has already been called on (power trumps) — unless that would leave
+ * nothing to call, in which case the whole card is open again (spec edge
+ * case 1). The burn is the card's, not the table's: another card's strike
+ * rate is still there to be called.
  */
 export function callableStats(state: GameState, card: CardDefinition): StatDefinition[] {
   const onCard = state.config.stats.filter((s) => s.key in card.stats);
-  if (!isPowerMode(state) || state.burnedStats.length === 0) return onCard;
-  const fresh = onCard.filter((s) => !state.burnedStats.includes(s.key));
+  const burned = burnedOn(state, card.id);
+  if (burned.length === 0) return onCard;
+  const fresh = onCard.filter((s) => !burned.includes(s.key));
   return fresh.length > 0 ? fresh : onCard;
 }
 
@@ -124,7 +132,7 @@ export function applyCommand(state: GameState, command: Command): GameEvent[] {
   if (!isPowerMode(state)) return resolveClassic(state, player.id, stat, auto);
 
   const power = command.type === "AUTO_PLAY" ? null : (command.power ?? null);
-  validatePower(state, player, power, stat);
+  validatePower(state, player, power, stat, cardId);
   const call: GameEvent = { type: "STAT_SELECTED", playerId: player.id, stat, auto, cardId, power };
   const next = reduce(state, call);
   // Nobody to answer (everyone else is gone): the round resolves at once.
@@ -259,6 +267,7 @@ function validatePower(
   player: PlayerState,
   power: PowerPlay | null,
   calledStat: StatKey,
+  cardId: CardId,
 ): void {
   if (power === null) return;
   if (!player.powers.includes(power.kind)) {
@@ -275,8 +284,11 @@ function validatePower(
     if (power.stat === calledStat) {
       throw new CommandRejectedError("power-not-allowed", "DRS must name a different stat");
     }
-    if (state.burnedStats.includes(power.stat)) {
-      throw new CommandRejectedError("power-not-allowed", "DRS cannot review on a burned stat");
+    if (burnedOn(state, cardId).includes(power.stat)) {
+      throw new CommandRejectedError(
+        "power-not-allowed",
+        "this card has already been called on that stat",
+      );
     }
     const taken = Object.values(state.pending?.plays ?? {}).some((p) => p.power?.kind === "drs");
     if (taken) throw new CommandRejectedError("power-not-allowed", "DRS already called this round");
@@ -301,7 +313,7 @@ function applyResponse(
 
   const cardId = choosableCards(state, player)[cardIndex];
   if (cardId === undefined) throw new CommandRejectedError("bad-card-index", String(cardIndex));
-  validatePower(state, player, power, pending.stat);
+  validatePower(state, player, power, pending.stat, cardId);
 
   const played: GameEvent = { type: "CARD_PLAYED", playerId: player.id, cardId, power, auto };
   const next = reduce(state, played);

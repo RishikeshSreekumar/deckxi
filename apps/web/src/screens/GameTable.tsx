@@ -60,7 +60,12 @@ import { loadPowersSeen, savePowersSeen } from "../lib/session.js";
 import { getEdition } from "@deckxi/ui";
 import { useEdition } from "../lib/editions.js";
 
-type Stage = "flip" | "verdict";
+/**
+ * The beats of a reveal: cards turn, the verdict rises — and when a Super
+ * Over fired, a beat of its own for the rematch, because the one thing the
+ * playtest never noticed was the round quietly changing hands afterwards.
+ */
+type Stage = "flip" | "verdict" | "super";
 
 const POWER_ORDER: readonly PowerKindView[] = ["powerplay", "drs", "super-over"];
 
@@ -84,6 +89,8 @@ function useRevealPresenter(selfId: string | null) {
     // A round with powers in it has more to read; hold the verdict longer.
     const busy = round.power !== null && round.power.outcomes.length > 0;
     const verdictMs = revealTiming.verdictMs + (busy ? 1400 : 0);
+    const supers = round.power?.superOvers ?? [];
+    const superMs = supers.length > 0 ? revealTiming.superMs : 0;
     timers.current.push(
       window.setTimeout(() => {
         setStage("verdict");
@@ -98,10 +105,24 @@ function useRevealPresenter(selfId: string | null) {
           haptics.lose();
         }
       }, revealTiming.flipMs),
-      window.setTimeout(() => {
-        setCurrent(null);
-        setPresenting(false);
-      }, revealTiming.flipMs + verdictMs),
+      ...(supers.length > 0
+        ? [
+            window.setTimeout(() => {
+              setStage("super");
+              sounds.flip();
+              const won = supers.some((so) => so.winner === selfId);
+              if (won) haptics.win();
+              else haptics.lose();
+            }, revealTiming.flipMs + verdictMs),
+          ]
+        : []),
+      window.setTimeout(
+        () => {
+          setCurrent(null);
+          setPresenting(false);
+        },
+        revealTiming.flipMs + verdictMs + superMs,
+      ),
     );
   }, [current, pending, selfId, shiftReveal, setPresenting]);
 
@@ -121,6 +142,79 @@ function finalHolder(round: ResolvedRound): string | null {
   let holder: string = round.result.winner;
   for (const so of round.power?.superOvers ?? []) if (so.winner !== null) holder = so.winner;
   return holder;
+}
+
+/**
+ * The Super Over, as its own beat of the reveal (#137). It used to be one
+ * line in a list of power outcomes, so the round changed hands without
+ * anyone seeing it happen: the challenger's next card against the winner's
+ * next card, on the same stat, for everything the round was worth.
+ */
+function SuperOverPanel({
+  round,
+  editionId,
+  names,
+  selfId,
+}: {
+  round: ResolvedRound;
+  editionId: string;
+  names: Record<string, string>;
+  selfId: string | null;
+}) {
+  const who = (id: string) => (id === selfId ? "You" : (names[id] ?? id));
+  const duels = round.power?.superOvers ?? [];
+  return (
+    <div className="reveal-panel super-panel" data-testid="super-over">
+      <span className="super-banner">Super Over</span>
+      <span className="called-label">
+        {statName(editionId, round.stat)} · one card each, winner takes the round
+      </span>
+      {duels.map((so) => {
+        const took = so.winner !== null;
+        const side = (
+          card: typeof so.challengerCard,
+          role: "challenger" | "defender",
+          won: boolean,
+        ) => (
+          <div
+            className={`super-side ${won ? "super-side--win" : "super-side--lost"}`}
+            data-testid={`super-side-${role}`}
+          >
+            <span className="super-side-who">{who(card.playerId)}</span>
+            <TrumpCard
+              editionId={editionId}
+              cardId={card.cardId}
+              size="hand"
+              highlightStat={round.stat}
+              stats={{ [round.stat]: card.value }}
+              outcome={won ? "winner" : "loser"}
+            />
+            <b className="super-side-value">{formatStatValue(editionId, round.stat, card.value)}</b>
+          </div>
+        );
+        return (
+          <div key={`${so.challenger}-${so.defender}`} className="super-duel">
+            <div className="super-sides">
+              {side(so.challengerCard, "challenger", took)}
+              <span className="super-versus" aria-hidden="true">
+                v
+              </span>
+              {side(so.defenderCard, "defender", !took)}
+            </div>
+            {/* One duel needs no caption — the verdict sheet under the table
+                says who took the round. A chain of them does. */}
+            {duels.length > 1 && (
+              <p className="super-line">
+                {took
+                  ? `${who(so.challenger)} take${so.challenger === selfId ? "" : "s"} it off ${who(so.defender)}`
+                  : `${who(so.challenger)} fall${so.challenger === selfId ? "" : "s"} short`}
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 /**
@@ -387,6 +481,10 @@ export function GameTable({ room }: { room: RoomView }) {
   // The engine's own numbers, not the edition's — the config is what resolved
   // the round, so the bars and the result can never disagree.
   const myStats = game.config.cards.find((c) => c.id === topCard)?.stats ?? null;
+  // Power trumps (#137): the burn belongs to the card, so what is struck out
+  // is whatever *this* card has already been called on — the same card is
+  // never allowed to win twice on its one big number.
+  const struck = powerMode && topCard !== null ? (game.burnedByCard[topCard] ?? []) : [];
 
   const winnerId = current !== null && current.result.kind === "won" ? current.result.winner : null;
   const holderId = current !== null ? finalHolder(current) : null;
@@ -410,6 +508,22 @@ export function GameTable({ room }: { room: RoomView }) {
       : "100%";
 
   const myPowers = selfId === null ? [] : (game.powers[selfId] ?? []);
+
+  // Powers come back on a clock (#133), and a bet you are holding back is
+  // worth less if you cannot see how long you have: count the rounds the
+  // same way the engine does — one deck cycle is deck ÷ seats rounds.
+  const rechargeNote = ((): string | null => {
+    if (!powerMode) return null;
+    const recharge = game.config.powerRecharge ?? "never";
+    if (recharge === "each-elimination") return "Powers back when a seat goes out";
+    if (recharge !== "each-cycle") return null;
+    const cycle = Math.max(1, Math.floor(game.config.cards.length / game.config.players.length));
+    // Nothing spent yet: the clock is still worth printing, because it is
+    // what a power costs you if you hold it back.
+    if (myPowers.length === 3) return `Powers back every ${cycle} rounds`;
+    const left = Math.ceil(game.round / cycle) * cycle - game.round + 1;
+    return left <= 1 ? "Powers back after this round" : `Powers back in ${left} rounds`;
+  })();
   // The bet slip (#131): what the armed power will do with *your* cards. The
   // extra card a lost bet costs is your next top card once the chosen one
   // has gone; "the winner" is whoever that turns out to be.
@@ -519,8 +633,8 @@ export function GameTable({ room }: { room: RoomView }) {
     : move === "call"
       ? armedStat !== null
         ? "Tap Call to lock it in — or another stat to change"
-        : powerMode && game.burnedStats.length > 0
-          ? `Tap a stat on your card, then Call — ${game.burnedStats.length === 1 ? "1 stat is" : `${game.burnedStats.length} stats are`} burned`
+        : struck.length > 0
+          ? "Tap a stat, then Call — struck ones this card has already used"
           : "Tap a stat on your card, then Call"
       : move === "answer"
         ? armed === "drs"
@@ -627,7 +741,10 @@ export function GameTable({ room }: { room: RoomView }) {
                     ? "flipping…"
                     : current.result.kind === "tie"
                       ? "tie"
-                      : id === holderId
+                      : // Before the Super Over beat plays, the seat that won
+                        // the call is the one that "takes it"; after it, the
+                        // seat that holds the cards.
+                        id === (stage === "super" ? holderId : winnerId)
                         ? "takes it"
                         : "beaten"
                   : isLeader
@@ -647,7 +764,8 @@ export function GameTable({ room }: { room: RoomView }) {
                   out ? "seat--out" : "",
                   isLeader ? "seat--leader" : "",
                   onClock ? "seat--clock" : "",
-                  stage === "verdict" && id === holderId ? "seat--winner" : "",
+                  stage === "verdict" && id === winnerId ? "seat--winner" : "",
+                  stage === "super" && id === holderId ? "seat--winner" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
@@ -702,7 +820,14 @@ export function GameTable({ room }: { room: RoomView }) {
           })}
         </div>
 
-        {current !== null ? (
+        {current !== null && stage === "super" ? (
+          <SuperOverPanel
+            round={current}
+            editionId={editionId}
+            names={names}
+            selfId={spectator ? null : selfId}
+          />
+        ) : current !== null ? (
           <div className="reveal-panel" data-testid="reveal-cards">
             <span className="called-label" data-testid="turn-line">
               {current.power?.drsBy != null
@@ -791,9 +916,14 @@ export function GameTable({ room }: { room: RoomView }) {
             {game.pot.length > 0 && (
               <span className="called-pot">{game.pot.length} in the pot</span>
             )}
-            {powerMode && game.burnedStats.length > 0 && (
-              <ul className="burned-tray" aria-label="Burned stats" data-testid="burned-tray">
-                {game.burnedStats.map((key) => (
+            {struck.length > 0 && (
+              <ul
+                className="burned-tray"
+                aria-label="Stats this card has already been called on"
+                data-testid="burned-tray"
+              >
+                <li className="burned-tray-label">Used on this card</li>
+                {struck.map((key) => (
                   <li key={key}>{statName(editionId, key)}</li>
                 ))}
               </ul>
@@ -923,9 +1053,7 @@ export function GameTable({ room }: { room: RoomView }) {
                   {...(myStats !== null ? { stats: myStats } : {})}
                   {...(hotStat !== null ? { highlightStat: hotStat } : {})}
                   {...(armedStat !== null ? { pendingStat: armedStat } : {})}
-                  {...(move === "call" && powerMode && game.burnedStats.length > 0
-                    ? { disabledStats: game.burnedStats }
-                    : {})}
+                  {...(struck.length > 0 ? { disabledStats: struck } : {})}
                   {...(move === "call" || (move === "answer" && armed === "drs")
                     ? { onSelectStat: armStat }
                     : {})}
@@ -983,6 +1111,11 @@ export function GameTable({ room }: { room: RoomView }) {
                 ?
               </button>
             </div>
+            {rechargeNote !== null && (
+              <p className="power-recharge" data-testid="recharge-countdown">
+                {rechargeNote}
+              </p>
+            )}
             {betSlip !== null && (
               <p className="power-slip" role="status" data-testid="power-slip">
                 <b>{powerInfo(edition, armed as PowerKindView).name}</b> {betSlip}
@@ -1055,30 +1188,51 @@ export function GameTable({ room }: { room: RoomView }) {
             <EmoteBar />
           </div>
         )}
-        {current !== null && stage === "verdict" && (
+        {current !== null && stage !== "flip" && (
           <div
-            className={`verdict-sheet ${holderId === selfId && !spectator ? "verdict-sheet--won" : ""}`}
+            className={`verdict-sheet ${
+              (stage === "super" ? holderId : winnerId) === selfId && !spectator
+                ? "verdict-sheet--won"
+                : ""
+            }`}
             data-testid="verdict"
             role="status"
           >
+            {/* On the verdict beat this is the round's winner; a Super Over
+                can still take it off them, so the sheet only names the final
+                holder once that beat has played. */}
             <p className="verdict-title">
               {current.result.kind === "tie"
                 ? "Tie — cards go to the pot"
-                : holderId === selfId && !spectator
-                  ? "You take the round"
-                  : `${names[holderId ?? ""] ?? "Someone"} takes it`}
+                : stage === "super"
+                  ? holderId === selfId && !spectator
+                    ? "Super Over won — you take the round"
+                    : `Super Over — ${names[holderId ?? ""] ?? "someone"} takes it`
+                  : winnerId === selfId && !spectator
+                    ? "You take the round"
+                    : `${names[winnerId ?? ""] ?? "Someone"} takes it`}
             </p>
             <p className="verdict-sub">
               {statName(editionId, current.stat)}
               {" · "}
-              {current.result.kind === "tie"
-                ? `${current.revealed.length} cards to the pot`
-                : `${formatStatValue(editionId, current.stat, current.revealed.find((r) => r.playerId === winnerId)?.value ?? 0)} was the number`}
-              {current.potTaken > 0 && winnerId === selfId && !spectator
+              {stage === "super"
+                ? (() => {
+                    // The Super Over's own two numbers: the panel above shows
+                    // the cards, so the sheet just carries the comparison.
+                    const supers = current.power?.superOvers ?? [];
+                    const last = supers[supers.length - 1];
+                    return last === undefined
+                      ? ""
+                      : `${formatStatValue(editionId, current.stat, last.challengerCard.value)} v ${formatStatValue(editionId, current.stat, last.defenderCard.value)}`;
+                  })()
+                : current.result.kind === "tie"
+                  ? `${current.revealed.length} cards to the pot`
+                  : `${formatStatValue(editionId, current.stat, current.revealed.find((r) => r.playerId === winnerId)?.value ?? 0)} was the number`}
+              {stage !== "super" && current.potTaken > 0 && winnerId === selfId && !spectator
                 ? ` · +${current.potTaken} from the pot`
                 : ""}
             </p>
-            {current.power !== null && (
+            {current.power !== null && stage !== "super" && (
               <ul className="verdict-powers" data-testid="verdict-powers">
                 {powerLines(current, editionId, names, spectator ? null : selfId).map((line) => (
                   <li key={line}>{line}</li>

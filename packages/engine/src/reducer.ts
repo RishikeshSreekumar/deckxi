@@ -74,16 +74,41 @@ function applyTransfers(
 }
 
 /**
- * Power trumps (#137): the burned sheet after `stat` decides a round. A stat
- * stays burned for everyone until every stat in the game is on the sheet,
- * then the sheet resets to empty.
+ * Power trumps (#137): the burned sheet after a round. A stat burns on the
+ * card that named it and on that card alone — the leader's card for the
+ * call, and a reviewer's card for the stat their DRS overruled with. The
+ * card keeps that mark for the rest of the game, so a card that comes back
+ * round the table has to win on something else.
  */
-export function burnStat(state: GameState, stat: StatKey): StatKey[] {
-  if (state.config.mode !== "power-trumps") return [];
-  const burned = state.burnedStats.includes(stat)
-    ? state.burnedStats
-    : [...state.burnedStats, stat];
-  return state.config.stats.every((s) => burned.includes(s.key)) ? [] : burned;
+export function burnOnCard(
+  state: GameState,
+  burns: readonly { cardId: CardId; stat: StatKey }[],
+): Record<CardId, StatKey[]> {
+  if (state.config.mode !== "power-trumps") return {};
+  let next = state.burnedByCard;
+  for (const { cardId, stat } of burns) {
+    const already = next[cardId] ?? [];
+    if (already.includes(stat)) continue;
+    next = { ...next, [cardId]: [...already, stat] };
+  }
+  return next;
+}
+
+/** The cards that named a stat this round, and the stat each of them named. */
+export function roundBurns(
+  state: GameState,
+  event: Extract<GameEvent, { type: "ROUND_RESOLVED" }>,
+): { cardId: CardId; stat: StatKey }[] {
+  const plays = state.pending?.plays ?? {};
+  const burns: { cardId: CardId; stat: StatKey }[] = [];
+  // The leader burns the stat they called, even when a DRS overruled it.
+  const leaderCard = plays[state.leader]?.cardId;
+  const called = state.pending?.stat ?? event.stat;
+  if (leaderCard !== undefined) burns.push({ cardId: leaderCard, stat: called });
+  const drsBy = event.power?.drsBy ?? null;
+  const drsCard = drsBy === null ? undefined : plays[drsBy]?.cardId;
+  if (drsCard !== undefined) burns.push({ cardId: drsCard, stat: event.stat });
+  return burns;
 }
 
 export function reduce(state: GameState | undefined, event: GameEvent): GameState {
@@ -111,7 +136,7 @@ export function reduce(state: GameState | undefined, event: GameEvent): GameStat
       pot: [],
       winner: null,
       lastStat: null,
-      burnedStats: [],
+      burnedByCard: {},
       pending: null,
     };
   }
@@ -206,7 +231,7 @@ export function reduce(state: GameState | undefined, event: GameEvent): GameStat
         pot,
         players,
         lastStat: event.stat,
-        burnedStats: burnStat(state, event.stat),
+        burnedByCard: burnOnCard(state, roundBurns(state, event)),
         pending: null,
       };
     }

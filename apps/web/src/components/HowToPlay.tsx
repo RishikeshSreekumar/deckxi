@@ -61,31 +61,56 @@ export function HowToPlay({
           </li>
           {gameMode === "power-trumps" && (
             <li>
-              <strong>Power trumps:</strong> play either of your top two cards, never call a burned
-              stat (one that decided a round — burned for all until every stat has been used), and
-              spend three one-shot powers — each a bet that your card is strong.
+              <strong>Power trumps:</strong> play either of your top two cards, and spend three
+              powers — each a bet that your card is strong. A stat a card has already been called on
+              is <s>struck out</s> on that card for good; every other card still has it.
             </li>
           )}
         </ol>
 
+        {/* Grouped by direction rather than annotated one by one: the
+            playtest question was never "which way does economy go" but
+            "which of these do I want to be big" — so the sheet answers that
+            with two headed groups you can see from across the table. */}
         <h3 className="rules-heading">The stats — and which way wins</h3>
-        <ul className="rules-glossary">
-          {stats.map((def) => {
-            const lower = def.direction === "lower";
-            return (
-              <li key={def.key} className={lower ? "rules-stat rules-stat--lower" : "rules-stat"}>
-                <span className="rules-stat-dir" aria-hidden="true">
-                  {lower ? "↓" : "↑"}
+        {(["higher", "lower"] as const).map((direction) => {
+          const group = stats.filter((def) => def.direction === direction);
+          if (group.length === 0) return null;
+          return (
+            <section key={direction} className={`rules-dir rules-dir--${direction}`}>
+              <h4 className="rules-dir-head">
+                <span className="rules-dir-badge" aria-hidden="true">
+                  {direction === "lower" ? "↓" : "↑"}
                 </span>
-                <span className="rules-stat-body">
-                  <strong>{def.name}</strong>
-                  <em>{lower ? "lower wins" : "higher wins"}</em>
-                  <span className="sub">{def.blurb ?? ""}</span>
+                <span>
+                  <strong>{direction === "lower" ? "Lower wins" : "Higher wins"}</strong>
+                  <em>
+                    {direction === "lower"
+                      ? "the smallest number on the table takes the round"
+                      : "the biggest number on the table takes the round"}
+                  </em>
                 </span>
-              </li>
-            );
-          })}
-        </ul>
+              </h4>
+              <ul className="rules-glossary">
+                {group.map((def) => (
+                  <li key={def.key} className="rules-stat">
+                    <span className="rules-stat-body">
+                      <strong>{def.name}</strong>
+                      <span className="sub">{def.blurb ?? ""}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })}
+        <p className="sub rules-dir-note">
+          On a card, a stat that wins low is printed with a{" "}
+          <span className="rules-dir-inline" aria-hidden="true">
+            ↓
+          </span>{" "}
+          beside its name. Everything else wins high.
+        </p>
         {hasFigures && (
           <p className="sub">
             Best bowling ranks by wickets first, then by fewer runs: 4/22 beats 3/17. A dash means

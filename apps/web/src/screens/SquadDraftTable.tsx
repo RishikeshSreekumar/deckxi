@@ -20,9 +20,11 @@ import "./squadDraft.css";
 import {
   GAME_MODE_INFO,
   SQUAD_PHASE_INFO,
+  type SquadPhaseKey,
   type RoomView,
   type RosterView,
   type SquadMatchView,
+  type SquadPhaseTermView,
 } from "@deckxi/shared";
 import {
   autoRoster,
@@ -111,6 +113,25 @@ function useCountdown(deadline: number | null): number | null {
   return left;
 }
 
+/**
+ * True from the desktop breakpoint up. The squad rail is open by default on
+ * a wide screen (it is a column of its own there, and a column you have to
+ * unfold is just an empty column) and a drawer on a phone.
+ */
+function useWide(): boolean {
+  const [wide, setWide] = useState(
+    () => typeof matchMedia === "function" && matchMedia("(min-width: 1024px)").matches,
+  );
+  useEffect(() => {
+    if (typeof matchMedia !== "function") return;
+    const query = matchMedia("(min-width: 1024px)");
+    const onChange = () => setWide(query.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+  return wide;
+}
+
 function Bar({ label, value }: { label: string; value: number }) {
   return (
     <span className="facet" aria-label={`${label} ${Math.round(value)}`}>
@@ -156,6 +177,16 @@ function CardRow({ card, editionId, config, action, note, dim, onOpen, extra }: 
             {card.nation ?? "—"}
             {note !== undefined ? ` · ${note}` : ""}
           </span>
+        </span>
+        {/* The bars are what the card *is*; OVR is what it is worth once the
+            role weights are applied, and it is the number the list is sorted
+            by — printing it is what makes that order readable. */}
+        <span
+          className="pool-ovr"
+          title="Overall: 45% batting + 40% bowling + 15% fielding, after role weights"
+        >
+          <i>OVR</i>
+          <b>{Math.round(overall(card, config))}</b>
         </span>
         <span className="pool-facets">
           <Bar label="bat" value={facetScore(card, "batting", config)} />
@@ -232,6 +263,7 @@ function DraftBoard({
   const [role, setRole] = useState<RoleFilter>("all");
   const [sort, setSort] = useState<SortKey>("overall");
   const [squadOpen, setSquadOpen] = useState(false);
+  const wide = useWide();
   const [sending, setSending] = useState<string | null>(null);
   const { config } = state;
   const editionId = config.editionId;
@@ -333,11 +365,12 @@ function DraftBoard({
       </ul>
 
       {!spectator && selfId !== null && (
-        <section className={`squad-drawer ${squadOpen ? "squad-drawer--open" : ""}`.trim()}>
+        <section className={`squad-drawer ${squadOpen || wide ? "squad-drawer--open" : ""}`.trim()}>
           <button
             type="button"
             className="squad-drawer-head"
-            aria-expanded={squadOpen}
+            aria-expanded={squadOpen || wide}
+            disabled={wide}
             onClick={() => setSquadOpen((v) => !v)}
           >
             <strong>
@@ -348,9 +381,9 @@ function DraftBoard({
                 ? `Cap reached: ${full.join(", ")}`
                 : `Max ${config.nationCap} per nation`}
             </span>
-            <span aria-hidden="true">{squadOpen ? "▾" : "▴"}</span>
+            {!wide && <span aria-hidden="true">{squadOpen ? "▾" : "▴"}</span>}
           </button>
-          {squadOpen && (
+          {(squadOpen || wide) && (
             <ul className="squad-list" data-testid="your-squad">
               {mySquad.map((id) => {
                 const card = cards.get(id);
@@ -686,6 +719,23 @@ function useReveal(
   };
 }
 
+/**
+ * What each term of a phase is, in the fewest words that still say it — the
+ * label names *which* cards the number came from, which is what the phase
+ * blurb used to spend a sentence on. The engine sends the numbers; the names
+ * live here because they are copy.
+ */
+const TERM_NAME: Record<SquadPhaseKey, Partial<Record<SquadPhaseTermView["key"], string>>> = {
+  powerplay: { bat: "Your top 3", bowl: "Their openers" },
+  middle: { bat: "Your 4–7", bowl: "Their bowlers 3–5" },
+  finish: { bat: "Your 8–11", field: "XI fielding", keeper: "Keeper" },
+};
+
+/** A signed number, so a term reads as something added or taken away. */
+function signed(value: number): string {
+  return value > 0 ? `+${value.toFixed(1)}` : value.toFixed(1);
+}
+
 function MatchCard({
   match,
   names,
@@ -723,13 +773,26 @@ function MatchCard({
               </span>
               <span className="phase-name">
                 <strong>{SQUAD_PHASE_INFO[phase.key].name}</strong>
-                <span className="sub">{SQUAD_PHASE_INFO[phase.key].blurb}</span>
               </span>
               <span
                 className={`phase-score ${shown && phase.winner === match.away ? "phase-score--won" : ""}`.trim()}
               >
                 {shown ? phase.away.toFixed(1) : "·"}
               </span>
+              {/* The working: a phase score is the sum of these, printed in
+                  the same three columns, so the total above is a number you
+                  can check rather than one you have to trust. */}
+              {shown && (
+                <span className="phase-terms">
+                  {phase.terms.map((term) => (
+                    <span key={term.key} className="phase-term">
+                      <em>{signed(term.home)}</em>
+                      <i>{TERM_NAME[phase.key][term.key] ?? term.key}</i>
+                      <em>{signed(term.away)}</em>
+                    </span>
+                  ))}
+                </span>
+              )}
             </li>
           );
         })}
@@ -981,33 +1044,48 @@ export function SquadDraftTable({ room }: { room: RoomView }) {
 
       {rulesOpen && (
         <Dialog title="Squad draft" onClose={() => setRulesOpen(false)}>
+          {/* The maths, as sums rather than sentences: every number the game
+              shows you is one of these, so the sheet is short enough to read
+              while the clock runs. */}
           <ul className="power-legend">
             <li>
               <strong>Draft</strong>
               <span className="sub">
-                Snake order, {config.squadSize} picks each. At most {config.nationCap} from one
-                nation.
+                Snake order, {config.squadSize} picks each. Max {config.nationCap} per nation.
               </span>
             </li>
             <li>
-              <strong>Name your XI</strong>
+              <strong>Your XI</strong>
               <span className="sub">
-                {config.xiSize} in batting order, {config.bowlerCount} who bowl, one keeper. A
-                batter asked to bowl bowls at half strength; gloves on a non-keeper cost 10 in the
-                field.
+                {config.xiSize} in batting order, {config.bowlerCount} bowl, 1 keeps.
               </span>
             </li>
-            {(["powerplay", "middle", "finish"] as const).map((key) => (
-              <li key={key}>
-                <strong>{SQUAD_PHASE_INFO[key].name}</strong>
-                <span className="sub">{SQUAD_PHASE_INFO[key].blurb}</span>
-              </li>
-            ))}
+            <li>
+              <strong>Card strength</strong>
+              <span className="sub">BAT / BOWL / FLD are 0–100 from the card's stats.</span>
+              <span className="sub">OVR = 45% BAT + 40% BOWL + 15% FLD.</span>
+              <span className="sub">
+                Out of position it counts less: bowler bats ×0.6, batter bowls ×0.5, keeper bowls
+                ×0.25.
+              </span>
+              <span className="sub">Form rolls ×0.9–1.1 per card, once a game.</span>
+            </li>
+            <li>
+              <strong>Phase scores</strong>
+              <span className="sub">Powerplay = your top 3 BAT − their 2 opening bowlers.</span>
+              <span className="sub">Middle overs = your 4–7 BAT − their bowlers 3–5.</span>
+              <span className="sub">
+                Finish &amp; field = your 8–11 BAT + the XI's FLD ± 10 for the gloves.
+              </span>
+              <span className="sub">
+                Each side's numbers are averages, so group size never counts.
+              </span>
+            </li>
             <li>
               <strong>League</strong>
               <span className="sub">
-                Every XI plays every other. Two points a win, one a draw; margin breaks ties. Top of
-                the table wins.
+                Every XI plays every other. Win the most phases to win the match; 2 pts a win, 1 a
+                draw, margin breaks ties.
               </span>
             </li>
           </ul>

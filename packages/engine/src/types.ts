@@ -161,11 +161,14 @@ export interface GameState {
   /** The stat that decided the previous round (power trumps; informational). */
   lastStat: StatKey | null;
   /**
-   * Power trumps (#137): every stat that has decided a round since the sheet
-   * last reset. Nobody may call, or review with, a burned stat. The sheet
-   * resets to empty the moment every stat in the game has been burned.
+   * Power trumps (#137): the stats each card has already been called on,
+   * keyed by card. A stat burns on the card that named it — the leader's
+   * card for the call, the reviewer's card for a DRS — and stays burned on
+   * that card alone, so the same card cannot win twice on its one big
+   * number while every other card keeps its whole sheet. A card with
+   * nothing left un-burned opens up again (spec edge case 1).
    */
-  burnedStats: StatKey[];
+  burnedByCard: Record<CardId, StatKey[]>;
   /** The round in progress, from the leader's call until the reveal (power trumps). */
   pending: PendingRound | null;
 }

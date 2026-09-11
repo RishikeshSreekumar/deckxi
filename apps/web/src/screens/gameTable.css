@@ -120,6 +120,13 @@
   gap: var(--space-2);
 }
 
+/* The label is not one of the struck stats: it says whose sheet this is. */
+.burned-tray .burned-tray-label {
+  border: 0;
+  padding: 0;
+  text-decoration: none;
+}
+
 .burned-tray li {
   padding: 0 var(--space-2);
   border: 1px solid var(--tbl-line-soft);
@@ -171,4 +178,112 @@
   font-size: inherit;
   font-weight: var(--weight-medium);
   opacity: 0.75;
+}
+
+/* -- the Super Over beat --------------------------------------------------- */
+
+/* The rematch gets the middle of the table to itself: a banner that says what
+   is happening, then the two cards that decide it, side by side. */
+.super-panel {
+  gap: var(--space-3);
+}
+
+.super-banner {
+  padding: var(--space-2) var(--space-5);
+  border: var(--tbl-edge) solid var(--tbl-accent);
+  border-radius: var(--radius-pill);
+  background: var(--tbl-accent);
+  color: var(--tbl-on-accent);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  animation: super-in var(--dur-med) var(--ease-spring) both;
+}
+
+@keyframes super-in {
+  from {
+    transform: scale(0.7) rotate(-3deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(-1.5deg);
+    opacity: 1;
+  }
+}
+
+.super-duel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.super-sides {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+.super-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.super-side-who {
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--tbl-muted);
+}
+
+/* The two numbers are the whole point of the beat, so they are the biggest
+   thing on it after the banner. */
+.super-side-value {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.super-side--win .super-side-value,
+.super-side--win .super-side-who {
+  color: var(--status-win);
+}
+
+.super-side--lost {
+  opacity: 0.75;
+}
+
+.super-versus {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--tbl-muted);
+}
+
+.super-line {
+  margin: 0;
+  text-align: center;
+  font-weight: var(--weight-semibold);
+}
+
+/* The clock on the powers, on its own line under the chips they belong to —
+   inside the chip row it squeezed three cards into three circles. */
+.power-recharge {
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--tbl-muted);
+  white-space: nowrap;
 }

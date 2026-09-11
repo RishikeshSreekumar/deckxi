@@ -55,7 +55,6 @@ export function VoiceControls() {
   const setVoiceMuted = useStore((s) => s.setVoiceMuted);
   const room = useStore((s) => s.room);
   const spectator = useStore((s) => s.spectator);
-  const practice = useStore((s) => s.practice);
 
   // Leaving the room takes the call with it: an open mic in a game you are no
   // longer in is the worst bug this feature could have.
@@ -65,7 +64,7 @@ export function VoiceControls() {
 
   // Quick-match tables are strangers: no mic button, and the server refuses
   // signalling there too, so this is a convenience rather than the rule.
-  if (room === null || spectator || practice || room.matchmade === true) return null;
+  if (room === null || spectator || room.matchmade === true) return null;
 
   if (voice === "denied") {
     return (

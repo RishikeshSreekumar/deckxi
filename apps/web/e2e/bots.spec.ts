@@ -1,6 +1,6 @@
 /**
  * #139: a host alone in their own room seats bots and plays a real game —
- * the server's rules, the server's timers, not the offline practice mode.
+ * the server's rules and the server's timers.
  */
 import { expect, test } from "@playwright/test";
 

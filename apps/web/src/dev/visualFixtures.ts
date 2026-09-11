@@ -43,7 +43,10 @@ function cards(count: number, offset = 0): string[] {
 const config: RedactedGameConfig = {
   mode: "classic-trumps",
   players: SEATS.map((s) => s.id),
-  cards: (edition?.players ?? []).map((p) => ({ id: p.id, stats: p.stats })),
+  // The dealt deck, not the whole edition: a real game's config holds
+  // cardsPerPlayer × seats cards, and the powers' recharge clock counts in
+  // deck cycles — 28 cards over four seats is the seven-a-side game above.
+  cards: (edition?.players ?? []).slice(0, 28).map((p) => ({ id: p.id, stats: p.stats })),
   stats: (edition?.stats ?? []).map((s) => ({
     key: s.key,
     direction: s.direction,
@@ -100,7 +103,7 @@ function game(overrides: Partial<ClientGameState> = {}): ClientGameState {
     plays: {},
     yourPlay: null,
     lastStat: null,
-    burnedStats: [],
+    burnedByCard: {},
     powers: {},
     rechargedIn: null,
     lastResolved: null,
@@ -133,6 +136,31 @@ const resolvedRound: ResolvedRound = {
   auto: false,
   countsBefore: { [SELF]: 7, "p-asha": 8, "p-dev": 8, "p-nour": 7 },
   power: null,
+};
+
+/**
+ * The same round with a Super Over on it: you lost the call, your next card
+ * replays the winner's next card on the same stat, and takes the lot. The
+ * beat that used to be one line in a list now has a screen of its own.
+ */
+const superOverRound: ResolvedRound = {
+  ...resolvedRound,
+  power: {
+    calledStat: edition?.stats[0]?.key ?? "",
+    drsBy: null,
+    outcomes: [{ playerId: SELF, power: "super-over", outcome: "won" }],
+    superOvers: [
+      {
+        challenger: SELF,
+        defender: "p-asha",
+        challengerCard: { playerId: SELF, cardId: cards(1, 14)[0] ?? "", value: 94 },
+        defenderCard: { playerId: "p-asha", cardId: cards(1, 15)[0] ?? "", value: 71 },
+        winner: SELF,
+      },
+    ],
+    transfers: [],
+    nextLeader: "p-dev",
+  },
 };
 
 type StoreState = Partial<ReturnType<typeof useStore.getState>>;
@@ -201,12 +229,14 @@ const SCENARIOS: Record<string, () => StoreState> = {
     spectator: false,
     room: room("playing", "power-trumps"),
     game: game({
-      config: { ...config, mode: "power-trumps" },
+      config: { ...config, mode: "power-trumps", powerRecharge: "each-cycle" },
       leader: "p-asha",
       phase: "responding",
       selected: { playerId: "p-asha", stat: edition?.stats[1]?.key ?? "", auto: false },
       lastStat: edition?.stats[0]?.key ?? "",
-      burnedStats: [edition?.stats[0]?.key ?? ""],
+      // Your top card has already been called on its first stat, so the
+      // baseline covers a struck row on the card and the tray that names it.
+      burnedByCard: { [cards(1)[0] ?? ""]: [edition?.stats[0]?.key ?? ""] },
       plays: { "p-dev": { power: null } },
       powers: {
         [SELF]: ["powerplay", "drs", "super-over"],
@@ -235,6 +265,29 @@ const SCENARIOS: Record<string, () => StoreState> = {
       game: game({ leader: "p-asha" }),
       timer: null,
       pendingReveals: [resolvedRound],
+    };
+  },
+
+  /**
+   * The Super Over beat, held open the same way the verdict is. Its own
+   * scenario because it is the one moment the round changes hands after the
+   * verdict has already been read out.
+   */
+  "table-super": () => {
+    revealTiming.flipMs = 0;
+    revealTiming.verdictMs = 0;
+    revealTiming.superMs = 600_000;
+    return {
+      connection: "online",
+      selfId: SELF,
+      spectator: false,
+      room: room("playing", "power-trumps"),
+      game: game({
+        config: { ...config, mode: "power-trumps", powerRecharge: "each-cycle" },
+        leader: "p-asha",
+      }),
+      timer: null,
+      pendingReveals: [superOverRound],
     };
   },
 

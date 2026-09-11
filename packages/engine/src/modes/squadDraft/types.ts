@@ -76,10 +76,24 @@ export type SquadDraftPhase = "drafting" | "building" | "finished";
 export type SquadPhaseKey = "powerplay" | "middle" | "finish";
 export const SQUAD_PHASES: readonly SquadPhaseKey[] = ["powerplay", "middle", "finish"];
 
+/**
+ * One line of a phase's arithmetic. A phase score is the sum of its terms,
+ * for each side — a phase that only prints its total is a number nobody can
+ * check, so the engine reports the working rather than making the UI guess
+ * at it (the bowling terms are already negative, and form is baked in).
+ */
+export interface PhaseTerm {
+  key: "bat" | "bowl" | "field" | "keeper";
+  home: number;
+  away: number;
+}
+
 export interface PhaseReport {
   key: SquadPhaseKey;
   home: number;
   away: number;
+  /** The terms that add up to `home` and `away`. */
+  terms: PhaseTerm[];
   winner: PlayerId | null;
 }
 

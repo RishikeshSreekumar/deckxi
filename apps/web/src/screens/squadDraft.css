@@ -96,7 +96,7 @@
   flex: 1 1 auto;
   min-width: 0;
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 96px;
+  grid-template-columns: 44px minmax(0, 1fr) 40px 96px;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3);
@@ -198,6 +198,29 @@
 .pool-pick {
   flex: 0 0 auto;
   min-width: 56px;
+}
+
+/* OVR: the one number the pool is ordered by, printed so the order reads. */
+.pool-ovr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  color: var(--tbl-muted);
+}
+
+.pool-ovr i {
+  font-style: normal;
+  font-size: 9px;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.06em;
+}
+
+.pool-ovr b {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+  color: var(--tbl-ink);
 }
 
 .squad-drawer {
@@ -419,7 +442,7 @@
   display: grid;
   grid-template-columns: 56px 1fr 56px;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2) var(--space-3);
   opacity: 0.4;
   transition: opacity var(--dur-fast) var(--ease-out);
 }
@@ -433,6 +456,39 @@
   flex-direction: column;
   text-align: center;
   line-height: 1.15;
+}
+
+/* The working under a phase's name: each term, and what it did to the score
+   on both sides. Small, tabular and signed — it is arithmetic, not copy. */
+.phase-terms {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-bottom: var(--space-2);
+  border-bottom: 2px solid var(--tbl-line-soft);
+  font-size: var(--text-xs);
+  color: var(--tbl-muted);
+}
+
+/* The same three columns as the phase above, so every term sits under the
+   score it is part of. */
+.phase-term {
+  display: grid;
+  grid-template-columns: 56px 1fr 56px;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.phase-term em {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.phase-term i {
+  font-style: normal;
+  text-align: center;
 }
 
 .phase-score {
@@ -463,6 +519,93 @@
   }
 
   .pool-row-main {
-    grid-template-columns: 52px minmax(0, 1fr) 140px;
+    grid-template-columns: 52px minmax(0, 1fr) 48px 160px;
+  }
+}
+
+/* --bp-lg: desktop. The shell is already two columns here (the trumps table
+   puts your card in the second one); squad draft spans the body across both
+   and splits it itself, so the pool gets the width its rows want and the
+   squad stops being a drawer you have to unfold over them. */
+@media (min-width: 1024px) {
+  .squad-screen {
+    max-width: var(--container-xl);
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .squad-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    grid-template-rows: auto auto 1fr;
+    align-content: start;
+    column-gap: var(--space-7);
+  }
+
+  .squad-headline {
+    grid-column: 1 / -1;
+  }
+
+  .draft-tools,
+  .pool-list,
+  .draft-last,
+  .roster-builder,
+  .squad-reveal,
+  .roster-done {
+    grid-column: 1;
+  }
+
+  /* The squad is the right column, held at the top of it while the pool
+     scrolls past. */
+  .squad-drawer {
+    grid-column: 2;
+    grid-row: 2 / span 2;
+    position: static;
+    align-self: start;
+  }
+
+  .squad-drawer-head {
+    cursor: default;
+  }
+
+  .squad-list {
+    max-height: none;
+  }
+
+  /* The reveal is a reading width, centred, rather than a stretched panel. */
+  .squad-reveal,
+  .roster-done {
+    max-width: 640px;
+  }
+
+  /* A card row in the right-hand rail has a column's width, not a page's:
+     the ≥768px row would squeeze the name to nothing there. */
+  .squad-list .pool-row-main,
+  .roster-bench .pool-row-main {
+    grid-template-columns: 36px minmax(0, 1fr) 40px 104px;
+    gap: var(--space-2);
+  }
+
+  /* Naming an XI: the order on the left, the bench beside it. */
+  .roster-builder {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    column-gap: var(--space-7);
+    align-items: start;
+  }
+
+  .roster-head {
+    grid-column: 1 / -1;
+  }
+
+  .xi-list,
+  .roster-hint,
+  .roster-actions {
+    grid-column: 1;
+  }
+
+  .roster-bench {
+    grid-column: 2;
+    grid-row: 2 / span 3;
   }
 }

@@ -1,6 +1,14 @@
 /**
- * The match settings, editable by the host: mode, cards each, timer, round
- * limit. Lives behind "Match settings" in the lobby, so it loads on that tap.
+ * The match settings, editable by the host: mode, edition, the numbers, the
+ * powers and the deck. Lives behind "Match settings" in the lobby, so it
+ * loads on that tap.
+ *
+ * The sheet is chips and numbers, not prose. Every choice is a row of chips
+ * and only the *chosen* one explains itself, in one line underneath — three
+ * modes each carrying a paragraph made the sheet a wall of text you had to
+ * scroll past to reach the number you came to change. The numbers are tiles:
+ * a big value with a small label, which is the same shape the lobby's match
+ * setup prints, so the sheet reads as the editable version of that card.
  */
 import {
   DEFAULT_DECK_ID,
@@ -11,21 +19,29 @@ import {
   type RoomSettings,
   type RoomView,
 } from "@deckxi/shared";
-import { PowerCard } from "@deckxi/ui";
 import { useStore } from "../store/store.js";
 import { deckOf, useDecks } from "../lib/decks.js";
 import { useAllEditions, useEdition } from "../lib/editions.js";
+import "./settingsRows.css";
 
-/** The powers in the order the table shows them, everywhere. */
-const POWER_ORDER = ["powerplay", "drs", "super-over"] as const;
-
-function PowerCardRow({ editionId }: { editionId: string }) {
+/** A titled block of the sheet: an eyebrow, then whatever it controls. */
+function Section({
+  title,
+  aside,
+  children,
+}: {
+  title: string;
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="power-card-row-strip" aria-label="Power cards">
-      {POWER_ORDER.map((kind) => (
-        <PowerCard key={kind} kind={kind} editionId={editionId} size="full" />
-      ))}
-    </div>
+    <section className="set-section">
+      <div className="set-section-head">
+        <span className="label">{title}</span>
+        {aside}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -47,6 +63,8 @@ export function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean
       ? GAME_MODES
       : GAME_MODES.filter((mode) => edition.supportedModes.includes(mode));
   const editions = useAllEditions();
+  const mode = GAME_MODE_INFO[s.gameMode];
+  const trumps = mode.family === "trumps";
 
   /**
    * Switching edition switches sport (#143), so the mode and the deck go with
@@ -55,24 +73,38 @@ export function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean
    */
   const selectEdition = (editionId: string) => {
     const next = editions.find((e) => e.id === editionId);
-    const mode =
+    const gameMode =
       (next?.supportedModes.includes(s.gameMode) ?? true)
         ? s.gameMode
         : ((next?.supportedModes[0] ?? s.gameMode) as GameModeId);
-    patch({ editionId, gameMode: mode, deckId: DEFAULT_DECK_ID });
+    patch({ editionId, gameMode, deckId: DEFAULT_DECK_ID });
   };
 
-  const row = (
+  /**
+   * One number, as a tile: the value is the thing you read, the label is the
+   * small print. The control is a native `select` — a picker every platform
+   * already knows — sized to cover the tile so the whole tile is the target.
+   */
+  const tile = (
     label: string,
     value: number,
     options: number[],
     key: "cardsPerPlayer" | "turnTimerSeconds" | "maxRounds" | "choiceDepth",
     unit = "",
   ) => (
-    <label className="setting-row">
-      <span>{label}</span>
-      {isHost ? (
-        <select value={value} onChange={(e) => patch({ [key]: Number(e.target.value) })}>
+    <label className="setting-row set-tile" key={key}>
+      <span className="set-tile-label">{label}</span>
+      <span className="set-tile-value">
+        {value}
+        {unit}
+      </span>
+      {isHost && (
+        <select
+          className="set-tile-select"
+          value={value}
+          aria-label={label}
+          onChange={(e) => patch({ [key]: Number(e.target.value) })}
+        >
           {options.map((o) => (
             <option key={o} value={o}>
               {o}
@@ -80,149 +112,140 @@ export function SettingsRows({ room, isHost }: { room: RoomView; isHost: boolean
             </option>
           ))}
         </select>
-      ) : (
-        <strong className="chip">
-          {value}
-          {unit}
-        </strong>
       )}
     </label>
   );
 
+  /** A row of chips where exactly one is on — the sheet's one choice shape. */
+  const chips = <T extends string>(
+    label: string,
+    items: { id: T; name: string; note?: string | undefined; testId?: string | undefined }[],
+    current: T,
+    pick: (id: T) => void,
+  ) => (
+    <div className="set-chips" role="radiogroup" aria-label={label}>
+      {items.map((item) => {
+        const on = item.id === current;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            className={`chip ${on ? "chip--on" : ""}`}
+            disabled={!isHost}
+            data-testid={item.testId}
+            onClick={() => {
+              if (isHost && !on) pick(item.id);
+            }}
+          >
+            {item.name}
+            {item.note !== undefined && <span className="set-chip-note">{item.note}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
-    <div className="setting-rows">
-      <div className="setting-row setting-row--modes" role="radiogroup" aria-label="Game mode">
-        <span>Game mode</span>
-        <div className="mode-picker">
-          {modes.map((mode) => {
-            const info = GAME_MODE_INFO[mode];
-            const on = s.gameMode === mode;
-            return (
-              <button
-                key={mode}
-                type="button"
-                role="radio"
-                aria-checked={on}
-                className={on ? "mode-option mode-option--on" : "mode-option"}
-                disabled={!isHost}
-                data-testid={`mode-${mode}`}
-                onClick={() => {
-                  if (isHost && !on) patch({ gameMode: mode });
-                }}
-              >
-                <strong>{info.name}</strong>
-                <span className="sub">{info.blurb}</span>
-                <span className="sub mode-seats">
-                  {info.players.min}–{info.players.max} players
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+    <div className="set-sheet">
+      {!isHost && (
+        <p className="sub set-readonly" role="status">
+          The host sets these.
+        </p>
+      )}
+
+      <Section
+        title="Mode"
+        aside={
+          <span className="sub set-aside">
+            {mode.players.min}–{mode.players.max} players
+          </span>
+        }
+      >
+        {chips(
+          "Game mode",
+          modes.map((id) => ({ id, name: GAME_MODE_INFO[id].name, testId: `mode-${id}` })),
+          s.gameMode,
+          (id) => patch({ gameMode: id }),
+        )}
+        <p className="sub set-note">{mode.blurb}</p>
+      </Section>
+
       {editions.length > 1 && (
-        <label className="setting-row">
-          <span>Edition</span>
-          {isHost ? (
-            <select
-              value={s.editionId}
-              data-testid="edition-select"
-              onChange={(e) => selectEdition(e.target.value)}
-            >
-              {editions.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <strong className="chip">{edition?.name ?? s.editionId}</strong>
+        <Section title="Edition">
+          {chips(
+            "Edition",
+            editions.map((e) => ({ id: e.id, name: e.name, testId: `edition-${e.id}` })),
+            s.editionId,
+            selectEdition,
           )}
-        </label>
+        </Section>
       )}
-      {s.gameMode === "power-trumps" && <PowerCardRow editionId={s.editionId} />}
-      {GAME_MODE_INFO[s.gameMode].family === "trumps" &&
-        row("Cards per player", s.cardsPerPlayer, [3, 4, 5, 7, 9, 11], "cardsPerPlayer")}
-      {GAME_MODE_INFO[s.gameMode].family === "trumps" && s.cardsPerPlayer < room.players.length && (
-        <p className="sub setting-warning" role="status">
-          Fewer cards each than players: the last seats can be out before their first call. Deal{" "}
-          {room.players.length}+ each so everyone gets a go.
-        </p>
-      )}
-      {s.gameMode === "power-trumps" &&
-        row("Cards to choose from", s.choiceDepth, [1, 2, 3], "choiceDepth")}
-      {s.gameMode === "power-trumps" && (
-        <label className="setting-row">
-          <span>Powers come back</span>
-          {isHost ? (
-            <select
-              value={s.powerRecharge}
-              onChange={(e) =>
-                patch({ powerRecharge: e.target.value as RoomSettings["powerRecharge"] })
-              }
-            >
-              {(Object.keys(POWER_RECHARGE_INFO) as RoomSettings["powerRecharge"][]).map((k) => (
-                <option key={k} value={k}>
-                  {POWER_RECHARGE_INFO[k].name}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <strong className="chip">{POWER_RECHARGE_INFO[s.powerRecharge].name}</strong>
-          )}
-        </label>
-      )}
-      {s.gameMode === "power-trumps" && (
-        <p className="sub">{POWER_RECHARGE_INFO[s.powerRecharge].blurb}</p>
-      )}
-      {row("Turn timer", s.turnTimerSeconds, [10, 15, 20, 30, 60], "turnTimerSeconds", "s")}
-      {GAME_MODE_INFO[s.gameMode].family === "trumps" &&
-        row("Round limit", s.maxRounds, [10, 20, 25, 30, 50, 100, 1000], "maxRounds")}
-      <div className="setting-row setting-row--modes" role="radiogroup" aria-label="Deck">
-        <span>Deck</span>
-        <div className="mode-picker deck-picker">
-          {decks.map((deck) => {
-            const id = deck.id;
-            const on = s.deckId === id;
-            const count = deck.cardCount;
-            return (
-              <button
-                key={id}
-                type="button"
-                role="radio"
-                aria-checked={on}
-                className={on ? "mode-option mode-option--on" : "mode-option"}
-                disabled={!isHost}
-                data-testid={`deck-${id}`}
-                onClick={() => {
-                  if (isHost && !on) patch({ deckId: id });
-                }}
-              >
-                <strong>{deck.name}</strong>
-                <span className="sub">{deck.blurb}</span>
-                {count > 0 && <span className="sub mode-seats">{count} cards</span>}
-              </button>
-            );
-          })}
+
+      <Section title="Numbers">
+        <div className="set-tiles">
+          {trumps && tile("Cards each", s.cardsPerPlayer, [3, 4, 5, 7, 9, 11], "cardsPerPlayer")}
+          {s.gameMode === "power-trumps" &&
+            tile("Pick from", s.choiceDepth, [1, 2, 3], "choiceDepth")}
+          {tile("Turn timer", s.turnTimerSeconds, [10, 15, 20, 30, 60], "turnTimerSeconds", "s")}
+          {trumps && tile("Rounds", s.maxRounds, [10, 20, 25, 30, 50, 100, 1000], "maxRounds")}
         </div>
-      </div>
-      <p className="sub">
-        {/* A host picking a deck blind is how "Bowlers' Union" stays a mystery
-            until the cards land; the picker links at the list itself (#141). */}
-        <a href={`/deck?deck=${s.deckId}`} target="_blank" rel="noreferrer">
-          Look through {chosen.name} →
-        </a>
-      </p>
-      {poolSize !== null && poolSize < needed && (
-        <p className="sub setting-warning" role="status">
-          {chosen.name} has {poolSize} cards; {room.players.length} players × {s.cardsPerPlayer}{" "}
-          each needs {needed}. Everyone gets fewer, or pick a bigger deck.
-        </p>
+        {trumps && s.cardsPerPlayer < room.players.length && (
+          <p className="sub set-warn" role="status">
+            {s.cardsPerPlayer} each, {room.players.length} playing — late seats may never call.
+          </p>
+        )}
+      </Section>
+
+      {s.gameMode === "power-trumps" && (
+        <Section title="Powers back">
+          {chips(
+            "Powers come back",
+            (Object.keys(POWER_RECHARGE_INFO) as RoomSettings["powerRecharge"][]).map((k) => ({
+              id: k,
+              name: POWER_RECHARGE_INFO[k].name,
+            })),
+            s.powerRecharge,
+            (powerRecharge) => patch({ powerRecharge }),
+          )}
+          <p className="sub set-note">{POWER_RECHARGE_INFO[s.powerRecharge].blurb}</p>
+        </Section>
       )}
-      <p className="sub">
-        Cards from {edition?.name ?? s.editionId}
-        {isHost ? "" : " · the host decides"}
-      </p>
+
+      <Section
+        title="Deck"
+        aside={
+          // A host picking a deck blind is how "Bowlers' Union" stays a
+          // mystery until the cards land; the link opens the deck itself (#141).
+          <a
+            className="sub set-aside"
+            href={`/deck?deck=${s.deckId}&edition=${s.editionId}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Browse →
+          </a>
+        }
+      >
+        {chips(
+          "Deck",
+          decks.map((deck) => ({
+            id: deck.id,
+            name: deck.name,
+            note: deck.cardCount > 0 ? String(deck.cardCount) : undefined,
+            testId: `deck-${deck.id}`,
+          })),
+          s.deckId,
+          (deckId) => patch({ deckId }),
+        )}
+        <p className="sub set-note">{chosen.blurb}</p>
+        {poolSize !== null && poolSize < needed && (
+          <p className="sub set-warn" role="status">
+            Needs {needed} cards, {chosen.name} has {poolSize}.
+          </p>
+        )}
+      </Section>
     </div>
   );
 }

@@ -9,7 +9,7 @@
  * fixtures can freeze the verdict for a screenshot instead of racing it;
  * nothing in the running app writes to it.
  */
-export const revealTiming = { flipMs: 1100, verdictMs: 3200 };
+export const revealTiming = { flipMs: 1100, verdictMs: 3200, superMs: 3600 };
 
 /** 1 → "st", 2 → "nd" … for a placing. */
 export function ordinal(n: number): string {

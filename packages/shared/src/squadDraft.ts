@@ -37,11 +37,24 @@ export const SQUAD_PHASE_INFO: Record<SquadPhaseKey, { name: string; blurb: stri
   },
 };
 
+/**
+ * One line of a phase's arithmetic — the phase score is the sum of its terms
+ * for each side, so the reveal can print the working instead of a number the
+ * table has to take on trust. Bowling terms arrive already negative.
+ */
+export interface SquadPhaseTermView {
+  key: "bat" | "bowl" | "field" | "keeper";
+  home: number;
+  away: number;
+}
+
 export interface SquadPhaseView {
   key: SquadPhaseKey;
   /** Each side's score for the phase, one decimal. */
   home: number;
   away: number;
+  /** The terms that add up to `home` and `away`. */
+  terms: SquadPhaseTermView[];
   /** Null on a dead heat. */
   winner: string | null;
 }

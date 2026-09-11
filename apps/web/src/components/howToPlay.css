@@ -31,19 +31,40 @@
   gap: var(--space-3);
 }
 
-.rules-stat {
+/* One block per direction: the badge and the sentence do the explaining, so
+   the stats under it need no annotation of their own. */
+.rules-dir {
   display: flex;
+  flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-3);
-  border: var(--edge) solid var(--ink-line);
-  border-radius: var(--radius-sm);
+}
+
+.rules-dir-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
   font-size: var(--text-sm);
 }
 
-.rules-stat-dir {
-  flex: none;
-  width: 1.6em;
-  height: 1.6em;
+.rules-dir-head span:last-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.rules-dir-head strong {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+}
+
+.rules-dir-head em {
+  font-style: normal;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.rules-dir-badge,
+.rules-dir-inline {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -53,17 +74,42 @@
   font-weight: var(--weight-bold);
 }
 
+.rules-dir-badge {
+  flex: none;
+  width: 2em;
+  height: 2em;
+  font-size: var(--text-lg);
+}
+
+.rules-dir-inline {
+  width: 1.4em;
+  height: 1.4em;
+  font-size: var(--text-xs);
+  vertical-align: middle;
+}
+
+/* Lower-wins is the exception, so it wears the accent rather than the field. */
+.rules-dir--lower .rules-dir-badge {
+  background: var(--interactive-accent);
+  color: var(--interactive-on-accent);
+}
+
+.rules-dir-note {
+  margin: 0;
+}
+
+.rules-stat {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--edge) solid var(--ink-line);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+
 .rules-stat-body {
   display: flex;
   flex-direction: column;
-}
-
-.rules-stat-body em {
-  font-style: normal;
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-label);
-  color: var(--text-secondary);
 }
 
 .rules-stat-body .sub {

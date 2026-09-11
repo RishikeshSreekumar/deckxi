@@ -694,7 +694,7 @@ seconds".
 
 Bots are ordinary room seats with `bot: true`: no socket, always ready, never
 disconnect, moved by the mode's own `bot` hook (the engine baseline the tests
-and offline practice already use). The room manager plays them the moment the
+already use). The room manager plays them the moment the
 table waits on them, which also means a bot on the lead in classic trumps can
 resolve whole rounds by itself — that is the game's rules, not a bug.
 

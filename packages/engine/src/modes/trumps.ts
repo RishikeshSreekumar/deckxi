@@ -171,7 +171,7 @@ function trumpsMode(variant: TrumpsVariant): TrumpsMode {
         loose: [...state.pot],
         detail: {
           lastStat: state.lastStat,
-          burnedStats: state.burnedStats,
+          burnedByCard: state.burnedByCard,
           pending: state.pending,
           powers: Object.fromEntries(state.players.map((p) => [p.id, p.powers])),
         },

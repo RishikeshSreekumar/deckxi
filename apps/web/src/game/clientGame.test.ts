@@ -484,7 +484,9 @@ describe("power trumps mirror", () => {
           (p) => p.power?.kind === "drs",
         );
         const review = called === "runs" ? "wickets" : "runs";
-        if (wanted === "drs" && !drsTaken && !engine.burnedStats.includes(review))
+        const myCard = player?.hand[turn % Math.min(3, player.hand.length)] ?? "";
+        const burnedHere = engine.burnedByCard[myCard] ?? [];
+        if (wanted === "drs" && !drsTaken && !burnedHere.includes(review))
           power = { kind: "drs", stat: review };
         else if (wanted !== "drs") power = { kind: wanted };
       }
@@ -492,7 +494,11 @@ describe("power trumps mirror", () => {
         ? {
             type: "SELECT_STAT" as const,
             playerId: mover,
-            stat: engine.burnedStats.includes("runs") ? "wickets" : "runs",
+            stat: (
+              engine.burnedByCard[player?.hand[turn % Math.min(3, player.hand.length)] ?? ""] ?? []
+            ).includes("runs")
+              ? "wickets"
+              : "runs",
             cardIndex: turn % Math.min(3, player?.hand.length ?? 1),
             power,
           }
@@ -517,7 +523,7 @@ describe("power trumps mirror", () => {
       expect(client.round).toBe(engine.round);
       expect(client.phase).toBe(engine.phase);
       expect(client.lastStat).toBe(engine.lastStat);
-      expect(client.burnedStats).toEqual(engine.burnedStats);
+      expect(client.burnedByCard).toEqual(engine.burnedByCard);
       for (const p of engine.players) expect(client.powers[p.id]).toEqual(p.powers);
     }
     expect(engine.phase).toBe("finished");

@@ -15,11 +15,14 @@ forfeit, the round limit, determinism — is exactly as in classic trumps.
    recorded before the field existed played with three.
 2. **The call rotates.** The lead passes one seat clockwise every round, whether the round was won
    or tied. It does not go to the winner. (Exception: a winning DRS, below.)
-3. **Burned calls.** The stat that decides a round is **burned** for everyone: no leader may
-   call it, and no DRS may review on it, until every stat in the game has been burned — at which
-   point the sheet resets and every stat is open again. (Playtest 2026-09-09: a one-round
-   no-repeat rule let the same two stats alternate all game.) If every stat on the leader's
-   chosen card is burned, the whole card is open to them.
+3. **Burned calls are the card's.** A stat burns on the **card that named it** — the leader's
+   card for the call, and a reviewer's card for the stat their DRS overruled with — and stays
+   burned on that card for the rest of the game. No other card is affected: the same stat is
+   still there for every other card in the deck. A card that comes back round the table has to
+   win on something else. If every stat on the chosen card is burned, the whole card is open
+   again. (History: the burn was table-wide until every stat had been used, which closed the
+   game's best stats down for everyone at once; a one-round no-repeat rule before that let the
+   same two stats alternate all game.)
 4. **Three power cards**, each held once per player for the whole game, at most one declared per
    round, in the window between the leader's call and the reveal. Every power is the same bet —
    _"my card is strong"_: **it pays big when the round goes your way and costs exactly one extra
@@ -65,7 +68,7 @@ Declared by anyone.
 ### DRS
 
 Declared by a non-leader only (the leader has nothing to review). Names a stat that must differ
-from the call and must not be burned. The round is decided on the DRS stat instead of the call — for everyone.
+from the call and must not already be burned **on the reviewer's own card**. The round is decided on the DRS stat instead of the call — for everyone.
 
 - **Win** → the pot as normal, **and you lead the next round** (rotation resumes from you).
 - **Lose** → one extra card to the winner.

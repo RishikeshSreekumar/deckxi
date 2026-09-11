@@ -20,6 +20,7 @@ import type {
   LeagueResult,
   MatchReport,
   PhaseReport,
+  PhaseTerm,
   Roster,
   SquadDraftConfig,
   SquadPhaseKey,
@@ -154,15 +155,42 @@ export function playMatch(
   const gloves = (side: Side): number =>
     roleOf(card(side.roster.keeper)) === KEEPER_ROLE ? KEEPER_BONUS : -KEEPER_BONUS;
 
+  // A duel is one group's batting minus the other group's bowling, on both
+  // sides at once. The terms are the same two numbers, kept rather than
+  // folded away, so the reveal can print the working.
   const duel = (
     key: SquadPhaseKey,
     batters: (r: Roster) => CardId[],
     bowlers: (r: Roster) => CardId[],
   ): PhaseReport => {
-    const h = bat(batters(home.roster)) - bowl(bowlers(away.roster));
-    const a = bat(batters(away.roster)) - bowl(bowlers(home.roster));
-    return report(key, h, a, home.playerId, away.playerId);
+    const terms: PhaseTerm[] = [
+      {
+        key: "bat",
+        home: round1(bat(batters(home.roster))),
+        away: round1(bat(batters(away.roster))),
+      },
+      {
+        key: "bowl",
+        home: round1(-bowl(bowlers(away.roster))),
+        away: round1(-bowl(bowlers(home.roster))),
+      },
+    ];
+    return report(key, terms, home.playerId, away.playerId);
   };
+
+  const finishTerms: PhaseTerm[] = [
+    {
+      key: "bat",
+      home: round1(bat(home.roster.order.slice(7))),
+      away: round1(bat(away.roster.order.slice(7))),
+    },
+    {
+      key: "field",
+      home: round1(field(home.roster.order)),
+      away: round1(field(away.roster.order)),
+    },
+    { key: "keeper", home: gloves(home), away: gloves(away) },
+  ];
 
   const phases: PhaseReport[] = [
     duel(
@@ -175,13 +203,7 @@ export function playMatch(
       (r) => r.order.slice(3, 7),
       (r) => r.bowlers.slice(2, 5),
     ),
-    report(
-      "finish",
-      bat(home.roster.order.slice(7)) + field(home.roster.order) + gloves(home),
-      bat(away.roster.order.slice(7)) + field(away.roster.order) + gloves(away),
-      home.playerId,
-      away.playerId,
-    ),
+    report("finish", finishTerms, home.playerId, away.playerId),
   ];
 
   const homePhases = phases.filter((p) => p.winner === home.playerId).length;
@@ -208,16 +230,20 @@ export function playMatch(
   };
 }
 
+/**
+ * A phase's score is the sum of its terms — summed from the rounded terms,
+ * not rounded from the raw sum, so the working the UI prints adds up to the
+ * total beside it.
+ */
 function report(
   key: SquadPhaseKey,
-  home: number,
-  away: number,
+  terms: PhaseTerm[],
   homeId: PlayerId,
   awayId: PlayerId,
 ): PhaseReport {
-  const h = round1(home);
-  const a = round1(away);
-  return { key, home: h, away: a, winner: h === a ? null : h > a ? homeId : awayId };
+  const h = round1(terms.reduce((sum, t) => sum + t.home, 0));
+  const a = round1(terms.reduce((sum, t) => sum + t.away, 0));
+  return { key, home: h, away: a, terms, winner: h === a ? null : h > a ? homeId : awayId };
 }
 
 /**

@@ -64,7 +64,6 @@ export function Results({ room }: { room: RoomView }) {
   const squad = useStore((s) => s.squad);
   const rematch = useStore((s) => s.rematch);
   const leaveRoom = useStore((s) => s.leaveRoom);
-  const practice = useStore((s) => s.practice);
   const [logOpen, setLogOpen] = useState(false);
 
   const isSquad = room.settings.gameMode === "squad-draft";
@@ -190,7 +189,7 @@ export function Results({ room }: { room: RoomView }) {
           ) : (
             <p className="hint">Waiting for the host to start a rematch…</p>
           )}
-          {!spectator && !practice && (
+          {!spectator && (
             <div className="results-chat">
               <GameChat />
             </div>

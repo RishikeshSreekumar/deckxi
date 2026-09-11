@@ -16,6 +16,7 @@ const SCENARIOS = [
   { name: "table-turn", path: "table-turn", ready: "game-table" },
   { name: "table-power", path: "table-power", ready: "power-row" },
   { name: "table-reveal", path: "table-reveal", ready: "verdict" },
+  { name: "table-super", path: "table-super", ready: "super-over" },
   { name: "results", path: "results", ready: "results" },
 ] as const;
 

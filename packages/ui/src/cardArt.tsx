@@ -165,78 +165,142 @@ export function RatingShield() {
 }
 
 /**
- * The card back — the brand mark. A gold dot grid on the night ground (the
- * thing that makes a fanned stack read as a stack), with a seamed crest ring
- * around the XI monogram.
+ * The card back — the brand mark, drawn as a printed piece (v4). Sky stock
+ * with a cream lattice, a double printed rule inset from the edge, four
+ * corner pips, and a crest medallion: a rayed ring around the XI monogram
+ * with the ball's seam arcs above and below it and the wordmark under.
+ *
+ * Every colour is a semantic token, so the back follows the theme and the
+ * export pipeline's bare-SVG context still gets the literal fallbacks.
  */
 export function CardBackArt() {
-  // Every colour is a semantic token so the back follows the theme; the
-  // fallbacks only matter in the export pipeline's bare-SVG context.
-  const ground = "var(--card-back, #0b1512)";
-  const accent = "var(--interactive-accent, #d9a441)";
+  const ground = "var(--card-back, #3b82c4)";
+  const ink = "var(--card-back-ink, #fdf9f0)";
+  const accent = "var(--interactive-accent, #d1441f)";
+  // The rays of the crest: twelve spokes between the two rings, drawn from
+  // angles rather than by hand so the ring stays true at any scale.
+  const rays = Array.from({ length: 12 }, (_, i) => {
+    const a = (i * Math.PI) / 6;
+    const [dx, dy] = [Math.sin(a), -Math.cos(a)];
+    return `M${(50 + dx * 23).toFixed(1)} ${(70 + dy * 23).toFixed(1)}L${(50 + dx * 27).toFixed(1)} ${(70 + dy * 27).toFixed(1)}`;
+  }).join("");
   return (
     <svg className="card-back-art" viewBox="0 0 100 140" aria-label="Face-down card" role="img">
       <defs>
-        {/* The 9px dot grid of the physical deck, at the card's own scale. */}
-        <pattern id="dxi-back-grid" width="6.4" height="6.4" patternUnits="userSpaceOnUse">
-          <circle cx="3.2" cy="3.2" r="0.85" fill={accent} opacity="0.35" />
+        {/* The lattice of the physical stock: a fine cream cross-hatch with a
+            dot at each crossing, at the card's own scale. */}
+        <pattern id="dxi-back-weave" width="8" height="8" patternUnits="userSpaceOnUse">
+          <path d="M0 8 8 0M-2 2 2-2M6 10 10 6" stroke={ink} strokeWidth="0.5" opacity="0.16" />
+          <circle cx="4" cy="4" r="0.8" fill={ink} opacity="0.2" />
         </pattern>
+        {/* Light on the middle of the card, so the stock is not flat. */}
+        <radialGradient id="dxi-back-glow" cx="50%" cy="50%" r="62%">
+          <stop offset="0%" stopColor={ink} stopOpacity="0.16" />
+          <stop offset="100%" stopColor={ink} stopOpacity="0" />
+        </radialGradient>
       </defs>
       <rect width="100" height="140" fill={ground} />
-      <rect width="100" height="140" fill="url(#dxi-back-grid)" />
-      {/* Crest ring — the ground punched back through the grid. */}
-      <circle cx="50" cy="70" r="27" fill={ground} stroke={accent} strokeWidth="1.4" />
+      <rect width="100" height="140" fill="url(#dxi-back-weave)" />
+      <rect width="100" height="140" fill="url(#dxi-back-glow)" />
+
+      {/* The printed border: a cream rule with a hairline companion inside. */}
+      <rect
+        x="5"
+        y="5"
+        width="90"
+        height="130"
+        rx="5"
+        fill="none"
+        stroke={ink}
+        strokeWidth="1.3"
+        opacity="0.85"
+      />
+      <rect
+        x="8"
+        y="8"
+        width="84"
+        height="124"
+        rx="3.5"
+        fill="none"
+        stroke={ink}
+        strokeWidth="0.5"
+        opacity="0.45"
+      />
+
+      {/* Corner pips — the ember, kept to four small marks. */}
+      {(
+        [
+          [12, 12],
+          [88, 12],
+          [12, 128],
+          [88, 128],
+        ] as [number, number][]
+      ).map(([x, y]) => (
+        <rect
+          key={`${x}-${y}`}
+          x={x - 1.9}
+          y={y - 1.9}
+          width="3.8"
+          height="3.8"
+          rx="0.6"
+          fill={accent}
+          transform={`rotate(45 ${x} ${y})`}
+        />
+      ))}
+
+      {/* The crest: rayed outer ring, medallion, seam arcs, monogram. */}
+      <path d={rays} stroke={ink} strokeWidth="1" opacity="0.5" strokeLinecap="round" />
+      <circle cx="50" cy="70" r="22" fill={ground} stroke={ink} strokeWidth="1.4" />
       <circle
         cx="50"
         cy="70"
-        r="22.5"
+        r="18.5"
         fill="none"
         stroke={accent}
-        strokeWidth="0.6"
-        opacity="0.5"
-      />
-      {/* Seam arcs — the cricket ball motif */}
-      <path
-        d="M31 55 Q50 66 69 55"
-        fill="none"
-        stroke={accent}
-        strokeWidth="1.2"
-        strokeDasharray="2.6 2.2"
-        opacity="0.85"
+        strokeWidth="0.9"
+        opacity="0.9"
       />
       <path
-        d="M31 85 Q50 74 69 85"
+        d="M33 60.5Q50 69 67 60.5"
         fill="none"
-        stroke={accent}
-        strokeWidth="1.2"
-        strokeDasharray="2.6 2.2"
-        opacity="0.85"
+        stroke={ink}
+        strokeWidth="1"
+        strokeDasharray="2.4 2"
+        opacity="0.7"
       />
-      {/* Monogram */}
+      <path
+        d="M33 79.5Q50 71 67 79.5"
+        fill="none"
+        stroke={ink}
+        strokeWidth="1"
+        strokeDasharray="2.4 2"
+        opacity="0.7"
+      />
       <text
-        x="50"
-        y="77"
+        x="50.5"
+        y="77.5"
         textAnchor="middle"
-        fontSize="22"
+        fontSize="20"
         fontWeight="700"
-        fill="var(--card-back-ink, #f4f1e6)"
+        fill={ink}
         fontFamily="var(--font-display, 'Baloo 2', Barlow, sans-serif)"
-        letterSpacing="1.2"
+        letterSpacing="1"
       >
         XI
       </text>
-      {/* Gold rule inset from the edge — the printed border of the deck. */}
-      <rect
-        x="4"
-        y="4"
-        width="92"
-        height="132"
-        rx="5"
-        fill="none"
-        stroke={accent}
-        strokeWidth="0.7"
-        opacity="0.45"
-      />
+      <text
+        x="51.3"
+        y="106"
+        textAnchor="middle"
+        fontSize="6"
+        fontWeight="600"
+        fill={ink}
+        opacity="0.75"
+        fontFamily="var(--font-sans, Barlow, sans-serif)"
+        letterSpacing="2.6"
+      >
+        DECKXI
+      </text>
     </svg>
   );
 }

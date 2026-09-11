@@ -37,7 +37,7 @@ function makeState(
     pot: potCards.map((c) => c.id),
     winner: null,
     lastStat: null,
-    burnedStats: [],
+    burnedByCard: {},
     pending: null,
   };
 }

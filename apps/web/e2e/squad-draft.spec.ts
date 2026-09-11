@@ -106,6 +106,7 @@ test("two browsers draft squads, name XIs and play the league", async ({ browser
   await expect(host.getByTestId("squad-reveal")).toBeVisible();
   await expect(guest.getByTestId("match-card")).toBeVisible();
   await shot(guest, "reveal-phone");
+  await shot(host, "reveal-desktop");
   await expect(host.getByTestId("league-table")).toBeVisible({ timeout: 20_000 });
   await shot(host, "table-desktop");
 

@@ -595,35 +595,27 @@ select:focus {
   }
 }
 
-/* The seats: each player is a piece; an open seat is dashed and quiet. */
+/* The seats: each player is a piece; an open seat is dashed and quiet.
+   `auto-fill` with a floor, not a fixed count: a seat carries a name, a
+   status line and up to two chips, and a fixed three-up column that cannot
+   hold them pushes the whole grid past the screen's edge. */
 .seat-grid {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
   gap: var(--space-5);
-}
-
-/* --bp-sm: large phone up */
-@media (min-width: 480px) {
-  .seat-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* --bp-md: tablet up */
-@media (min-width: 768px) {
-  .seat-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
 }
 
 .player {
   display: flex;
   align-items: center;
-  gap: var(--space-5);
-  padding: var(--space-5) var(--space-6);
+  gap: var(--space-4);
+  /* Grid items are min-content wide by default, which is what let a long
+     name or a pair of chips blow the column out. */
+  min-width: 0;
+  padding: var(--space-5);
   min-height: var(--touch-min);
 }
 
@@ -664,6 +656,19 @@ select:focus {
   font-family: var(--font-display);
   font-size: var(--text-md);
   font-weight: var(--weight-bold);
+}
+
+/* The status is one line or it is not a status: a bot's line wrapping to
+   three is what squeezed the chips out of the seat. */
+.player-name .sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Chips in a seat keep their size; the name is the part that gives. */
+.player > .chip {
+  flex: none;
 }
 
 /* Ready is the green disc; not-yet is the outlined one. */
@@ -783,14 +788,8 @@ select:focus {
   padding-top: var(--space-4);
 }
 
-/* The mode picker: two stacked options, the chosen one in ember. Radios,
+/* The picker used by /deck: stacked options, the chosen one in ember. Radios,
    so the keyboard and a screen reader get the same choice. */
-.setting-row--modes {
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--space-3);
-}
-
 .mode-picker {
   display: grid;
   gap: var(--space-3);
@@ -3241,62 +3240,13 @@ select:focus {
 
 /* -- /deck ----------------------------------------------------------------- */
 
-.deck {
-  max-width: var(--container-xl);
-}
-
-.deck-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-5);
-}
-
-.deck-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-
-/* Two rows of chips — which edition, then which cards inside it — stacked so
-   the head still reads as one block. */
-.deck-chips {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: var(--space-3);
-}
-
-@media (max-width: 600px) {
-  .deck-chips {
-    align-items: flex-start;
-  }
-}
-
-/* The deck picker on /deck: the same tiles the lobby uses, laid wide. */
-.deck-picker--page {
-  display: grid;
-  gap: var(--space-3);
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  margin: var(--space-5) 0;
-}
+/* The catalogue screen's own rules ship with its lazy chunk — see
+   screens/deck.css. Only the chip state below is shared with other screens. */
 
 .chip--on {
   background: var(--interactive-accent);
   border-color: var(--interactive-accent);
   color: var(--interactive-on-accent);
-}
-
-.deck-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: var(--space-6);
-  align-items: start;
-}
-
-.deck-grid .card-scale {
-  max-width: none;
 }
 
 /* -- /admin ---------------------------------------------------------------- */

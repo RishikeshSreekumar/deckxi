@@ -20,11 +20,7 @@ const BANNER_COPY = {
 
 export function ConnectionBanner() {
   const connection = useStore((s) => s.connection);
-  const practice = useStore((s) => s.practice);
-  // A practice game is played entirely on the device (#85). Telling someone
-  // mid-round that we are reconnecting is true of the socket and irrelevant
-  // to the game in front of them.
-  if (connection === "online" || practice) return null;
+  if (connection === "online") return null;
   return (
     <div
       className={connection === "offline" ? "conn-banner conn-banner--offline" : "conn-banner"}

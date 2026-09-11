@@ -63,7 +63,6 @@ export function Landing() {
   // table for you.
   const shortcutNewRoom = params.get("new") === "1";
   const createRoom = useStore((s) => s.createRoom);
-  const practiceGame = useStore((s) => s.practiceGame);
   const quickMatch = useStore((s) => s.quickMatch);
   const cancelQueue = useStore((s) => s.cancelQueue);
   const queue = useStore((s) => s.queue);
@@ -389,31 +388,6 @@ export function Landing() {
           </section>
         )}
 
-        {!invite && queue === null && (
-          <section className="panel landing-practice" aria-labelledby="practice-title">
-            <h2 className="panel-title" id="practice-title">
-              Practice on your own
-            </h2>
-            <p className="sub">
-              Two bots, no room, no connection needed — good for a train tunnel.
-            </p>
-            <button
-              type="button"
-              className="button button--block"
-              data-testid="practice"
-              disabled={name.trim().length === 0 || busy !== null}
-              onClick={() => {
-                setBusy("create");
-                void practiceGame({ gameMode: "classic-trumps", name: name.trim() }).finally(() =>
-                  setBusy(null),
-                );
-              }}
-            >
-              Play against bots
-            </button>
-          </section>
-        )}
-
         {invite && (
           <Dialog title="You're invited" onClose={declineInvite}>
             <div className="invite-sheet" data-testid="invite-sheet">
@@ -465,16 +439,7 @@ export function Landing() {
           </Dialog>
         )}
 
-        {connection !== "online" ? (
-          <p className="sub landing-foot">Waiting for the server…</p>
-        ) : (
-          me !== null && (
-            <p className="sub landing-foot">
-              You'll play as <strong>{name.trim() === "" ? me.name : name.trim()}</strong> — change
-              the name above if that's not you.
-            </p>
-          )
-        )}
+        {connection !== "online" && <p className="sub landing-foot">Waiting for the server…</p>}
       </div>
     </main>
   );

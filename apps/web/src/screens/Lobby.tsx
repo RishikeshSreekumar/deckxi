@@ -272,7 +272,7 @@ export function Lobby({ room }: { room: RoomView }) {
               // ready — so nobody has to work out what the table is waiting on.
               const readiness = p.ready ? "ready" : "not ready";
               const status = p.bot
-                ? "bot · plays its best stat, never bluffs"
+                ? "bot · never bluffs"
                 : !p.connected
                   ? "away"
                   : p.id === selfId
@@ -317,9 +317,6 @@ export function Lobby({ room }: { room: RoomView }) {
               <li key={`open-${i}`} className="panel player player--open">
                 <span className="player-name">
                   <strong>Open seat</strong>
-                  {canAddBot && i === 0 && (
-                    <span className="sub">A bot plays its best stat and never bluffs.</span>
-                  )}
                 </span>
                 {canAddBot && i === 0 && (
                   <button
